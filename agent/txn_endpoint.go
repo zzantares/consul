@@ -119,6 +119,13 @@ func (s *HTTPServer) convertOps(resp http.ResponseWriter, req *http.Request) (st
 				writes++
 			}
 
+			//Http 400, if there is a leading slash in a key.
+			if strings.HasPrefix(in.KV.Key, "/") {
+				resp.WriteHeader(http.StatusBadRequest)
+				fmt.Fprintf(resp, "Invalid input! Key '%s' should not have a leading slash '/'", in.KV.Key)
+				return nil, 0, false
+			}
+
 			out := &structs.TxnOp{
 				KV: &structs.TxnKVOp{
 					Verb: verb,
