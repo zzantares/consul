@@ -6,7 +6,6 @@ import (
 	"net"
 	"reflect"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/hashicorp/consul/agent/structs"
@@ -781,11 +780,6 @@ type RuntimeConfig struct {
 	//
 	// hcl: key_file = string
 	KeyFile string
-
-	// KeyLoader dynamically reloads TLS configuration.
-	KeyLoader *tlsutil.KeyLoader
-
-	keyloaderLock sync.Mutex
 
 	// LeaveDrainTime is used to wait after a server has left the LAN Serf
 	// pool for RPCs to drain and new requests to be sent to other servers.
@@ -1576,7 +1570,6 @@ func (c *RuntimeConfig) TLSConfig() (*tlsutil.Config, error) {
 		CAPath:                   c.CAPath,
 		CertFile:                 c.CertFile,
 		KeyFile:                  c.KeyFile,
-		KeyLoader:                c.GetKeyLoader(),
 		NodeName:                 c.NodeName,
 		ServerName:               c.ServerName,
 		TLSMinVersion:            c.TLSMinVersion,
@@ -1638,19 +1631,6 @@ func (c *RuntimeConfig) OutgoingCheckTLSConfig() (*tls.Config, error) {
 	}
 
 	return tc.OutgoingTLSConfig()
-}
-
-// GetKeyLoader returns the keyloader for a RuntimeConfig object. If the
-// keyloader has not been initialized, it will first do so.
-func (c *RuntimeConfig) GetKeyLoader() *tlsutil.KeyLoader {
-	c.keyloaderLock.Lock()
-	defer c.keyloaderLock.Unlock()
-
-	// If the keyloader has not yet been initialized, do it here
-	if c.KeyLoader == nil {
-		c.KeyLoader = &tlsutil.KeyLoader{}
-	}
-	return c.KeyLoader
 }
 
 // Sanitized returns a JSON/HCL compatible representation of the runtime
