@@ -16,6 +16,11 @@
                         {{ input type='password' value=item.token name="token" }}
                         <em>The token is sent with requests as the <code>X-Consul-Token</code> HTTP header parameter. This is used to control the ACL for the web UI.</em>
                     </label>
+                    <label class="type-text">
+                        <span>Auto Refresh</span>
+                        {{ input type='checkbox' checked=item.autorefresh name="autorefresh" }}
+                        <em>Use Blocking Queries/Streaming JSON Responses</em>
+                    </label>
                 </fieldset>
                 <button type="submit" {{action 'update' item}}>Save</button>
             </form>

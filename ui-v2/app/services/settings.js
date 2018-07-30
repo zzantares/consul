@@ -17,12 +17,19 @@ export default Service.extend({
   },
   findAll: function(key) {
     const token = get(this, 'storage').getItem('token');
-    return Promise.resolve({ token: token === null ? '' : token });
+    const autorefresh = get(this, 'storage').getItem('autorefresh');
+    return Promise.resolve({
+      token: token === null ? '' : token,
+      autorefresh: Boolean(
+        autorefresh === null ? '' : autorefresh === 'false' ? false : autorefresh
+      ),
+    });
   },
   findBySlug: function(slug) {
     // TODO: Force localStorage to always be strings...
     // const value = get(this, 'storage').getItem(slug);
-    return Promise.resolve(get(this, 'storage').getItem(slug));
+    const item = get(this, 'storage').getItem(slug);
+    return Promise.resolve(item === 'false' ? false : item);
   },
   persist: function(obj) {
     const storage = get(this, 'storage');
