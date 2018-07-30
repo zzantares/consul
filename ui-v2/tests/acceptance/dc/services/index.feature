@@ -1,5 +1,8 @@
 @setupApplicationTest
-Feature: Services
+Feature: dc / services / list
+  In order to see registered services
+  As a user
+  I want to see a list of registered services when I visit the service index page
   Scenario:
     Given 1 datacenter model with the value "dc-1"
     And 3 service models

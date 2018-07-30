@@ -21,4 +21,14 @@ export default Route.extend({
     this._super(...arguments);
     controller.setProperties(model);
   },
+  deactivate: function() {
+    const repo = get(this, 'repo');
+    repo.abortAll();
+  },
+  // TODO: willTransition seemed to be the hook to use
+  // but if you abort here then tests aren't cleaned up properly?
+  // willTransition: function(transition) {
+  //   const repo = get(this, 'repo');
+  //   repo.abortAll();
+  // },
 });

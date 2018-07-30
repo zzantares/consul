@@ -2,7 +2,11 @@ import Service, { inject as service } from '@ember/service';
 import { get, set } from '@ember/object';
 
 export default Service.extend({
-  store: service('store'),
+  store: service('store/streaming'),
+  abortAll: function() {
+    const store = get(this, 'store');
+    store.abort && store.abort('service');
+  },
   findAllByDatacenter: function(dc) {
     return get(this, 'store').query('service', { dc: dc });
   },

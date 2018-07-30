@@ -6,6 +6,8 @@ import pages from 'consul-ui/tests/pages';
 import api from 'consul-ui/tests/helpers/api';
 
 // const dont = `( don't| shouldn't| can't)?`;
+// from/like yaml, 'from' could mean additional and 'like' could mean exact, so 'replaced'
+// I also use 'for yaml' for urls, which still makes good reading sense
 
 const create = function(number, name, value) {
   // don't return a promise here as
@@ -49,8 +51,16 @@ export default function(assert) {
       .given(['$number $model model[s]?', '$number $model models'], function(number, model) {
         return create(number, model);
       })
+      .given(['an external edit results in $number $model models[s]?'], function(number, model) {
+        return create(number, model);
+      })
       .given(['$number $model model[s]? with the value "$value"'], function(number, model, value) {
         return create(number, model, value);
+      })
+      .given(['settings from yaml\n$yaml'], function(data) {
+        return Object.keys(data).forEach(function(key) {
+          window.localStorage[key] = data[key];
+        });
       })
       .given(
         ['$number $model model[s]? from yaml\n$yaml', '$number $model model[s]? from json\n$json'],
@@ -58,6 +68,9 @@ export default function(assert) {
           return create(number, model, data);
         }
       )
+      .given('a network latency of $number', function(number) {
+        api.server.setCookie('CONSUL_LATENCY', number);
+      })
       // TODO: Abstract this away from HTTP
       .given(['the url "$url" responds with a $status status'], function(url, status) {
         return api.server.respondWithStatus(url, parseInt(status));
@@ -153,6 +166,28 @@ export default function(assert) {
         });
       })
       // assertions
+      .then('pause until I see $number $model models', function(num, model) {
+        return new Promise(function(resolve) {
+          let count = 0;
+          console.log(count);
+          const interval = setInterval(function() {
+            if (++count >= 100) {
+              clearInterval(interval);
+              assert.ok(false);
+              resolve();
+            }
+            const len = currentPage[`${model}s`].filter(function(item) {
+              return item.isVisible;
+            }).length;
+            if (len === num) {
+              console.log(count);
+              clearInterval(interval);
+              assert.equal(len, num, `Expected ${num} ${model}s, saw ${len}`);
+              resolve();
+            }
+          }, 100);
+        });
+      })
       .then('a $method request is made to "$url" with the body from yaml\n$yaml', function(
         method,
         url,
@@ -231,7 +266,6 @@ export default function(assert) {
         const body = request.requestBody;
         assert.equal(body, null, `Expected the request body to be null, was ${body}`);
       })
-
       .then('a $method request is made to "$url"', function(method, url) {
         const request = api.server.history[api.server.history.length - 2];
         assert.equal(
