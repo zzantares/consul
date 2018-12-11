@@ -59,7 +59,7 @@ const (
 	//
 	// Given the current size of aFew == 32 in memdb's watch_few.go, this
 	// will allow for up to ~64 goroutines per blocking query.
-	watchLimit = 2048
+	watchLimit = 100000
 )
 
 // Store is where we store all of Consul's state, including

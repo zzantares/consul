@@ -142,12 +142,31 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 		&args.QueryOptions,
 		&reply.QueryMeta,
 		func(ws memdb.WatchSet, state *state.Store) error {
-			index, nodes, err := f(ws, state, args)
+
+			// TODO(banks): using key here feels wrong. It has many gotchas like ACL token
+			// and DC not being included which is kinda what we want but only if we are
+			// extremely careful in what we do under this key...
+			sharedKey := args.CacheInfo().Key
+
+			type result struct {
+				ws    memdb.WatchSet
+				index uint64
+				nodes structs.CheckServiceNodes
+			}
+			v, err, _ := h.srv.sfGroup.Do(sharedKey, func() (interface{}, error) {
+				index, nodes, err := f(ws, state, args)
+				return result{ws, index, nodes}, err
+			})
 			if err != nil {
 				return err
 			}
+			// Replace our watchset with the one populated in the de-duped operation
+			// otherwise `ws` will be empty and we won't notice any further changes...
+			for ch := range v.(result).ws {
+				ws.Add(ch)
+			}
+			reply.Index, reply.Nodes = v.(result).index, v.(result).nodes
 
-			reply.Index, reply.Nodes = index, nodes
 			if len(args.NodeMetaFilters) > 0 {
 				reply.Nodes = nodeMetaFilter(args.NodeMetaFilters, reply.Nodes)
 			}

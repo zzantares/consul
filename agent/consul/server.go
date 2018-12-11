@@ -35,6 +35,7 @@ import (
 	"github.com/hashicorp/raft"
 	raftboltdb "github.com/hashicorp/raft-boltdb"
 	"github.com/hashicorp/serf/serf"
+	"golang.org/x/sync/singleflight"
 )
 
 // These are the protocol versions that Consul can _understand_. These are
@@ -163,6 +164,9 @@ type Server struct {
 	// blocking RPCs with the same WatchSet can share the goroutines needed to
 	// watch.
 	watchPool *watchpool.WatchPool
+
+	// sfGroup is used to de-duplicate work shared by several concurrent RPCs.
+	sfGroup *singleflight.Group
 
 	// Logger uses the provided LogOutput
 	logger *log.Logger
@@ -341,6 +345,7 @@ func NewServerLogger(config *Config, logger *log.Logger, tokens *token.Store) (*
 		eventChLAN:       make(chan serf.Event, serfEventChSize),
 		eventChWAN:       make(chan serf.Event, serfEventChSize),
 		watchPool:        &watchpool.WatchPool{},
+		sfGroup:          &singleflight.Group{},
 		logger:           logger,
 		leaveCh:          make(chan struct{}),
 		reconcileCh:      make(chan serf.Member, reconcileChSize),
