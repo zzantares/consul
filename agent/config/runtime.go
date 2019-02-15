@@ -1562,11 +1562,11 @@ func (c *RuntimeConfig) APIConfig(includeClientCerts bool) (*api.Config, error) 
 
 // TLSConfig returns the full TLS configuration for both incoming and
 // outgoing connections.
-func (c *RuntimeConfig) TLSConfig() (*tlsutil.Config, error) {
+func (c *RuntimeConfig) TLSConfig() *tlsutil.Config {
 	useClientVerify := c.VerifyOutgoing || c.VerifyServerHostname
 	useClientCA := c.CAFile != "" || c.CAPath != ""
 
-	tc := &tlsutil.Config{
+	return &tlsutil.Config{
 		VerifyIncoming:           c.VerifyIncoming || c.VerifyIncomingHTTPS,
 		VerifyOutgoing:           c.VerifyOutgoing,
 		VerifyServerHostname:     c.VerifyServerHostname,
@@ -1582,50 +1582,24 @@ func (c *RuntimeConfig) TLSConfig() (*tlsutil.Config, error) {
 		CipherSuites:             c.TLSCipherSuites,
 		PreferServerCipherSuites: c.TLSPreferServerCipherSuites,
 	}
-	return tc, nil
 }
 
 // IncomingHTTPSConfig returns the TLS configuration for HTTPS
 // connections to consul.
 func (c *RuntimeConfig) IncomingHTTPSConfig() (*tls.Config, error) {
-	tc, err := c.TLSConfig()
-
-	if err != nil {
-		return nil, err
-	}
-	if tc == nil {
-		return nil, fmt.Errorf("no TLS configuration available")
-	}
-
-	return tc.IncomingTLSConfig()
+	return c.TLSConfig().IncomingTLSConfig()
 }
 
 // OutgoingTLSConfig returns the TLS configuration for connections to agents.
 func (c *RuntimeConfig) OutgoingAgentTLSConfig() (*tls.Config, error) {
-	tc, err := c.TLSConfig()
-
-	if err != nil {
-		return nil, err
-	}
-	if tc == nil {
-		return nil, fmt.Errorf("no TLS configuration available")
-	}
-
-	return tc.OutgoingTLSConfig()
+	return c.TLSConfig().OutgoingTLSConfig()
 }
 
 // OutgoingCheckTLSConfig returns the TLS configuration for check
 // connections from consul.
 func (c *RuntimeConfig) OutgoingCheckTLSConfig() (*tls.Config, error) {
 	// Start with the agent TLS information
-	tc, err := c.TLSConfig()
-
-	if err != nil {
-		return nil, err
-	}
-	if tc == nil {
-		return nil, fmt.Errorf("no TLS configuration available")
-	}
+	tc := c.TLSConfig()
 
 	// Then remove key information if TLS is disabled for checks
 	if !c.EnableAgentTLSForChecks {
