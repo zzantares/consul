@@ -679,7 +679,6 @@ func (a *Agent) listenHTTP() ([]*HTTPServer, error) {
 				if err != nil {
 					return err
 				}
-
 				l = tls.NewListener(l, tlscfg)
 			}
 			srv := &HTTPServer{
