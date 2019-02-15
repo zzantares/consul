@@ -390,7 +390,7 @@ func (a *Agent) Start() error {
 	// create the cache
 	a.cache = cache.New(nil)
 
-	err := a.reloadTLSConfig(c.TLSConfig())
+	err := a.reloadTLSConfig(c)
 	if err != nil {
 		return fmt.Errorf("Failed to setup TLS configuration: %v", err)
 	}
