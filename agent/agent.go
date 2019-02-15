@@ -390,7 +390,7 @@ func (a *Agent) Start() error {
 	// create the cache
 	a.cache = cache.New(nil)
 
-	err := a.GetTLSLoader().Reload(c.TLSConfig())
+	err := a.reloadTLSConfig(c.TLSConfig())
 	if err != nil {
 		return fmt.Errorf("Failed to setup TLS configuration: %v", err)
 	}
@@ -897,9 +897,9 @@ func (a *Agent) reloadWatches(cfg *config.RuntimeConfig) error {
 	return nil
 }
 
-// reloadTLSConfig performs TLS config reloads. Must be called from HandleReload.
-func (a *Agent) reloadTLSConfig(newCfg *config.RuntimeConfig) error {
-	return a.GetTLSLoader().Reload(newCfg.TLSConfig())
+// reloadTLSConfig performs TLS config reloads.
+func (a *Agent) reloadTLSConfig(cfg *config.RuntimeConfig) error {
+	return a.GetTLSLoader().Reload(cfg.TLSConfig())
 }
 
 // consulConfig is used to return a consul configuration
