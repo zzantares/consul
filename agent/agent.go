@@ -2131,7 +2131,7 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 				chkType.Interval = checks.MinInterval
 			}
 
-			tlsClientConfig, err := a.setupCheckTLSClientConfig(chkType.TLSSkipVerify)
+			tlsClientConfig, err := a.setupTLSClientConfig(chkType.TLSSkipVerify)
 			if err != nil {
 				return fmt.Errorf("Failed to set up TLS: %v", err)
 			}
@@ -2186,7 +2186,7 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 			var tlsClientConfig *tls.Config
 			if chkType.GRPCUseTLS {
 				var err error
-				tlsClientConfig, err = a.setupCheckTLSClientConfig(chkType.TLSSkipVerify)
+				tlsClientConfig, err = a.setupTLSClientConfig(chkType.TLSSkipVerify)
 				if err != nil {
 					return fmt.Errorf("Failed to set up TLS: %v", err)
 				}
@@ -2324,9 +2324,9 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 	return nil
 }
 
-// setupCheckTLSClientConfig returns TLS client configuration for performing
+// setupTLSClientConfig returns TLS client configuration for performing
 // checks.
-func (a *Agent) setupCheckTLSClientConfig(skipVerify bool) (*tls.Config, error) {
+func (a *Agent) setupTLSClientConfig(skipVerify bool) (*tls.Config, error) {
 	if !a.config.EnableAgentTLSForChecks {
 		// Re-use the API client's TLS structure, leaving key info blank
 		tlsConfig := &api.TLSConfig{
