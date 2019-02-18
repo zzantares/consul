@@ -2354,22 +2354,7 @@ func (a *Agent) setupCheckTLSClientConfig(skipVerify bool) (*tls.Config, error) 
 		}
 		return api.SetupTLSConfig(tlsConfig)
 	}
-
-	// Start with the outgoing TLS config
-	tlscfg, err := a.GetTLSLoader().OutgoingTLSConfig()
-	if err != nil {
-		return tlscfg, err
-	}
-
-	if tlscfg == nil {
-		// Outgoing TLS disabled, so no TLS config
-		return nil, nil
-	}
-
-	// Modify it for skipVerify
-	tlscfg.InsecureSkipVerify = skipVerify
-
-	return tlscfg, err
+	return a.setupAgentTLSClientConfig(skipVerify)
 }
 
 // RemoveCheck is used to remove a health check.
