@@ -2,6 +2,7 @@ package agent
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
@@ -3385,4 +3386,30 @@ func TestAgent_SetupProxyManager(t *testing.T) {
 	a, err = New(c)
 	require.NoError(t, err)
 	require.NoError(t, a.setupProxyManager())
+}
+
+func TestAgent_ReloadTLSSetupTLSClientConfig(t *testing.T) {
+	type variant struct {
+		config             *config.RuntimeConfig
+		insecureSkipVerify bool
+		err                error
+		result             *tls.Config
+	}
+	variants := []variant{
+		{config: &config.RuntimeConfig{}, insecureSkipVerify: true, err: nil, result: &tls.Config{}},
+		{config: &config.RuntimeConfig{}, insecureSkipVerify: false, err: nil, result: &tls.Config{}},
+		{config: &config.RuntimeConfig{EnableAgentTLSForChecks: true}, insecureSkipVerify: true, err: nil, result: &tls.Config{}},
+		{config: &config.RuntimeConfig{EnableAgentTLSForChecks: true}, insecureSkipVerify: false, err: nil, result: &tls.Config{}},
+	}
+	for i, v := range variants {
+		a := Agent{config: v.config}
+		c, err := a.setupTLSClientConfig(v.insecureSkipVerify)
+		msg := fmt.Sprintf("(case %d)", i)
+		require.Equal(t, v.err, err, msg)
+		if v.result != nil {
+			require.NotNil(t, c, msg)
+		} else {
+			require.Nil(t, c, msg)
+		}
+	}
 }

@@ -1590,29 +1590,6 @@ func (c *RuntimeConfig) IncomingHTTPSConfig() (*tls.Config, error) {
 	return c.TLSConfig().IncomingTLSConfig()
 }
 
-// OutgoingTLSConfig returns the TLS configuration for connections to agents.
-func (c *RuntimeConfig) OutgoingAgentTLSConfig() (*tls.Config, error) {
-	return c.TLSConfig().OutgoingTLSConfig()
-}
-
-// OutgoingCheckTLSConfig returns the TLS configuration for check
-// connections from consul.
-func (c *RuntimeConfig) OutgoingCheckTLSConfig() (*tls.Config, error) {
-	// Start with the agent TLS information
-	tc := c.TLSConfig()
-
-	// Then remove key information if TLS is disabled for checks
-	if !c.EnableAgentTLSForChecks {
-		tc.VerifyOutgoing = false
-		tc.CAFile = ""
-		tc.CAPath = ""
-		tc.CertFile = ""
-		tc.KeyFile = ""
-	}
-
-	return tc.OutgoingTLSConfig()
-}
-
 // Sanitized returns a JSON/HCL compatible representation of the runtime
 // configuration where all fields with potential secrets had their
 // values replaced by 'hidden'. In addition, network addresses and

@@ -65,7 +65,7 @@ func (l *Loader) IncomingTLSConfig() (*tls.Config, error) {
 	return tlsConfig, nil
 }
 
-// OutgoingTLSConfig generates a TLS configuration for outgoing connections.
+// OutgoingTLSConfig returns a TLS configuration for outgoing connections.
 func (l *Loader) OutgoingTLSConfig() (*tls.Config, error) {
 	l.loaderLock.RLock()
 	defer l.loaderLock.RUnlock()
