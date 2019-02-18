@@ -2324,9 +2324,17 @@ func (a *Agent) AddCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 	return nil
 }
 
-// setupAgentTLSClientConfig returns TLS client configuration for connecting
-// to agents.
-func (a *Agent) setupAgentTLSClientConfig(skipVerify bool) (*tls.Config, error) {
+// setupCheckTLSClientConfig returns TLS client configuration for performing
+// checks.
+func (a *Agent) setupCheckTLSClientConfig(skipVerify bool) (*tls.Config, error) {
+	if !a.config.EnableAgentTLSForChecks {
+		// Re-use the API client's TLS structure, leaving key info blank
+		tlsConfig := &api.TLSConfig{
+			InsecureSkipVerify: skipVerify,
+		}
+		return api.SetupTLSConfig(tlsConfig)
+	}
+
 	// Start with the outgoing TLS config
 	tlscfg, err := a.GetTLSLoader().OutgoingTLSConfig()
 	if err != nil {
@@ -2342,19 +2350,6 @@ func (a *Agent) setupAgentTLSClientConfig(skipVerify bool) (*tls.Config, error) 
 	tlscfg.InsecureSkipVerify = skipVerify
 
 	return tlscfg, err
-}
-
-// setupCheckTLSClientConfig returns TLS client configuration for performing
-// checks.
-func (a *Agent) setupCheckTLSClientConfig(skipVerify bool) (*tls.Config, error) {
-	if !a.config.EnableAgentTLSForChecks {
-		// Re-use the API client's TLS structure, leaving key info blank
-		tlsConfig := &api.TLSConfig{
-			InsecureSkipVerify: skipVerify,
-		}
-		return api.SetupTLSConfig(tlsConfig)
-	}
-	return a.setupAgentTLSClientConfig(skipVerify)
 }
 
 // RemoveCheck is used to remove a health check.
