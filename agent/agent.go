@@ -339,9 +339,9 @@ func (a *Agent) setupProxyManager() error {
 	return nil
 }
 
-// GetTLSLoader returns the TLS configuration loader for an Agent object.
+// getTLSLoader returns the TLS configuration loader for an Agent object.
 // If the loader has not been initialized, it will first do so.
-func (a *Agent) GetTLSLoader() *tlsutil.Loader {
+func (a *Agent) getTLSLoader() *tlsutil.Loader {
 	a.tlsLoaderLock.Lock()
 	defer a.tlsLoaderLock.Unlock()
 
@@ -899,7 +899,7 @@ func (a *Agent) reloadWatches(cfg *config.RuntimeConfig) error {
 
 // reloadTLSConfig performs TLS config reloads.
 func (a *Agent) reloadTLSConfig(cfg *config.RuntimeConfig) error {
-	return a.GetTLSLoader().Reload(cfg.TLSConfig())
+	return a.getTLSLoader().Reload(cfg.TLSConfig())
 }
 
 // consulConfig is used to return a consul configuration
@@ -2336,7 +2336,7 @@ func (a *Agent) setupCheckTLSClientConfig(skipVerify bool) (*tls.Config, error) 
 	}
 
 	// Start with the outgoing TLS config
-	tlscfg, err := a.GetTLSLoader().OutgoingTLSConfig()
+	tlscfg, err := a.getTLSLoader().OutgoingTLSConfig()
 	if err != nil {
 		return tlscfg, err
 	}
