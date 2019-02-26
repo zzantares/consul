@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/hashicorp/consul/agent/consul/stream"
 	"github.com/hashicorp/consul/types"
 	"github.com/hashicorp/go-memdb"
 )
@@ -70,6 +71,9 @@ type Store struct {
 	schema *memdb.DBSchema
 	db     *memdb.MemDB
 
+	// stream stores emitted events for streaming clients to catch up with.
+	stream *stream.Stream
+
 	// abandonCh is used to signal watchers that this state store has been
 	// abandoned (usually during a restore). This is only ever closed.
 	abandonCh chan struct{}
@@ -84,9 +88,10 @@ type Store struct {
 // Snapshot is used to provide a point-in-time snapshot. It
 // works by starting a read transaction against the whole state store.
 type Snapshot struct {
-	store     *Store
-	tx        *memdb.Txn
-	lastIndex uint64
+	store      *Store
+	tx         *memdb.Txn
+	streamSnap *stream.Snapshot
+	lastIndex  uint64
 }
 
 // Restore is used to efficiently manage restoring a large amount of
@@ -113,7 +118,7 @@ type sessionCheck struct {
 }
 
 // NewStateStore creates a new in-memory state storage layer.
-func NewStateStore(gc *TombstoneGC) (*Store, error) {
+func NewStateStore(gc *TombstoneGC, streamSize int) (*Store, error) {
 	// Create the in-memory DB.
 	schema := stateStoreSchema()
 	db, err := memdb.NewMemDB(schema)
@@ -125,11 +130,22 @@ func NewStateStore(gc *TombstoneGC) (*Store, error) {
 	s := &Store{
 		schema:       schema,
 		db:           db,
+		stream:       stream.New(streamSize),
 		abandonCh:    make(chan struct{}),
 		kvsGraveyard: NewGraveyard(gc),
 		lockDelay:    NewDelay(),
 	}
 	return s, nil
+}
+
+// ApplyDone is called by the FSM at the end of every Apply just before it
+// returns. This allows the store to hook in and cleanup resources in a single
+// place rather than requiring every transactional method to remember to add the
+// right defers.
+func (s *Store) ApplyDone() {
+	// Stream abort is always safe and ensures we never leave stream with staged events
+	// if the main DB transaction was aborted after publish due to an error.
+	s.stream.Abort()
 }
 
 // Snapshot is used to create a point-in-time snapshot of the entire db.
@@ -142,7 +158,9 @@ func (s *Store) Snapshot() *Snapshot {
 	}
 	idx := maxIndexTxn(tx, tables...)
 
-	return &Snapshot{s, tx, idx}
+	streamSnap := s.stream.Snapshot(idx)
+
+	return &Snapshot{s, tx, streamSnap, idx}
 }
 
 // LastIndex returns that last index that affects the snapshotted data.

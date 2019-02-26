@@ -110,7 +110,9 @@ func (c *FSM) Apply(log *raft.Log) interface{} {
 
 	// Apply based on the dispatch table, if possible.
 	if fn := c.apply[msgType]; fn != nil {
-		return fn(buf[1:], log.Index)
+		val := fn(buf[1:], log.Index)
+		c.state.ApplyDone()
+		return val
 	}
 
 	// Otherwise, see if it's safe to ignore. If not, we have to panic so
