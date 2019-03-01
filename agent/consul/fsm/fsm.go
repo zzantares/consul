@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/hashicorp/consul/agent/consul/state"
+	"github.com/hashicorp/consul/agent/consul/stream"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/raft"
@@ -63,8 +64,8 @@ type FSM struct {
 }
 
 // New is used to construct a new FSM with a blank state.
-func New(gc *state.TombstoneGC, logOutput io.Writer) (*FSM, error) {
-	stateNew, err := state.NewStateStore(gc)
+func New(gc *state.TombstoneGC, logOutput io.Writer, stream *stream.Stream) (*FSM, error) {
+	stateNew, err := state.NewStateStoreWithStream(gc, stream)
 	if err != nil {
 		return nil, err
 	}

@@ -22,6 +22,7 @@ import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/agent/consul/fsm"
 	"github.com/hashicorp/consul/agent/consul/state"
+	"github.com/hashicorp/consul/agent/consul/stream"
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/agent/pool"
 	"github.com/hashicorp/consul/agent/router"
@@ -496,7 +497,10 @@ func (s *Server) setupRaft() error {
 
 	// Create the FSM.
 	var err error
-	s.fsm, err = fsm.New(s.tombstoneGC, s.config.LogOutput)
+	// TODO(banks): make this configurable and note that the tmpStream below needs
+	// to be the same size to correctly restore bad clusters.
+	streamBuf := stream.New(10000)
+	s.fsm, err = fsm.New(s.tombstoneGC, s.config.LogOutput, streamBuf)
 	if err != nil {
 		return err
 	}
@@ -603,7 +607,9 @@ func (s *Server) setupRaft() error {
 				return fmt.Errorf("recovery failed to parse peers.json: %v", err)
 			}
 
-			tmpFsm, err := fsm.New(s.tombstoneGC, s.config.LogOutput)
+			// TODO(banks): make stream size configuraable
+			tmpStream := stream.New(10000)
+			tmpFsm, err := fsm.New(s.tombstoneGC, s.config.LogOutput, tmpStream)
 			if err != nil {
 				return fmt.Errorf("recovery failed to make temp FSM: %v", err)
 			}
