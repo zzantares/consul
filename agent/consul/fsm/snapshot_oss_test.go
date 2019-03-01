@@ -202,6 +202,13 @@ func TestFSM_SnapshotRestore_OSS(t *testing.T) {
 	err = fsm.state.CASetConfig(17, caConfig)
 	assert.Nil(err)
 
+	// Stream events
+	//
+	// TODO(banks) can't directly trigger events to be emitted here since that's
+	// internal to state store. Once we have stream events actually plumbed into
+	// different parts of the state store then then mutations above will generate
+	// stream events we can ensure get persisted correctly.
+
 	// Snapshot
 	snap, err := fsm.Snapshot()
 	if err != nil {

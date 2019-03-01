@@ -55,6 +55,7 @@ const (
 	ACLPolicySetRequestType                = 19
 	ACLPolicyDeleteRequestType             = 20
 	ConnectCALeafRequestType               = 21
+	StreamRequestType                      = 22 // FSM snapshots only.
 )
 
 const (

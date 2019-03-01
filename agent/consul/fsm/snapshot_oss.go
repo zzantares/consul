@@ -3,6 +3,7 @@ package fsm
 import (
 	"github.com/hashicorp/consul/agent/consul/autopilot"
 	"github.com/hashicorp/consul/agent/consul/state"
+	"github.com/hashicorp/consul/agent/consul/stream"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/go-msgpack/codec"
 	"github.com/hashicorp/raft"
@@ -27,6 +28,7 @@ func init() {
 	registerRestorer(structs.IndexRequestType, restoreIndex)
 	registerRestorer(structs.ACLTokenSetRequestType, restoreToken)
 	registerRestorer(structs.ACLPolicySetRequestType, restorePolicy)
+	registerRestorer(structs.StreamRequestType, restoreStream)
 }
 
 func persistOSS(s *snapshot, sink raft.SnapshotSink, encoder *codec.Encoder) error {
@@ -64,6 +66,9 @@ func persistOSS(s *snapshot, sink raft.SnapshotSink, encoder *codec.Encoder) err
 		return err
 	}
 	if err := s.persistIndex(sink, encoder); err != nil {
+		return err
+	}
+	if err := s.persistStream(sink, encoder); err != nil {
 		return err
 	}
 	return nil
@@ -372,11 +377,29 @@ func (s *snapshot) persistIndex(sink raft.SnapshotSink, encoder *codec.Encoder) 
 		idx := raw.(*state.IndexEntry)
 
 		// Write out a node registration
-		sink.Write([]byte{byte(structs.IndexRequestType)})
+		if _, err := sink.Write([]byte{byte(structs.IndexRequestType)}); err != nil {
+			return err
+		}
 		if err := encoder.Encode(idx); err != nil {
 			return err
 		}
 	}
+	return nil
+}
+
+func (s *snapshot) persistStream(sink raft.SnapshotSink, encoder *codec.Encoder) error {
+	// The Stream snapshot is a little different as it's not directly from the
+	// memdb but was captured when this snapshot started.
+	streamSnap := s.state.Stream()
+
+	if _, err := sink.Write([]byte{byte(structs.StreamRequestType)}); err != nil {
+		return err
+	}
+
+	if err := encoder.Encode(streamSnap); err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -564,4 +587,12 @@ func restorePolicy(header *snapshotHeader, restore *state.Restore, decoder *code
 		return err
 	}
 	return restore.ACLPolicy(&req)
+}
+
+func restoreStream(header *snapshotHeader, restore *state.Restore, decoder *codec.Decoder) error {
+	var streamSnap stream.Snapshot
+	if err := decoder.Decode(&streamSnap); err != nil {
+		return err
+	}
+	return restore.StreamRestore(&streamSnap)
 }

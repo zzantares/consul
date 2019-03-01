@@ -118,7 +118,13 @@ type sessionCheck struct {
 }
 
 // NewStateStore creates a new in-memory state storage layer.
-func NewStateStore(gc *TombstoneGC, streamSize int) (*Store, error) {
+func NewStateStore(gc *TombstoneGC) (*Store, error) {
+	return NewStateStoreWithStream(gc, nil)
+}
+
+// NewStateStoreWithStream creates a new in-memory state storage layer and
+// sets the Stream to record emitted events for streaming clients.
+func NewStateStoreWithStream(gc *TombstoneGC, stream *stream.Stream) (*Store, error) {
 	// Create the in-memory DB.
 	schema := stateStoreSchema()
 	db, err := memdb.NewMemDB(schema)
@@ -130,7 +136,7 @@ func NewStateStore(gc *TombstoneGC, streamSize int) (*Store, error) {
 	s := &Store{
 		schema:       schema,
 		db:           db,
-		stream:       stream.New(streamSize),
+		stream:       stream,
 		abandonCh:    make(chan struct{}),
 		kvsGraveyard: NewGraveyard(gc),
 		lockDelay:    NewDelay(),
@@ -145,7 +151,9 @@ func NewStateStore(gc *TombstoneGC, streamSize int) (*Store, error) {
 func (s *Store) ApplyDone() {
 	// Stream abort is always safe and ensures we never leave stream with staged events
 	// if the main DB transaction was aborted after publish due to an error.
-	s.stream.Abort()
+	if s.stream != nil {
+		s.stream.Abort()
+	}
 }
 
 // Snapshot is used to create a point-in-time snapshot of the entire db.
@@ -158,7 +166,10 @@ func (s *Store) Snapshot() *Snapshot {
 	}
 	idx := maxIndexTxn(tx, tables...)
 
-	streamSnap := s.stream.Snapshot(idx)
+	var streamSnap *stream.Snapshot
+	if s.stream != nil {
+		streamSnap = s.stream.Snapshot(idx)
+	}
 
 	return &Snapshot{s, tx, streamSnap, idx}
 }
