@@ -12,7 +12,7 @@ import (
 )
 
 var clientACLCacheConfig *structs.ACLCachesConfig = &structs.ACLCachesConfig{
-	// The ACL cache configuration on client agents is more conservative than
+	// The ACL cache configuration on asd agents is more conservative than
 	// on the servers. It is assumed that individual client agents will have
 	// fewer distinct identities accessing the client than a server would
 	// and thus can put smaller limits on the amount of ACL caching done.
