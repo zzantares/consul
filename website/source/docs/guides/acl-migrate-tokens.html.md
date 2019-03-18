@@ -19,16 +19,22 @@ necessary to manually translate old tokens into new ones to take advantage of
 the new ACL system features. Tooling is provided to help automate this and this
 guide describes the overall process.
 
-~> **Note:** **1.4.0 retains full support for "legacy" ACL tokens** so upgrades
+This document will briefly describe [what changed](#new-acl-system-updates), and then walk
+through the [high-level migration process options](#migration-process), finally
+giving some [specific examples](#migration-examples) of migration strategies.
+
+~> **Note**: Before starting the token migration process all Consul agents, servers
+and clients, must be running at least version 1.4.0. Additionally, you 
+must ensure the Cluster is in a healthy state including a functioning leader.
+You can use `consul info` to investigate the cluster health.
+
+Consul 1.4.0 retains full support for "legacy" ACL tokens so upgrades
 from Consul 1.3.0 are safe. Existing tokens will continue to work in the same
 way for at least two "major" releases (1.5.x, 1.6.x, etc; note HashiCorp does
 not use SemVer for our products).
 
-This document will briefly describe [what changed](#what-changed), and then walk
-through the [high-level migration process options](#migration-process), finally
-giving some [specific examples](#migration-examples) of migration strategies.
 
-## New ACL System Differences
+## New ACL System Updates
 
 The [ACL guide](/docs/guides/acl.html) and [legacy ACL
 guide](/docs/guides/acl-legacy.html) describes the new and old systems in
@@ -94,7 +100,7 @@ and [Policies](/api/acl/policies.html).
 While "legacy" tokens will continue to work for several major releases, it's
 advisable to plan on migrating existing tokens as soon as is convenient.
 Migrating also enables using the new policy management improvements, stricter
-policy syntax rules and other features of the new system without
+policy syntax rules, and other features of the new system without
 re-issuing all the secrets in use.
 
 The high-level process for migrating a legacy token is as follows:
