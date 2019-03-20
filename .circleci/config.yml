@@ -22,6 +22,22 @@ references:
     GIT_COMMITTER_NAME: circleci-consul
 
 jobs:
+  # build all distros
+  build-distros:
+    docker:
+      - image: *GOLANG_IMAGE
+    environment:
+      GOXPARALLEL: 2 # CircleCI containers are 2 CPU x 4GB RAM
+    working_directory: /go/src/github.com/hashicorp/consul
+    steps:
+      - checkout
+      - run: make tools
+      - run: ./build-support/scripts/build-local.sh
+
+      # save dev build to CircleCI
+      - store_artifacts:
+          path: ./pkg/bin
+
   dev-build:
     docker:
       - image: *GOLANG_IMAGE
@@ -29,10 +45,6 @@ jobs:
     steps:
       - checkout
       - run: make dev
-
-      # save dev build to CircleCI
-      - store_artifacts:
-          path: /go/bin/consul
 
       # save dev build to pass to downstream jobs
       - persist_to_workspace:
@@ -178,6 +190,9 @@ jobs:
 
 workflows:
   version: 2
+  build-distros:
+    jobs:
+      - build-distros
   test-integrations:
     jobs:
       - dev-build
