@@ -23,10 +23,10 @@ references:
 
 jobs:
   # build all distros
-  build-distros:
+  build-distros: &build-distros
     docker:
       - image: *GOLANG_IMAGE
-    environment:
+    environment: &build-env
       GOXPARALLEL: 2 # CircleCI containers are 2 CPU x 4GB RAM
     working_directory: /go/src/github.com/hashicorp/consul
     steps:
@@ -37,6 +37,27 @@ jobs:
       # save dev build to CircleCI
       - store_artifacts:
           path: ./pkg/bin
+
+  build-386:
+    <<: *build-distros
+    environment:
+      <<: *build-env
+      XC_OS: "darwin freebsd linux windows"
+      XC_ARCH: "386"
+
+  build-amd64:
+    <<: *build-distros
+    environment:
+      <<: *build-env
+      XC_OS: "darwin freebsd linux solaris windows"
+      XC_ARCH: "amd64"
+
+  build-arm-arm64:
+    <<: *build-distros
+    environment:
+      <<: *build-env
+      XC_OS: linux
+      XC_ARCH: "arm arm64"
 
   dev-build:
     docker:
@@ -192,29 +213,31 @@ workflows:
   version: 2
   build-distros:
     jobs:
-      - build-distros
-  test-integrations:
-    jobs:
-      - dev-build
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-  website:
-    jobs:
-      - build-website:
-          context: static-sites
-          filters:
-            branches:
-              only: stable-website
-  frontend:
-    jobs:
-      - frontend-cache
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test:
-          requires:
-            - ember-build
+      - build-386
+      - build-amd64
+      - build-arm-arm64
+  # test-integrations:
+  #   jobs:
+  #     - dev-build
+  #     - nomad-integration-master:
+  #         requires:
+  #           - dev-build
+  #     - nomad-integration-0_8:
+  #         requires:
+  #           - dev-build
+  # website:
+  #   jobs:
+  #     - build-website:
+  #         context: static-sites
+  #         filters:
+  #           branches:
+  #             only: stable-website
+  # frontend:
+  #   jobs:
+  #     - frontend-cache
+  #     - ember-build:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-test:
+  #         requires:
+  #           - ember-build
