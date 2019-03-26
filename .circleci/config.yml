@@ -28,6 +28,7 @@ jobs:
       - image: *GOLANG_IMAGE
     environment: &build-env
       GOXPARALLEL: 2 # CircleCI containers are 2 CPU x 4GB RAM
+      GO111MODULE: "on"
     working_directory: /go/src/github.com/hashicorp/consul
     steps:
       - checkout
@@ -216,28 +217,28 @@ workflows:
       - build-386
       - build-amd64
       - build-arm-arm64
-  test-integrations:
-    jobs:
-      - dev-build
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-  website:
-    jobs:
-      - build-website:
-          context: static-sites
-          filters:
-            branches:
-              only: stable-website
-  frontend:
-    jobs:
-      - frontend-cache
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test:
-          requires:
-            - ember-build
+        #  test-integrations:
+        #    jobs:
+        #      - dev-build
+        #      - nomad-integration-master:
+        #          requires:
+        #            - dev-build
+        #      - nomad-integration-0_8:
+        #          requires:
+        #            - dev-build
+        #  website:
+        #    jobs:
+        #      - build-website:
+        #          context: static-sites
+        #          filters:
+        #            branches:
+        #              only: stable-website
+        #  frontend:
+        #    jobs:
+        #      - frontend-cache
+        #      - ember-build:
+        #          requires:
+        #            - frontend-cache
+        #      - ember-test:
+        #          requires:
+        #            - ember-build
