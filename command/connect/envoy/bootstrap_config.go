@@ -1,11 +1,13 @@
 package envoy
 
 import (
+	"bytes"
 	"fmt"
 	"net"
 	"net/url"
 	"os"
 	"strings"
+	"text/template"
 )
 
 // BootstrapConfig is the set of keys we care about in a Connect.Proxy.Config
@@ -127,6 +129,23 @@ func (c *BootstrapConfig) Template() string {
 		return c.OverrideJSONTpl
 	}
 	return bootstrapTemplate
+}
+
+func (c *BootstrapConfig) GenerateJSON(args *BootstrapTplArgs) ([]byte, error) {
+	if err := c.ConfigureArgs(args); err != nil {
+		return nil, err
+	}
+	t, err := template.New("bootstrap").Parse(c.Template())
+	if err != nil {
+		return nil, err
+	}
+	var buf bytes.Buffer
+	err = t.Execute(&buf, args)
+	if err != nil {
+		return nil, err
+	}
+
+	return buf.Bytes(), nil
 }
 
 // ConfigureArgs takes the basic template arguments generated from the command
