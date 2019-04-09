@@ -1,0 +1,96 @@
+version: '3'
+
+services:
+  consul:
+    image: "consul-dev"
+    command:
+     - "agent"
+     - "-dev"
+     - "-config-dir"
+     - "/etc/consul"
+     - "-client"
+     - "0.0.0.0"
+    volumes:
+      - "./etc/consul:/etc/consul"
+    ports:
+      - "8500:8500"
+
+  s1:
+    depends_on:
+      - consul
+    image: "fortio/fortio"
+    command:
+     - "server"
+     - "-http-port"
+     - ":8080"
+    network_mode: service:consul
+
+  s2:
+    depends_on:
+      - consul
+    image: "fortio/fortio"
+    command:
+     - "server"
+     - "-http-port"
+     - ":8181"
+    network_mode: service:consul
+
+  s1-sidecar-proxy:
+    depends_on:
+      - consul
+    image: "envoyproxy/envoy:v1.8.0"
+    command:
+     - "envoy"
+     - "-c"
+     - "/etc/envoy/s1-bootstrap.json"
+     - "-l"
+     - "debug"
+     # Hot restart breaks since both envoys seem to interact with each other
+     # despite separate containers taht don't share IPC namespace. Not quire
+     # sure how this happens but may be due to unix socket being in some shared
+     # location?
+     - "--disable-hot-restart"
+     - "--drain-time-s"
+     - "1"
+    volumes:
+      - "./etc/envoy:/etc/envoy"
+    network_mode: service:consul
+
+  s2-sidecar-proxy:
+    depends_on:
+      - consul
+    image: "envoyproxy/envoy:v1.8.0"
+    command:
+     - "envoy"
+     - "-c"
+     - "/etc/envoy/s2-bootstrap.json"
+     - "-l"
+     - "debug"
+     # Hot restart breaks since both envoys seem to interact with each other
+     # despite separate containers taht don't share IPC namespace. Not quire
+     # sure how this happens but may be due to unix socket being in some shared
+     # location?
+     - "--disable-hot-restart"
+     - "--drain-time-s"
+     - "1"
+    volumes:
+      - "./etc/envoy:/etc/envoy"
+    network_mode: service:consul
+
+  verify:
+    depends_on:
+      - consul
+      - s1
+      - s1-sidecar-proxy
+      - s2
+      - s2-sidecar-proxy
+    build:
+      context: .
+      dockerfile: Dockerfile-bats
+    tty: true
+    command:
+     - "--pretty"
+     - "/etc/bats"
+    volumes:
+      - "./etc/bats:/etc/bats"
+    network_mode: service:consul

@@ -29,4 +29,9 @@ RUN make dev
 
 FROM consul:latest
 
+# Add a label which lets us easily tell if we have changes to build in the
+# current tree.
+ARG GIT_DESCRIBE
+LABEL "com.hashicorp.consul.version"=${GIT_DESCRIBE}
+
 COPY --from=builder /go/bin/consul /bin
