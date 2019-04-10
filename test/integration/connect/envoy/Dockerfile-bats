@@ -2,3 +2,4 @@ FROM bats/bats:latest
 
 RUN apk add curl
 RUN apk add openssl
+RUN apk add jq

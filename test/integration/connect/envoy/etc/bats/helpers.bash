@@ -37,3 +37,30 @@ function echogreen {
   echo $@
   tput sgr0
 }
+
+function get_cert {
+  local HOSTPORT=$1
+  openssl s_client -connect $HOSTPORT \
+    -showcerts 2>/dev/null \
+    | openssl x509 -noout -text
+}
+
+function assert_proxy_presents_cert_uri {
+  local HOSTPORT=$1
+  local SERVICENAME=$2
+
+  CERT=$(retry 5 1 get_cert $HOSTPORT)
+
+  echo "WANT SERVICE: $SERVICENAME"
+  echo "GOT CERT:"
+  echo "$CERT"
+
+  echo "$CERT" | grep -Eo "URI:spiffe://([a-zA-Z0-9-]+).consul/ns/default/dc/dc1/svc/$SERVICENAME"
+}
+
+function get_envoy_listener_filters {
+  local HOSTPORT=$1
+  run retry 5 1 curl -s -f $HOSTPORT/config_dump
+  [ "$status" -eq 0 ]
+  echo "$output" | jq --raw-output '.configs[2].dynamic_active_listeners[].listener | "\(.name) \( .filter_chains[0].filters | map(.name) | join(","))"'
+}

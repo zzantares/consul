@@ -11,17 +11,11 @@ load helpers
 }
 
 @test "s1 proxy listener shoudl be up and have right cert" {
-  openssl s_client -connect localhost:21000 \
-    -showcerts 2>/dev/null \
-    | openssl x509 -noout -text \
-    | grep -Eo 'URI:spiffe://([a-zA-Z0-9-]+).consul/ns/default/dc/dc1/svc/s1'
+  assert_proxy_presents_cert_uri localhost:21000 s1
 }
 
 @test "s2 proxy listener shoudl be up and have right cert" {
-  openssl s_client -connect localhost:21001 \
-    -showcerts 2>/dev/null \
-    | openssl x509 -noout -text \
-    | grep -Eo 'URI:spiffe://([a-zA-Z0-9-]+).consul/ns/default/dc/dc1/svc/s2'
+  assert_proxy_presents_cert_uri localhost:21001 s2
 }
 
 @test "s1 upstream should be able to connect to s2" {

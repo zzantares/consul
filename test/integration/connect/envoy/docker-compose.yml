@@ -13,7 +13,9 @@ services:
     volumes:
       - "./etc/consul:/etc/consul"
     ports:
+      # Exposing to host makes debugging locally a bit easier
       - "8500:8500"
+      - "8502:8502"
 
   s1:
     depends_on:
@@ -38,7 +40,7 @@ services:
   s1-sidecar-proxy:
     depends_on:
       - consul
-    image: "envoyproxy/envoy:v1.8.0"
+    image: "envoyproxy/envoy:v${ENVOY_VERSION:-1.8.0}"
     command:
      - "envoy"
      - "-c"
@@ -59,7 +61,7 @@ services:
   s2-sidecar-proxy:
     depends_on:
       - consul
-    image: "envoyproxy/envoy:v1.8.0"
+    image: "envoyproxy/envoy:v${ENVOY_VERSION:-1.8.0}"
     command:
      - "envoy"
      - "-c"
@@ -80,10 +82,6 @@ services:
   verify:
     depends_on:
       - consul
-      - s1
-      - s1-sidecar-proxy
-      - s2
-      - s2-sidecar-proxy
     build:
       context: .
       dockerfile: Dockerfile-bats
@@ -93,4 +91,20 @@ services:
      - "/etc/bats"
     volumes:
       - "./etc/bats:/etc/bats"
+    network_mode: service:consul
+
+  s1-sidecar-proxy-consul-exec:
+    depends_on:
+      - consul
+    build:
+      context: .
+      dockerfile: Dockerfile-consul-envoy
+      args:
+        ENVOY_VERSION: ${ENVOY_VERSION:-1.8.0}
+    command:
+      - "consul"
+      - "connect"
+      - "envoy"
+      - "-sidecar-for"
+      - "s1"
     network_mode: service:consul

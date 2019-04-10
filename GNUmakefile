@@ -120,9 +120,12 @@ dev-build:
 
 dev-docker: go-build-image
 	@CURRENT_DOCKER_DEV_VERSION=$(shell docker inspect consul-dev --format '{{ index .Config.Labels "com.hashicorp.consul.version" }}'); \
-	if [ $$CURRENT_DOCKER_DEV_VERSION = $$GIT_DESCRIBE ] ; then \
+	if [ ! -z "$$SKIP_DOCKER" ] ; then \
+		echo "==> Skipping docker build as due to SKIP_DOCKER=$$SKIP_DOCKER" ; \
+	elif [ $$CURRENT_DOCKER_DEV_VERSION = $$GIT_DESCRIBE ] ; then \
 		echo "==> Skipping docker build as the existing image was built from current source: $$CURRENT_DOCKER_DEV_VERSION" ; \
 	else \
+		echo "$$CURRENT_DOCKER_DEV_VERSION != $$GIT_DESCRIBE" ; \
 	  docker build -t '$(CONSUL_DEV_IMAGE)' --build-arg 'GIT_COMMIT=$(GIT_COMMIT)' --build-arg 'GIT_DIRTY=$(GIT_DIRTY)' --build-arg 'GIT_DESCRIBE=$(GIT_DESCRIBE)' --build-arg 'CONSUL_BUILD_IMAGE=$(GO_BUILD_TAG)' -f $(CURDIR)/build-support/docker/Consul-Dev.dockerfile '$(CURDIR)' ; \
 	fi
 
