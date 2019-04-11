@@ -11,13 +11,14 @@ function retry {
   shift
   while true; do
     "$@" && break || {
+      exit=$?
       if [[ $n -lt $max ]]; then
         ((n++))
         echo "Command failed. Attempt $n/$max:"
         sleep $delay;
       else
         echo "The command has failed after $n attempts." >&2
-        exit 1
+        return $exit
       fi
     }
   done

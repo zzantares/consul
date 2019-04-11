@@ -47,9 +47,11 @@ for c in ./case-*/ ; do
 
     # Reload consul
     echo "Reloading Consul config"
-    if [ ! retry 10 2 curl -X PUT localhost:8500/v1/agent/reload] ; then
+    if ! retry 10 2 curl -X PUT localhost:8500/v1/agent/reload ; then
       # Clean up everything before we abort
       docker-compose down
+      echored "⨯ FAIL - couldn't reload consul config"
+      exit 1
     fi
 
     # Copy all the test files
