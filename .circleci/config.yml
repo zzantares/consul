@@ -209,6 +209,18 @@ jobs:
       - store_test_results:
           path: ui-v2/test-results
 
+  # Envoy integration tests
+  envoy-integration-test:
+    docker:
+      # We only really need bash and docker-compose which is installed on all
+      # Circle images but pick Go since we have to pick one of them.
+      - image: *GOLANG_IMAGE
+    steps:
+      - checkout
+      - run:
+          name: Envoy Integration Tests
+          command: make test-envoy-integ
+
 workflows:
   version: 2
   build-distros:
@@ -241,3 +253,7 @@ workflows:
       - ember-test:
           requires:
             - ember-build
+
+  envoy-integration-test:
+    jobs:
+      - envoy-integration-test

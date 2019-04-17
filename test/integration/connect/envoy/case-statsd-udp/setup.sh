@@ -11,4 +11,4 @@ docker_consul connect envoy -bootstrap \
   -admin-bind 127.0.0.1:19001 \
   > etc/envoy/s2-bootstrap.json
 
-docker-compose up -d s1 s1-sidecar-proxy s2 s2-sidecar-proxy
+docker-compose up -d s1 s1-sidecar-proxy s2 s2-sidecar-proxy fake-statsd

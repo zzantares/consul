@@ -40,7 +40,7 @@ type BootstrapConfig struct {
 	// and add to the basic tags Consul adds by default like the local_cluster
 	// name. Only exact values are supported here. Full configuration of
 	// stats_config.stats_tags can be made by overriding envoy_stats_config_json.
-	StatsTags []string
+	StatsTags []string `mapstructure:"envoy_stats_tags"`
 
 	// PrometheusBindAddr configures an <ip>:<port> on which the Envoy will listen
 	// and expose a single /metrics HTTP endpoint for Prometheus to scrape. It

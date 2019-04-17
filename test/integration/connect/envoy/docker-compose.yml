@@ -91,6 +91,7 @@ services:
      - "/etc/bats"
     volumes:
       - "./etc/bats:/etc/bats"
+      - "./etc/statsd:/etc/statsd"
     network_mode: service:consul
 
   s1-sidecar-proxy-consul-exec:
@@ -107,4 +108,15 @@ services:
       - "envoy"
       - "-sidecar-for"
       - "s1"
+    network_mode: service:consul
+
+  fake-statsd:
+    depends_on:
+      - consul
+    image: "alpine/socat"
+    command:
+      - UDP-RECVFROM:8125,fork
+      - SYSTEM:'xargs -0 echo >> /etc/statsd/statsd.log'
+    volumes:
+      - "./etc/statsd:/etc/statsd"
     network_mode: service:consul

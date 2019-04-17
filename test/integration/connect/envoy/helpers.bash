@@ -65,3 +65,7 @@ function get_envoy_listener_filters {
   [ "$status" -eq 0 ]
   echo "$output" | jq --raw-output '.configs[2].dynamic_active_listeners[].listener | "\(.name) \( .filter_chains[0].filters | map(.name) | join(","))"'
 }
+
+function docker_consul {
+  docker run -ti -v $(pwd):/var/wd -w /var/wd --network container:envoy_consul_1 consul-dev $@
+}
