@@ -217,6 +217,7 @@ jobs:
       - image: *GOLANG_IMAGE
     steps:
       - checkout
+      - setup_remote_docker
       - run:
           name: Envoy Integration Tests
           command: make test-envoy-integ
