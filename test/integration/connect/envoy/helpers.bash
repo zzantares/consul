@@ -67,5 +67,5 @@ function get_envoy_listener_filters {
 }
 
 function docker_consul {
-  docker run -ti -v $(pwd):/var/wd -w /var/wd --network container:envoy_consul_1 consul-dev $@
+  docker run -ti --network container:envoy_consul_1 consul-dev $@
 }

@@ -17,7 +17,7 @@ load helpers
 }
 
 @test "s1 proxy should be sending metrics to statsd" {
-  run retry 5 1 cat /etc/statsd/statsd.log
+  run retry 5 1 cat /workdir/statsd/statsd.log
 
   echo "METRICS:"
   echo "$output"

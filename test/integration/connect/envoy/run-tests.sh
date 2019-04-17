@@ -41,6 +41,9 @@ source helpers.bash
 
 RESULT=1
 
+# Start the volume container
+docker-compose up -d workdir
+
 for c in ./case-*/ ; do
   for ev in $ENVOY_VERSIONS ; do
     CASENAME="$( basename $c | cut -c6- ), envoy $ev"
@@ -55,16 +58,17 @@ for c in ./case-*/ ; do
     fi
 
     # Wipe state
-    rm -rf etc/consul/*
-    rm -rf etc/envoy/*
-    rm -rf etc/bats/*
-    rm -rf etc/statsd/*
+    docker-compose up wipe-volumes
 
     # Reload consul config from defaults
     cp consul-base-cfg/* etc/consul
 
     # Add any overrides if there are any (no op if not)
     cp -f $DIR/${c}*.hcl $DIR/etc/consul 2>/dev/null || :
+
+    # Push the state to the shared docker volume (note this is because CircleCI
+    # can't use shared volumes)
+    docker cp etc/. envoy_workdir_1:/workdir
 
     # Start Consul first we do this here even though typically nothing stopped
     # it because it sometimes seems to be killed by something else (OOM killer)?
@@ -85,6 +89,10 @@ for c in ./case-*/ ; do
 
     # Run test case setup (e.g. generating Envoy bootstrap, starting containers)
     source ${c}setup.sh
+
+    # Push the state to the shared docker volume (note this is because CircleCI
+    # can't use shared volumes)
+    docker cp etc/. envoy_workdir_1:/workdir
 
     # Execute tests
     if docker-compose up --build --abort-on-container-exit --exit-code-from verify verify ; then

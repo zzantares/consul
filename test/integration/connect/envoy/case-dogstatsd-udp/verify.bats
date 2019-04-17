@@ -17,7 +17,7 @@ load helpers
 }
 
 @test "s1 proxy should be sending metrics to statsd" {
-  run retry 5 1 cat /etc/statsd/statsd.log
+  run retry 5 1 cat /workdir/statsd/statsd.log
 
   echo "METRICS:"
   echo "$output"
@@ -28,7 +28,7 @@ load helpers
 }
 
 @test "s1 proxy should be sending dogstatsd tagged metrics" {
-  run retry 5 1 cat /etc/statsd/statsd.log
+  run retry 5 1 cat /workdir/statsd/statsd.log
 
   COUNT=$(echo "$output" | grep -Ec '[#,]local_cluster:s1(,|$)')
 
@@ -41,7 +41,7 @@ load helpers
 }
 
 @test "s1 proxy should be sending additional configured tags" {
-  run retry 5 1 cat /etc/statsd/statsd.log
+  run retry 5 1 cat /workdir/statsd/statsd.log
 
   COUNT=$(echo "$output" | grep -Ec '[#,]foo:bar(,|$)')
 
