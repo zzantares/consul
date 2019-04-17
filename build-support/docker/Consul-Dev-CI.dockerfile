@@ -4,4 +4,4 @@ FROM consul:latest
 
 # Consul binary from previous build job gets mounted into the CWD for the docker
 # build. Copy it to final location.
-ADD consul /bin
+ADD ./consul /bin
