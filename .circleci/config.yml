@@ -220,10 +220,9 @@ jobs:
       # Get go binary from workspace
       - attach_workspace:
           at: /go/bin
-      # Copy the binary to the docker build context
+      - setup_remote_docker
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
-      - setup_remote_docker
       - run:
           name: Envoy Integration Tests
           command: make test-envoy-integ SKIP_DOCKER=1
