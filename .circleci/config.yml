@@ -215,6 +215,9 @@ jobs:
       # We only really need bash and docker-compose which is installed on all
       # Circle images but pick Go since we have to pick one of them.
       - image: *GOLANG_IMAGE
+    environment:
+      # tput complains if this isn't set to something.
+      TERM: xterm
     steps:
       - checkout
       # Get go binary from workspace
