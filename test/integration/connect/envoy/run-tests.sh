@@ -21,6 +21,12 @@ LEAVE_CONSUL_UP=${LEAVE_CONSUL_UP:-}
 # case-statsd-udp/teardown.sh for how to use it.
 PROXY_LOGS_ON_FAIL=${PROXY_LOGS_ON_FAIL:-}
 
+# QUIESCE_SECS=1 will cause the runner to sleep for 1 second after setup but
+# before veirfy container is run this is useful for CI which seems to pass more
+# reliably with this even though docker-compose up waits for containers to
+# start, and our tests retry.
+QUIESCE_SECS=${QUIESCE_SECS:-}
+
 if [ ! -z "$DEBUG" ] ; then
   set -x
 fi
@@ -93,6 +99,11 @@ for c in ./case-*/ ; do
     # Push the state to the shared docker volume (note this is because CircleCI
     # can't use shared volumes)
     docker cp etc/. envoy_workdir_1:/workdir
+
+    if [ ! -z "$QUIESCE_SECS" ] ; then
+      echo "Sleeping for $QUIESCE_SECS seconds"
+      sleep $QUIESCE_SECS
+    fi
 
     # Execute tests
     if docker-compose up --build --abort-on-container-exit --exit-code-from verify verify ; then

@@ -226,7 +226,7 @@ jobs:
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
       - run:
           name: Envoy Integration Tests
-          command: make test-envoy-integ SKIP_DOCKER=1
+          command: make test-envoy-integ SKIP_DOCKER=1 QUIESCE_SECS=2
           environment:
             # tput complains if this isn't set to something.
             TERM: dumb
