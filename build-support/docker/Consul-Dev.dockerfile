@@ -27,6 +27,12 @@ RUN go mod download
 ADD . /consul/
 RUN make dev
 
+# PACKAGE STAGE
+#
+# Note that this stage is also copied in Consul-Dev.dockerfile so that CI can
+# use the already-built binary and just copy it into a container so we don't
+# have to wait for a whole other build just to get a version we can run in
+# docker-compose integration tests.
 FROM consul:latest
 
 # Add a label which lets us easily tell if we have changes to build in the
