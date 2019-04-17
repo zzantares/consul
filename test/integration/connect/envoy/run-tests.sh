@@ -64,7 +64,7 @@ for c in ./case-*/ ; do
     cp consul-base-cfg/* etc/consul
 
     # Add any overrides if there are any (no op if not)
-    cp -f $DIR/${c}*.hcl $DIR/etc/consul 2>/dev/null || :
+    cp -f ${c}*.hcl etc/consul 2>/dev/null || :
 
     # Push the state to the shared docker volume (note this is because CircleCI
     # can't use shared volumes)
