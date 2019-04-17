@@ -224,12 +224,20 @@ jobs:
           docker_layer_caching: true
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
+      # - run:
+      #     name: Envoy Integration Tests
+      #     command: make test-envoy-integ SKIP_DOCKER=1 QUIESCE_SECS=2
+      #     environment:
+      #       # tput complains if this isn't set to something.
+      #       TERM: dumb
       - run:
           name: Envoy Integration Tests
-          command: make test-envoy-integ SKIP_DOCKER=1 QUIESCE_SECS=2
+          command: docker-compose up -d s1 s1-sidecar-proxy s2 s2-sidecar-proxy && docker-compose up verify
+          working_directory: ./test/integration/connect/envoy
           environment:
             # tput complains if this isn't set to something.
             TERM: dumb
+
 
 workflows:
   version: 2
