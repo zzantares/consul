@@ -2,4 +2,6 @@
 # should be kept roughly in sync.
 FROM consul:latest
 
-ADD /go/bin/consul /bin
+# Consul binary from previous build job gets mounted into the CWD for the docker
+# build. Copy it to final location.
+ADD consul /bin

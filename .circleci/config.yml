@@ -218,8 +218,7 @@ jobs:
     steps:
       - checkout
       # Get go binary from workspace
-      - attach_workspace:
-          at: /go/bin
+      - attach_workspace
       - setup_remote_docker
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
