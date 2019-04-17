@@ -52,3 +52,11 @@ load helpers
   [ "$status" == 0 ]
   [ "$COUNT" -gt "0" ]
 }
+
+@test "s1 proxy should have custom stats flush interval" {
+  INTERVAL=$(get_envoy_stats_flush_interval localhost:19000)
+
+  echo "INTERVAL = $INTERVAL"
+
+  [ "$INTERVAL" == "1s" ]
+}

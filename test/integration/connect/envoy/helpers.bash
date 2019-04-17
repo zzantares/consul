@@ -25,7 +25,7 @@ function retry {
 }
 
 function retry_default {
-  retry 30 2 $@
+  retry 5 1 $@
 }
 
 function echored {
@@ -67,6 +67,14 @@ function get_envoy_listener_filters {
   run retry_default curl -s -f $HOSTPORT/config_dump
   [ "$status" -eq 0 ]
   echo "$output" | jq --raw-output '.configs[2].dynamic_active_listeners[].listener | "\(.name) \( .filter_chains[0].filters | map(.name) | join(","))"'
+}
+
+function get_envoy_stats_flush_interval {
+  local HOSTPORT=$1
+  run retry_default curl -s -f $HOSTPORT/config_dump
+  [ "$status" -eq 0 ]
+  #echo "$output" > /workdir/s1_envoy_dump.json
+  echo "$output" | jq --raw-output '.configs[0].bootstrap.stats_flush_interval'
 }
 
 function docker_consul {

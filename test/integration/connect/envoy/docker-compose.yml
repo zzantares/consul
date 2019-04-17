@@ -135,7 +135,11 @@ services:
       - consul
     image: "alpine/socat"
     command:
-      - UDP-RECVFROM:8125,fork
+      - -u
+      - UDP-RECVFROM:8125,fork,reuseaddr
+      # This magic incantation is needed since Envoy doesn't add newlines and so
+      # we need each packet to be passed to echo to add a new line before
+      # appending.
       - SYSTEM:'xargs -0 echo >> /workdir/statsd/statsd.log'
     volumes:
       - *workdir-volume

@@ -215,9 +215,6 @@ jobs:
       # We only really need bash and docker-compose which is installed on all
       # Circle images but pick Go since we have to pick one of them.
       - image: *GOLANG_IMAGE
-    environment:
-      # tput complains if this isn't set to something.
-      TERM: xterm
     steps:
       - checkout
       # Get go binary from workspace
@@ -230,6 +227,9 @@ jobs:
       - run:
           name: Envoy Integration Tests
           command: make test-envoy-integ SKIP_DOCKER=1
+          environment:
+            # tput complains if this isn't set to something.
+            TERM: dumb
 
 workflows:
   version: 2
