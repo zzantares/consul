@@ -209,21 +209,7 @@ jobs:
       - store_test_results:
           path: ui-v2/test-results
 
-  # builds a local consul-dev docker image from the binary we already built to
-  # save building it again a slightly different way.
-  docker-dev-container:
-    docker:
-      - image: *GOLANG_IMAGE
-    steps:
-      - checkout 
-      # Get go binary from workspace
-      - attach_workspace:
-          at: /go/bin
-      - setup_remote_docker: 
-          docker_layer_caching: true
-      - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
-
-  # Envoy integration tests. Require docker dev container to be built already
+  # Envoy integration tests. Require docker dev binary to be built already
   envoy-integration-test:
     docker:
       # We only really need bash and docker-compose which is installed on all
@@ -231,8 +217,13 @@ jobs:
       - image: *GOLANG_IMAGE
     steps:
       - checkout
-      - setup_remote_docker:
-          docker_layer_caching: true
+      # Get go binary from workspace
+      - attach_workspace:
+          at: /go/bin
+      # Copy the binary to the docker build context
+      # Build the consul-dev image from the already built binary
+      - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev-CI.dockerfile .
+      - setup_remote_docker
       - run:
           name: Envoy Integration Tests
           command: make test-envoy-integ SKIP_DOCKER=1
@@ -253,12 +244,9 @@ workflows:
       - nomad-integration-0_8:
           requires:
             - dev-build
-      - docker-dev-container:
-          requires:
-            - dev-build
       - envoy-integration-test:
           requires:
-            - docker-dev-container
+            - dev-build
   website:
     jobs:
       - build-website:
