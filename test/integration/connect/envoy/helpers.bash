@@ -24,6 +24,9 @@ function retry {
   done
 }
 
+function retry_default {
+  retry 30 2 $@
+}
 
 function echored {
   tput setaf 1
@@ -50,7 +53,7 @@ function assert_proxy_presents_cert_uri {
   local HOSTPORT=$1
   local SERVICENAME=$2
 
-  CERT=$(retry 5 1 get_cert $HOSTPORT)
+  CERT=$(retry_default get_cert $HOSTPORT)
 
   echo "WANT SERVICE: $SERVICENAME"
   echo "GOT CERT:"
@@ -61,7 +64,7 @@ function assert_proxy_presents_cert_uri {
 
 function get_envoy_listener_filters {
   local HOSTPORT=$1
-  run retry 5 1 curl -s -f $HOSTPORT/config_dump
+  run retry_default curl -s -f $HOSTPORT/config_dump
   [ "$status" -eq 0 ]
   echo "$output" | jq --raw-output '.configs[2].dynamic_active_listeners[].listener | "\(.name) \( .filter_chains[0].filters | map(.name) | join(","))"'
 }

@@ -6,7 +6,7 @@ load helpers
 # envoy up.
 
 @test "s1 proxy admin is up on :19000" {
-  retry 5 1 curl -f -s localhost:19000/stats -o /dev/null
+  retry_default curl -f -s localhost:19000/stats -o /dev/null
 }
 
 @test "s1 proxy listener should be up and have right cert" {
