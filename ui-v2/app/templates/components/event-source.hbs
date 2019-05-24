@@ -1,0 +1,5 @@
+{{#if (has-block)}}
+{{yield _src (action 'call') (action 'dispatch') (action 'error')}}
+{{else}}
+<meta id={{uuid}} />
+{{/if}}

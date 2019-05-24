@@ -1,17 +1,5 @@
 export default function(P = Promise) {
   return function(source, listeners) {
-    let current;
-    if (typeof source.getCurrentEvent === 'function') {
-      current = source.getCurrentEvent();
-    }
-    if (current != null) {
-      // immediately resolve if we have previous cached data
-      return P.resolve(current.data).then(function(cached) {
-        source.reopen();
-        return cached;
-      });
-    }
-    // if we have no previously cached data, listen for the first response
     return new P(function(resolve, reject) {
       // close, cleanup and reject if we get an error
       listeners.add(source, 'error', function(e) {
@@ -24,6 +12,7 @@ export default function(P = Promise) {
         listeners.remove();
         resolve(e.data);
       });
+      source.open();
     });
   };
 }

@@ -13,14 +13,17 @@ import getComponentFactory from 'consul-ui/utils/dom/get-component-factory';
 
 // events
 import normalizeEvent from 'consul-ui/utils/dom/normalize-event';
+import dispatchFactory from 'consul-ui/utils/dom/dispatch';
 import createListeners from 'consul-ui/utils/dom/create-listeners';
 import clickFirstAnchorFactory from 'consul-ui/utils/dom/click-first-anchor';
 
 // ember-eslint doesn't like you using a single $ so use double
 // use $_ for components
+
+const dispatch = dispatchFactory();
 const $$ = qsaFactory();
-let $_;
 const clickFirstAnchor = clickFirstAnchorFactory(closest);
+let $_;
 export default Service.extend({
   doc: document,
   win: window,
@@ -34,15 +37,16 @@ export default Service.extend({
   viewport: function() {
     return get(this, 'win');
   },
+  root: function() {
+    return get(this, 'doc').documentElement;
+  },
   // TODO: should this be here? Needs a better name at least
   clickFirstAnchor: clickFirstAnchor,
+  dispatch: dispatch,
   closest: closest,
   sibling: sibling,
   normalizeEvent: normalizeEvent,
   listeners: createListeners,
-  root: function() {
-    return get(this, 'doc').documentElement;
-  },
   // TODO: Should I change these to use the standard names
   // even though they don't have a standard signature (querySelector*)
   elementById: function(id) {

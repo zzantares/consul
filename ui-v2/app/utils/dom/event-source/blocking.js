@@ -73,7 +73,7 @@ export default function(EventSource, backoff = create5xxBackoff()) {
       super(configuration => {
         const { createEvent, ...superConfiguration } = configuration;
         return source
-          .apply(this, [superConfiguration])
+          .apply(this, [superConfiguration, this])
           .catch(backoff)
           .then(result => {
             if (result instanceof Error) {
@@ -104,6 +104,12 @@ export default function(EventSource, backoff = create5xxBackoff()) {
             return throttledResolve(result);
           });
       }, configuration);
+      this.addEventListener('open', e => {
+        const prev = this.getCurrentEvent();
+        if (prev) {
+          this.dispatchEvent(prev);
+        }
+      });
     }
     // if we are having these props, at least make getters
     getCurrentEvent() {

@@ -15,11 +15,23 @@ class Listeners {
         addEventListener = 'on';
         removeEventListener = 'off';
       }
-      target[addEventListener](event, handler);
-      remove = function() {
-        target[removeEventListener](event, handler);
-        return handler;
-      };
+      let obj = event;
+      if (typeof obj === 'string') {
+        obj = {
+          [event]: handler,
+        };
+      }
+      const removers = Object.keys(obj).map(function(key) {
+        return (function(event, handler) {
+          target[addEventListener](event, handler);
+          return function() {
+            target[removeEventListener](event, handler);
+            return handler;
+          };
+        })(key, obj[key]);
+      });
+      // TODO: if event was a string only return the first
+      remove = () => removers.map(item => item());
     }
     this.listeners.push(remove);
     return () => {

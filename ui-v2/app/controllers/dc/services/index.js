@@ -1,8 +1,6 @@
 import Controller from '@ember/controller';
-import { get, computed } from '@ember/object';
+import { get, set, computed } from '@ember/object';
 import { htmlSafe } from '@ember/string';
-import WithEventSource from 'consul-ui/mixins/with-event-source';
-import WithSearching from 'consul-ui/mixins/with-searching';
 const max = function(arr, prop) {
   return arr.reduce(function(prev, item) {
     return Math.max(prev, get(item, prop));
@@ -25,23 +23,22 @@ const width = function(num) {
 const widthDeclaration = function(num) {
   return htmlSafe(`width: ${num}px`);
 };
-export default Controller.extend(WithEventSource, WithSearching, {
+let s;
+export default Controller.extend({
   queryParams: {
     s: {
       as: 'filter',
     },
   },
-  init: function() {
-    this.searchParams = {
-      service: 's',
-    };
-    this._super(...arguments);
+  setProperties: function(model) {
+    s = model.s = typeof model.s === 'undefined' ? s : model.s;
+    if (s) {
+      set(this, 'terms', s.split('\n'));
+    } else {
+      set(this, 'terms', []);
+    }
+    return this._super(model);
   },
-  searchable: computed('items.[]', function() {
-    return get(this, 'searchables.service')
-      .add(get(this, 'items'))
-      .search(get(this, 'terms'));
-  }),
   maxWidth: computed('{maxPassing,maxWarning,maxCritical}', function() {
     const PADDING = 32 * 3 + 13;
     return ['maxPassing', 'maxWarning', 'maxCritical'].reduce((prev, item) => {
@@ -77,4 +74,10 @@ export default Controller.extend(WithEventSource, WithSearching, {
   criticalWidth: computed('maxCritical', function() {
     return widthDeclaration(width(get(this, 'maxCritical')));
   }),
+  actions: {
+    query: function(args) {
+      s = args.length > 0 ? args.join('\n') : null;
+      set(this, 's', s);
+    },
+  },
 });

@@ -8379,6 +8379,13 @@ mktemp@~0.4.0:
   version "0.4.0"
   resolved "https://registry.yarnpkg.com/mktemp/-/mktemp-0.4.0.tgz#6d0515611c8a8c84e484aa2000129b98e981ff0b"
 
+mnemonist@^0.28.0:
+  version "0.28.0"
+  resolved "https://registry.yarnpkg.com/mnemonist/-/mnemonist-0.28.0.tgz#bd60c76735ac273e8215f2b24b971c12120104fe"
+  integrity sha512-z6Bmk1xxfB/jvVtnNQa22kJmnTo5aqRU4fEJKwGJy4aKRe420G0zuB+DRxHBrqHU/T5qGFoi43823v7d3RNlpQ==
+  dependencies:
+    obliterator "^1.5.0"
+
 module-deps@^4.0.8:
   version "4.1.1"
   resolved "https://registry.yarnpkg.com/module-deps/-/module-deps-4.1.1.tgz#23215833f1da13fd606ccb8087b44852dcb821fd"
@@ -8853,6 +8860,11 @@ object.values@^1.0.4:
     es-abstract "^1.6.1"
     function-bind "^1.1.0"
     has "^1.0.1"
+
+obliterator@^1.5.0:
+  version "1.5.0"
+  resolved "https://registry.yarnpkg.com/obliterator/-/obliterator-1.5.0.tgz#f3535e5be192473ef59efb2d30396738f7c645c6"
+  integrity sha512-dENe0UviDf8/auXn0bIBKwCcUr49khvSBWDLlszv/ZB2qz1VxWDmkNKFqO2nfmve7hQb/QIDY7+rc7K3LdJimQ==
 
 on-finished@~2.3.0:
   version "2.3.0"

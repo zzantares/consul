@@ -1,38 +1,21 @@
 import Controller from '@ember/controller';
-import { computed } from '@ember/object';
-import WithEventSource from 'consul-ui/mixins/with-event-source';
-import WithHealthFiltering from 'consul-ui/mixins/with-health-filtering';
-import WithSearching from 'consul-ui/mixins/with-searching';
+import { set } from '@ember/object';
 import { get } from '@ember/object';
-export default Controller.extend(WithEventSource, WithSearching, WithHealthFiltering, {
-  init: function() {
-    this.searchParams = {
-      healthyNode: 's',
-      unhealthyNode: 's',
-    };
-    this._super(...arguments);
+let s;
+export default Controller.extend({
+  setProperties: function(model) {
+    s = model.s = typeof model.s === 'undefined' ? s : model.s;
+    if (s) {
+      set(this, 'terms', s.split('\n'));
+    } else {
+      set(this, 'terms', []);
+    }
+    return this._super(model);
   },
-  searchableHealthy: computed('healthy', function() {
-    return get(this, 'searchables.healthyNode')
-      .add(get(this, 'healthy'))
-      .search(get(this, this.searchParams.healthyNode));
-  }),
-  searchableUnhealthy: computed('unhealthy', function() {
-    return get(this, 'searchables.unhealthyNode')
-      .add(get(this, 'unhealthy'))
-      .search(get(this, this.searchParams.unhealthyNode));
-  }),
-  unhealthy: computed('filtered', function() {
-    return get(this, 'filtered').filter(function(item) {
-      return get(item, 'isUnhealthy');
-    });
-  }),
-  healthy: computed('filtered', function() {
-    return get(this, 'filtered').filter(function(item) {
-      return get(item, 'isHealthy');
-    });
-  }),
-  filter: function(item, { s = '', status = '' }) {
-    return item.hasStatus(status);
+  actions: {
+    query: function(args) {
+      s = args.length > 0 ? args.join('\n') : null;
+      set(this, 's', s);
+    },
   },
 });

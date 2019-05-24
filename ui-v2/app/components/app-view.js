@@ -22,12 +22,15 @@ export default Component.extend(SlotsMixin, {
     if (cls) {
       // its possible for 'layout' templates to change after insert
       // check for these specific layouts and clear them out
-      [...$root.classList].forEach(function(item, i) {
+      const receivedClasses = new Set(templatize(cls.split(' ')));
+      const currentClasses = [...$root.classList];
+      const difference = new Set(currentClasses.filter(item => !receivedClasses.has(item)));
+      [...difference].forEach(function(item, i) {
         if (templatize(['edit', 'show', 'list']).indexOf(item) !== -1) {
           $root.classList.remove(item);
         }
       });
-      $root.classList.add(...templatize(cls.split(' ')));
+      $root.classList.add(...[...receivedClasses]);
     }
   },
   didInsertElement: function() {
