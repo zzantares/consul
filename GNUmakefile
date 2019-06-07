@@ -1,12 +1,10 @@
 SHELL = bash
 GOTOOLS = \
-	github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs \
+	github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@master \
 	github.com/hashicorp/go-bindata/go-bindata \
 	github.com/mitchellh/gox \
 	golang.org/x/tools/cmd/cover \
-	golang.org/x/tools/cmd/stringer \
-	github.com/gogo/protobuf/protoc-gen-gofast \
-	github.com/vektra/mockery/cmd/mockery
+	golang.org/x/tools/cmd/stringer
 
 GOTAGS ?=
 GOMODULES ?= ./... ./api/... ./sdk/...
@@ -142,6 +140,10 @@ linux:
 # dist builds binaries for all platforms and packages them for distribution
 dist:
 	@$(SHELL) $(CURDIR)/build-support/scripts/release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
+
+# ci.dist is a variant of dist optimized for parallelization across executors in CI
+ci.dist:
+	@$(SHELL) $(CURDIR)/build-support/scripts/ci-release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
 
 verify:
 	@$(SHELL) $(CURDIR)/build-support/scripts/verify.sh
