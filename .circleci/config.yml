@@ -22,6 +22,7 @@ references:
     GIT_COMMITTER_NAME: circleci-consul
     S3_ARTIFACT_BUCKET:  consul-dev-artifacts
     SCRIPT_DIR: ./build-support/scripts
+    TERM: screen
 
 jobs:
   # Runs go fmt and go vet
