@@ -443,7 +443,7 @@ jobs:
       - run:
           name: ui smoke test
           command: |
-            source "./build-support/functions/ci-release.sh"
+            source "${SCRIPT_DIR}/functions.sh"
             ui_smoke
       # save UI files in dist/ to downstream job
       - persist_to_workspace:
