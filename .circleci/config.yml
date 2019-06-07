@@ -444,7 +444,7 @@ jobs:
           name: ui smoke test
           command: |
             source "./build-support/functions/ci-release.sh"
-            ui-smoke
+            ui_smoke
       # save UI files in dist/ to downstream job
       - persist_to_workspace:
           root: ./ui-v2/dist
