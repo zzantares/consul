@@ -9,7 +9,7 @@ GO_BUILD_CONTAINER_DEFAULT="consul-build-go"
 COLORIZE=${COLORIZE-1}
 
 # determine GOPATH and the first GOPATH to use for intalling binaries if go is installed
-if [ -z $(command -v go >/dev/null) ]; then
+if command -v go >/dev/null; then
    GOPATH=${GOPATH:-$(go env GOPATH)}
    case $(uname) in
       CYGWIN*)
