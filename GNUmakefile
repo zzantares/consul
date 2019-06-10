@@ -141,10 +141,6 @@ linux:
 dist:
 	@$(SHELL) $(CURDIR)/build-support/scripts/release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
 
-# ci.dist is a variant of dist optimized for parallelization across executors in CI
-ci.dist:
-	@$(SHELL) $(CURDIR)/build-support/scripts/ci-release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
-
 verify:
 	@$(SHELL) $(CURDIR)/build-support/scripts/verify.sh
 
@@ -286,6 +282,13 @@ test-envoy-integ: $(ENVOY_INTEG_DEPS)
 proto:
 	protoc agent/connect/ca/plugin/*.proto --gofast_out=plugins=grpc:../../..
 
+# ci.dist is a variant of dist optimized for parallelization across executors in CI
+ci.dist:
+	@$(SHELL) $(CURDIR)/build-support/scripts/ci-release.sh -t '$(DIST_TAG)' -b '$(DIST_BUILD)' -S '$(DIST_SIGN)' $(DIST_VERSION_ARG) $(DIST_DATE_ARG) $(DIST_REL_ARG)
+
+ci.ui:
+	cd ui-v2
+	make
 .PHONY: all ci bin dev dist cov test test-ci test-internal test-install-deps cover format vet ui static-assets tools
 .PHONY: docker-images go-build-image ui-build-image static-assets-docker consul-docker ui-docker
 .PHONY: version proto test-envoy-integ
