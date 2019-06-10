@@ -98,7 +98,7 @@ function ui_smoke {
     if test "${version}" != "${ui_vers}"
     then
         err "ERROR: UI version mismatch. Expecting: '${version}' found '${ui_vers}'"
-        ret=1
+        exit 1
     fi
     # Check the logo is baked in correctly
     status_stage "===> Checking logo baked into UI"
@@ -106,7 +106,7 @@ function ui_smoke {
     if test "${logo_type}" != "${ui_logo_type}"
     then
         err "ERROR: UI logo type mismatch. Expecting: '${logo_type}' found '${ui_logo_type}'"
-        ret=1
+        exit 1
     fi
 }
 function ci_release {
