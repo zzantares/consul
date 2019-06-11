@@ -1,5 +1,5 @@
 import Route from '@ember/routing/route';
-import { get } from '@ember/object';
+import convertStatus from 'consul-ui/utils/routing/convert-status';
 
 export default Route.extend({
   queryParams: {
@@ -13,23 +13,10 @@ export default Route.extend({
     },
   },
   model: function(params) {
-    const repo = get(this, 'repo');
-    let s = params.s;
-    // we check for the old style `status` variable here
-    // and convert it to the new style filter=status:critical
-    let status = params.status;
-    if (status) {
-      status = `status:${status}`;
-      if (s && s.indexOf(status) === -1) {
-        s = s
-          .split('\n')
-          .concat(status)
-          .join('\n')
-          .trim();
-      }
-    }
     return {
-      s: s,
+      // we check for the old style `status` variable here
+      // and convert it to the new style filter=status:critical
+      s: convertStatus(params.s, params.status),
       slug: '*',
       dc: this.modelFor('dc').dc.Name,
     };

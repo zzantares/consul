@@ -1,8 +1,13 @@
 import Controller from '@ember/controller';
 import { set } from '@ember/object';
-import { get } from '@ember/object';
+
 let s;
 export default Controller.extend({
+  queryParams: {
+    s: {
+      as: 'filter',
+    },
+  },
   setProperties: function(model) {
     s = model.s = typeof model.s === 'undefined' ? s : model.s;
     if (s) {

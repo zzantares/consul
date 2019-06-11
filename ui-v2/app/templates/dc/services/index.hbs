@@ -4,7 +4,8 @@
   (array 'tags:' '"%s" IN Service.Tags')
   (array 'tag:' '"%s" IN Service.Tags')
   (array '' 'Service.Service == "%s"')
-)) onmessage=(action (mut items) value='data')}}
+)) onchange=(action (mut items) value='data')}}
+
 {{#app-view class="service list" loading=(is-undefined items)}}
     {{#block-slot 'notification' as |status type|}}
       {{partial 'dc/services/notifications'}}
@@ -16,43 +17,17 @@
         <label for="toolbar-toggle"></label>
     {{/block-slot}}
     {{#block-slot 'toolbar'}}
-      {{phrase-editor placeholder=(if (eq terms.length 0) 'service:name tag:name status:critical search-term' '') value=(slice 0 terms.length terms) onchange=(queue (action (mut terms) value='detail.value') (action 'query' value='detail.value'))}}
+      {{phrase-editor
+        placeholder=(if (eq terms.length 0) 'service:name tag:name status:critical search-term' '')
+        value=(slice 0 terms.length terms)
+        onchange=(queue (action (mut terms) value='detail.value') (action 'query' value='detail.value'))
+      }}
     {{/block-slot}}
     {{#block-slot 'content'}}
-      {{#if (gt items.length 0)}}
-        {{#tabular-collection items=items as |item index|}}
-          {{#block-slot 'header'}}
-            <th style={{remainingWidth}}>Service</th>
-            <th>Type</th>
-            <th style={{totalWidth}}>Health Checks<span><em>The number of health checks for the service on all nodes</em></span></th>
-            <th style={{remainingWidth}}>Tags</th>
-          {{/block-slot}}
-          {{#block-slot 'row'}}
-            <td data-test-service="{{item.Name}}" style={{remainingWidth}}>
-              <a href={{href-to 'dc.services.show' item.Name}}>
-                <span data-test-external-source="{{service/external-source item}}" style={{{ concat 'background-image: ' (css-var (concat '--' (service/external-source item) '-color-svg') 'none')}}}></span>
-                {{item.Name}}
-              </a>
-            </td>
-            <td>
-{{#if (eq item.Kind 'connect-proxy')}}
-                <span class="kind-proxy">Proxy</span>
-{{else}}
-                &nbsp;
-{{/if}}
-              </td>
-              <td style={{totalWidth}}>
-                {{healthcheck-info
-                  passing=item.ChecksPassing warning=item.ChecksWarning critical=item.ChecksCritical
-                  passingWidth=passingWidth warningWidth=warningWidth criticalWidth=criticalWidth
-                }}
-              </td>
-              <td style={{remainingWidth}}>
-                {{tag-list items=item.Tags}}
-              </td>
-          {{/block-slot}}
-        {{/tabular-collection}}
-      {{else}}
+      {{#consul-service-list items=items}}
+        {{#block-slot 'data'}}{{/block-slot}}
+      {{/consul-service-list}}
+      {{#if (lt items.length 1)}}
         <p>
           There are no services.
         </p>

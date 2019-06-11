@@ -1,6 +1,6 @@
 import Component from '@ember/component';
 import { inject as service } from '@ember/service';
-import { get, set, computed } from '@ember/object';
+import { get, set } from '@ember/object';
 
 import WithListeners from 'consul-ui/mixins/with-listeners';
 
@@ -19,48 +19,14 @@ const replace = function(
 
 export default Component.extend(WithListeners, {
   tagName: 'span',
-  // TODO: Temporary repo list here
-  service: service('repository/service'),
-  node: service('repository/node'),
-  session: service('repository/session'),
 
-  blocking: service('blocking'),
+  data: service('blocking'),
   settings: service('settings'),
-  onmessage: function() {},
+
+  onchange: function() {},
   onerror: function() {},
   onprogress: function() {},
-  // TODO: Temporary finder
-  finder: function(src, filter) {
-    const temp = src.split('/');
-    temp.shift();
-    const slug = temp.pop();
-    const model = temp.pop();
-    const dc = temp.shift();
 
-    switch (slug) {
-      case '*':
-        switch (model) {
-          default:
-            return configuration => {
-              return get(this, model).findAllByDatacenter(dc, {
-                cursor: configuration.cursor,
-                filter: filter,
-              });
-            };
-        }
-      default:
-        switch (model) {
-          case 'session':
-            return configuration => {
-              return get(this, model).findByNode(slug, dc, { cursor: configuration.cursor });
-            };
-          default:
-            return configuration => {
-              return get(this, model).findBySlug(slug, dc, { cursor: configuration.cursor });
-            };
-        }
-    }
-  },
   didInsertElement: function() {
     this._super(...arguments);
     const options = {
@@ -97,32 +63,31 @@ export default Component.extend(WithListeners, {
       const src = get(this, 'src');
       const filter = get(this, 'filter');
 
-      replace(
+      const source = replace(
         this,
         'source',
-        get(this, 'blocking').open(this.finder(src, filter), {
-          id: `${src}${filter ? `?filter=${filter}` : ``}`,
-        }),
+        get(this, 'data').open(`${src}${filter ? `?filter=${filter}` : ``}`, this),
         (prev, source) => {
-          get(this, 'blocking').close(prev);
-          const remove = this.listen(source, {
-            message: e => this.onmessage(e),
-            error: e => {
-              remove();
-              this.onerror(e);
-            },
-          });
-          replace(this, '_remove', remove);
-          const previousEvent = source.getPreviousEvent();
-          if (previousEvent) {
-            source.dispatchEvent(previousEvent);
-          }
+          // Makes sure any previous source (if different) is ALWAYS closed
+          get(this, 'data').close(prev, this);
         }
       );
+      const remove = this.listen(source, {
+        message: e => this.onchange(e),
+        error: e => {
+          remove();
+          this.onerror(e);
+        },
+      });
+      replace(this, '_remove', remove);
+      const currentEvent = source.getCurrentEvent();
+      if (currentEvent) {
+        this.onchange(currentEvent);
+      }
     },
     close: function() {
       // keep this argumentless
-      get(this, 'blocking').close(get(this, 'source'));
+      get(this, 'data').close(get(this, 'source'), this);
       replace(this, '_remove', null);
       set(this, 'source', undefined);
     },

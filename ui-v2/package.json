@@ -51,6 +51,7 @@
     "chalk": "^2.4.2",
     "dart-sass": "^1.14.1",
     "ember-ajax": "^3.0.0",
+    "ember-auto-import": "^1.4.0",
     "ember-browserify": "^1.2.2",
     "ember-changeset-validations": "^2.1.0",
     "ember-cli": "~2.18.2",
@@ -99,11 +100,11 @@
     "jsonlint": "^1.6.3",
     "lint-staged": "^7.0.0",
     "loader.js": "^4.2.3",
+    "mnemonist": "^0.28.0",
     "node-sass": "^4.9.3",
     "prettier": "^1.10.2",
     "svgo": "^1.0.5",
-    "text-encoding": "^0.6.4",
-    "mnemonist": "^0.28.0"
+    "text-encoding": "^0.6.4"
   },
   "engines": {
     "node": "^4.5 || 6.* || >= 7.*"

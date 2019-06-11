@@ -1,5 +1,5 @@
 import Component from '@ember/component';
-import { get, set, computed } from '@ember/object';
+import { get, set } from '@ember/object';
 import { inject as service } from '@ember/service';
 
 import { CallableEventSource as EventSource } from 'consul-ui/utils/dom/event-source';
@@ -36,14 +36,12 @@ export default Component.extend(WithListeners, {
       $placeholder.remove();
       this.listen(source, 'message', e => {
         const type = e.data.type;
-        const event = e.data.data;
         if (get(this, 'type') == type) {
           set(this, `on${type}`, get(this, 'handler'));
         }
         get(this, 'dom').dispatch(get(this, 'target'), { type: type, target: this });
       });
       this.listen(source, 'error', e => this.onerror(e));
-    } else {
     }
   },
   actions: {

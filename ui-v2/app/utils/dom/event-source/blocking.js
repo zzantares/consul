@@ -70,6 +70,7 @@ export default function(EventSource, backoff = create5xxBackoff()) {
    */
   return class extends EventSource {
     constructor(source, configuration = {}) {
+      const { currentEvent, ...config } = configuration;
       super(configuration => {
         const { createEvent, ...superConfiguration } = configuration;
         return source
@@ -103,11 +104,18 @@ export default function(EventSource, backoff = create5xxBackoff()) {
             this.previousEvent = this.currentEvent;
             return throttledResolve(result);
           });
-      }, configuration);
+      }, config);
+      if (typeof currentEvent !== 'undefined') {
+        this.currentEvent = currentEvent;
+      }
+      // only on initialization
+      // if we already have an event set, possibly via config or
+      // via setCurrentEvent
+      // dispatch the event so things are populated immediately
       this.addEventListener('open', e => {
-        const prev = this.getCurrentEvent();
-        if (prev) {
-          this.dispatchEvent(prev);
+        const currentEvent = e.target.getCurrentEvent();
+        if (typeof currentEvent !== 'undefined') {
+          this.dispatchEvent(currentEvent);
         }
       });
     }

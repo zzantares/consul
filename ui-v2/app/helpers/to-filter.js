@@ -3,7 +3,6 @@ import ucfirst from 'consul-ui/utils/ucfirst';
 const convert = function(str, map) {
   const replacement = map.find(function(arr) {
     const key = arr[0];
-    const val = arr[1];
     return str.startsWith(key);
   });
   const replaced = str.replace(replacement[0], '');
