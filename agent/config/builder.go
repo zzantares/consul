@@ -912,6 +912,9 @@ func (b *Builder) Validate(rt RuntimeConfig) error {
 	if rt.Datacenter == "" {
 		return fmt.Errorf("datacenter cannot be empty")
 	}
+	if strings.HasPrefix(rt.DNSDomain, fmt.Sprintf("%s.", rt.Datacenter)) {
+		return fmt.Errorf("domain cannot be prefixed with datacenter.")
+	}
 	if !reDatacenter.MatchString(rt.Datacenter) {
 		return fmt.Errorf("datacenter cannot be %q. Please use only [a-z0-9-_].", rt.Datacenter)
 	}

@@ -257,6 +257,15 @@ func TestConfigFlagsAndEdgecases(t *testing.T) {
 			err: "datacenter cannot be empty",
 		},
 		{
+			desc: "-datacenter is prefix of domain",
+			args: []string{
+				`-datacenter=dc1`,
+				`-domain=dc1.consul`,
+				`-data-dir=` + dataDir,
+			},
+			err: "domain cannot be prefixed with datacenter.",
+		},
+		{
 			desc: "-dev",
 			args: []string{
 				`-dev`,
