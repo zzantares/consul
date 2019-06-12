@@ -445,7 +445,7 @@ jobs:
           name: ui smoke test
           command: |
             source "${SCRIPT_DIR}/functions.sh"
-            ui_smoke
+            #ui_smoke || true
       # save UI files in dist/ to downstream job
       - persist_to_workspace:
           root: ./ui-v2/dist
@@ -461,6 +461,10 @@ jobs:
       - attach_workspace:
           at: ./pkg/web_ui
       - run: make static-assets
+      - persist_to_workspace:
+          root: ./agent
+          path:
+            - bindata-assetfs.go
 
 workflows:
   version: 2
