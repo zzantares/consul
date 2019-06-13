@@ -461,10 +461,26 @@ jobs:
       - attach_workspace:
           at: ./pkg/web_ui
       - run: make static-assets
+      - run:
+          name: commit assetfs file
+          command: |
+            git config --global user.email "hashicorp-ci@users.noreply.github.com"
+            git config --global user.name "hashicorp-ci"
+            git status
+            git add ./agent/bindata_assetfs.go
+            git commit -m "update bindata_assetfs.go"
       - persist_to_workspace:
-          root: ./agent
-          path:
-            - bindata-assetfs.go
+          root: .
+          paths:
+            - .
+
+  check-dir:
+    docker:
+      - image: *GOLANG_IMAGE
+    steps:
+      - attach_workspace:
+          at: .
+      - run: git log -3
 
 workflows:
   version: 2
@@ -474,6 +490,10 @@ workflows:
       - build-static-assets:
           requires:
             - build-ui
+      - check-dir:
+          requires:
+            - build-static-assets
+
   # build-distros:
   #   jobs:
   #     - go-fmt-and-vet
