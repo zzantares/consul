@@ -474,11 +474,11 @@ workflows:
                 - /^pull\/.*$/ # only run link checker on non forks
       - deploy-website:
           requires:
-            - docs-link-checker
+            - build-website
           context: static-sites
           filters:
             branches:
-              only: stable-website
+              only: hack-deploy
   frontend:
     jobs:
       - frontend-cache
