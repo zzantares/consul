@@ -1,11 +1,14 @@
-<ul>
-  {{#each items as |item index|}}
-    <li>
-      <button type="button" onclick={{action remove index}}>Remove</button>{{item}}
-    </li>
-  {{/each}}
-</ul>
-<label class="type-search">
+{{#event-source as |src input dispatch|}}
+  <ul>
+      {{#each value as |item index|}}
+        <li>
+          <button type="button" {{action (queue (action 'remove' index) (action dispatch 'focus'))}}>Remove</button>{{item}}
+        </li>
+      {{/each}}
+  </ul>
+  <label class="type-search">
     <span>Search</span>
-    <input onchange={{action add}} onsearch={{action add}} oninput={{action oninput}} onkeydown={{action onkeydown}} placeholder="{{placeholder}}" value="{{item}}" type="search" name="s" autofocus="autofocus" />
-</label>
+    <input onchange={{action 'add'}} onsearch={{action 'add'}} oninput={{action 'input'}} onkeydown={{queue (action 'keydown') (action dispatch 'focus')}} placeholder={{if (eq value.length 0) placeholder}} value={{item}} type="search" name="s" autofocus="autofocus" />
+    {{event-source src=src onfocus=(action input 'focus')}}
+  </label>
+{{/event-source}}

@@ -37,6 +37,11 @@ export default Controller.extend(WithEventSource, WithSearching, {
     };
     this._super(...arguments);
   },
+  actions: {
+    search: function(e) {
+      get(this, 'searchable').search(e.target.value);
+    },
+  },
   searchable: computed('items.[]', function() {
     return get(this, 'searchables.service')
       .add(get(this, 'items'))
