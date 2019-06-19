@@ -455,12 +455,16 @@ jobs:
   build-static-assets:
     docker:
       - image: *GOLANG_IMAGE
+    environment:
+      BASH_ENV: ./build-support/scripts/functions.sh
     steps:
       - checkout
       - run: make tools # the tools aren't saved in go.mod so we can't cache
       - attach_workspace:
           at: ./pkg/web_ui
-      - run: make static-assets
+      - run: |
+          make static-assets
+          echo "UI Built with Version: $(ui_version "./pkg/web_ui/index.html")"
       - run:
           name: commit assetfs file
           command: |
