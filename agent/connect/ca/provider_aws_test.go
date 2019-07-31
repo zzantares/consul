@@ -1,3 +1,5 @@
+// +build requiretestcreds
+
 package ca
 
 import (
