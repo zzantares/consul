@@ -365,9 +365,9 @@ jobs:
       - checkout:
           path: ~/project
 
-      # attach website build directory
-      - attach_workspace:
-          at: ~/project/website
+      # # attach website build directory
+      # - attach_workspace:
+      #     at: ~/project/website
 
       # restores gem cache
       - restore_cache:
@@ -634,86 +634,86 @@ jobs:
 
 workflows:
   version: 2
-  merge-master-to-release:
-    jobs:
-      - merge-master
-    triggers:
-      - schedule:
-          cron: "0 2 * * *" # 2AM UTC <> 10PM EST <> 7PM PST should have no impact
-          filters:
-            branches:
-              only:
-                - /^release\/.*$/
-  go-tests:
-    jobs:
-      - check-vendor
-      - lint-consul-retry
-      - go-fmt-and-vet:
-          requires:
-            - check-vendor
-      - dev-build:
-          requires:
-            - go-fmt-and-vet
-      - go-test: &go-test
-          requires:
-            - dev-build
-      - go-test-api: *go-test
-  build-distros:
-    jobs:
-      - build-386
-      - build-amd64
-      - build-arm
-  test-integrations:
-    jobs:
-      - dev-build
-      - dev-upload-s3: &dev-upload
-          requires:
-            - dev-build
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only push dev builds from non forks
-      - dev-upload-docker:
-          <<: *dev-upload
-          context: consul-ci
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.8.0:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.9.1:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.10.0:
-          requires:
-            - dev-build
+  # merge-master-to-release:
+  #   jobs:
+  #     - merge-master
+  #   triggers:
+  #     - schedule:
+  #         cron: "0 2 * * *" # 2AM UTC <> 10PM EST <> 7PM PST should have no impact
+  #         filters:
+  #           branches:
+  #             only:
+  #               - /^release\/.*$/
+  # go-tests:
+  #   jobs:
+  #     - check-vendor
+  #     - lint-consul-retry
+  #     - go-fmt-and-vet:
+  #         requires:
+  #           - check-vendor
+  #     - dev-build:
+  #         requires:
+  #           - go-fmt-and-vet
+  #     - go-test: &go-test
+  #         requires:
+  #           - dev-build
+  #     - go-test-api: *go-test
+  # build-distros:
+  #   jobs:
+  #     - build-386
+  #     - build-amd64
+  #     - build-arm
+  # test-integrations:
+  #   jobs:
+  #     - dev-build
+  #     - dev-upload-s3: &dev-upload
+  #         requires:
+  #           - dev-build
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - /^pull\/.*$/ # only push dev builds from non forks
+  #     - dev-upload-docker:
+  #         <<: *dev-upload
+  #         context: consul-ci
+  #     - nomad-integration-master:
+  #         requires:
+  #           - dev-build
+  #     - nomad-integration-0_8:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.8.0:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.9.1:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.10.0:
+  #         requires:
+  #           - dev-build
   website:
     jobs:
-      - build-website
-      - docs-link-checker:
-          requires:
-            - build-website
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only run link checker on non forks
+      # - build-website
+      # - docs-link-checker:
+      #     requires:
+      #       - build-website
+      #     filters:
+      #       branches:
+      #         ignore:
+      #           - /^pull\/.*$/ # only run link checker on non forks
       - deploy-website:
-          requires:
-            - docs-link-checker
+          # requires:
+          #   - docs-link-checker
           context: static-sites
-          filters:
-            branches:
-              only: stable-website
-  frontend:
-    jobs:
-      - frontend-cache
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test:
-          requires:
-            - ember-build
+          # filters:
+          #   branches:
+          #     only: stable-website
+  # frontend:
+  #   jobs:
+  #     - frontend-cache
+  #     - ember-build:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-test:
+  #         requires:
+  #           - ember-build
