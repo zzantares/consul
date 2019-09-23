@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
 	"net"
 	"net/url"
 	"regexp"
@@ -433,6 +434,12 @@ func (s *Server) makeExposedCheckListener(cfgSnap *proxycfg.ConfigSnapshot, clus
 		}
 	}
 
+	if !path.TLSSkipVerify {
+		chain.TlsContext = &envoyauth.DownstreamTlsContext{
+			CommonTlsContext:         s.makePathTLSContext(cfgSnap, path),
+			RequireClientCertificate: &types.BoolValue{Value: !path.TLSSkipVerify},
+		}
+	}
 	l.FilterChains = []envoylistener.FilterChain{chain}
 
 	return l, err
@@ -827,4 +834,62 @@ func makeCommonTLSContext(cfgSnap *proxycfg.ConfigSnapshot) *envoyauth.CommonTls
 			},
 		},
 	}
+}
+
+func (s *Server) makePathTLSContext(cfgSnap *proxycfg.ConfigSnapshot, path structs.ExposePath) *envoyauth.CommonTlsContext {
+	caCert, clientCert, clientKey := s.loadPathCerts(path)
+
+	commonCTX := envoyauth.CommonTlsContext{
+		TlsParams: &envoyauth.TlsParameters{},
+		ValidationContextType: &envoyauth.CommonTlsContext_ValidationContext{
+			ValidationContext: &envoyauth.CertificateValidationContext{
+				TrustedCa: &envoycore.DataSource{
+					Specifier: &envoycore.DataSource_InlineString{
+						InlineString: caCert,
+					},
+				},
+			},
+		},
+	}
+
+	if clientCert != "" && clientKey != "" {
+		commonCTX.TlsCertificates = []*envoyauth.TlsCertificate{
+			{
+				CertificateChain: &envoycore.DataSource{
+					Specifier: &envoycore.DataSource_InlineString{
+						InlineString: clientCert,
+					},
+				},
+				PrivateKey: &envoycore.DataSource{
+					Specifier: &envoycore.DataSource_InlineString{
+						InlineString: clientKey,
+					},
+				},
+			},
+		}
+	}
+	return &commonCTX
+}
+
+func (s *Server) loadPathCerts(path structs.ExposePath) (string, string, string) {
+	b, err := ioutil.ReadFile(path.CAFile)
+	if err != nil {
+		s.Logger.Printf("[WARN] envoy: failed to read CAFile '%s': %v", path.CAFile, err)
+		return "", "", ""
+	}
+	ca := string(b)
+
+	b, err = ioutil.ReadFile(path.CertFile)
+	if err != nil {
+		s.Logger.Printf("[WARN] envoy: failed to read CertFile '%s': %v", path.CertFile, err)
+	}
+	cert := string(b)
+
+	b, err = ioutil.ReadFile(path.KeyFile)
+	if err != nil {
+		s.Logger.Printf("[WARN] envoy: failed to read KeyFile '%s': %v", path.KeyFile, err)
+	}
+	key := string(b)
+
+	return ca, cert, key
 }
