@@ -1,5 +1,8 @@
 ---
-version: 2
+version: 2.1
+
+orbs:
+  win: circleci/windows@1.0.0
 
 references:
   images:
@@ -25,6 +28,27 @@ references:
     VAULT_BINARY_VERSION: 1.2.2
 
 jobs:
+  windows:
+    executor: win/vs2019
+    parallelism: 4
+    environment:
+      <<: *ENVIRONMENT
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - consul-modcache-v1-{{ checksum "go.mod" }}
+      - run:
+          command: go mod download
+      - save_cache:
+          key: consul-modcache-v1-{{ checksum "go.mod" }}
+          paths:
+            - /go/pkg/mod
+      - run: ./build-support/scripts/build-local.sh -o windows -a amd64
+      - run: |
+          $PACKAGE_NAMES = $(go list ./... | circleci tests split --split-by=timings --timings-type=classname)
+          go test $PACKAGE_NAMES
+
   # lint consul tests
   lint-consul-retry:
     docker:
@@ -475,129 +499,8 @@ jobs:
       - store_test_results:
           path: ui-v2/test-results
 
-  # Envoy integration tests. Require docker dev binary to be built already
-  envoy-integration-test-1.8.0:
-    docker:
-      # We only really need bash and docker-compose which is installed on all
-      # Circle images but pick Go since we have to pick one of them.
-      - image: *GOLANG_IMAGE
-    environment:
-      ENVOY_VERSIONS: "1.8.0"
-    steps: &ENVOY_INTEGRATION_TEST_STEPS
-      - checkout
-      # Get go binary from workspace
-      - attach_workspace:
-          at: .
-      - setup_remote_docker:
-          docker_layer_caching: true
-      # Build the consul-dev image from the already built binary
-      - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev.dockerfile .
-      - run:
-          name: Envoy Integration Tests
-          command: make test-envoy-integ SKIP_DOCKER_BUILD=1
-          environment:
-            # tput complains if this isn't set to something.
-            TERM: ansi
-      - store_artifacts:
-          path: ./test/integration/connect/envoy/workdir/logs
-          destination: container-logs
-
-  envoy-integration-test-1.9.1:
-    docker:
-      - image: *GOLANG_IMAGE
-    environment:
-      ENVOY_VERSIONS: "1.9.1"
-    steps: *ENVOY_INTEGRATION_TEST_STEPS
-
-  envoy-integration-test-1.10.0:
-    docker:
-      - image: *GOLANG_IMAGE
-    environment:
-      ENVOY_VERSIONS: "1.10.0"
-    steps: *ENVOY_INTEGRATION_TEST_STEPS
-
-  envoy-integration-test-1.11.1:
-    docker:
-      - image: *GOLANG_IMAGE
-    environment:
-      ENVOY_VERSIONS: "1.11.1"
-    steps: *ENVOY_INTEGRATION_TEST_STEPS
-
 workflows:
   version: 2
   go-tests:
     jobs:
-      - check-vendor
-      - lint-consul-retry
-      - go-fmt-and-vet:
-          requires:
-            - check-vendor
-      - dev-build:
-          requires:
-            - go-fmt-and-vet
-      - go-test: &go-test
-          requires:
-            - dev-build
-      - go-test-api: *go-test
-  build-distros:
-    jobs:
-      - build-386
-      - build-amd64
-      - build-arm
-  test-integrations:
-    jobs:
-      - dev-build
-      - dev-upload-s3: &dev-upload
-          requires:
-            - dev-build
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only push dev builds from non forks
-      - dev-upload-docker:
-          <<: *dev-upload
-          context: consul-ci
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.8.0:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.9.1:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.10.0:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.11.1:
-          requires:
-            - dev-build
-  website:
-    jobs:
-      - build-website
-      - docs-link-checker:
-          requires:
-            - build-website
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only run link checker on non forks
-      - deploy-website:
-          requires:
-            - docs-link-checker
-          context: static-sites
-          filters:
-            branches:
-              only: stable-website
-  frontend:
-    jobs:
-      - frontend-cache
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test:
-          requires:
-            - ember-build
+      - windows
