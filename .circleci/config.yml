@@ -303,8 +303,7 @@ jobs:
       # get consul binary
       - attach_workspace:
           at: bin/
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       - run: make ci.dev-docker
 
   # Nomad 0.8 builds on go0.10
@@ -520,8 +519,7 @@ jobs:
       # Get go binary from workspace
       - attach_workspace:
           at: .
-      - setup_remote_docker:
-          docker_layer_caching: true
+      - setup_remote_docker
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev.dockerfile .
       - run:
@@ -557,40 +555,40 @@ jobs:
 
 workflows:
   version: 2
-  go-tests:
-    jobs:
-      - check-vendor:
-          filters:
-            branches:
-              ignore:
-                - stable-website
-      - lint-consul-retry
-      - go-fmt-and-vet:
-          requires:
-            - check-vendor
-      - dev-build:
-          requires:
-            - go-fmt-and-vet
-      - go-test: &go-test
-          requires:
-            - dev-build
-      - go-test-api: *go-test
-      - coverage-merge:
-          requires:
-            - go-test
-            - go-test-api
-  build-distros:
-    jobs:
-      - check-vendor:
-          filters:
-            branches:
-              ignore:
-                - stable-website
-      - build-386: &require-check-vendor
-          requires:
-            - check-vendor
-      - build-amd64: *require-check-vendor
-      - build-arm: *require-check-vendor
+  # go-tests:
+  #   jobs:
+  #     - check-vendor:
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - stable-website
+  #     - lint-consul-retry
+  #     - go-fmt-and-vet:
+  #         requires:
+  #           - check-vendor
+  #     - dev-build:
+  #         requires:
+  #           - go-fmt-and-vet
+  #     - go-test: &go-test
+  #         requires:
+  #           - dev-build
+  #     - go-test-api: *go-test
+  #     - coverage-merge:
+  #         requires:
+  #           - go-test
+  #           - go-test-api
+  # build-distros:
+  #   jobs:
+  #     - check-vendor:
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - stable-website
+  #     - build-386: &require-check-vendor
+  #         requires:
+  #           - check-vendor
+  #     - build-amd64: *require-check-vendor
+  #     - build-arm: *require-check-vendor
   test-integrations:
     jobs:
       - dev-build:
@@ -626,33 +624,33 @@ workflows:
       - envoy-integration-test-1.11.1:
           requires:
             - dev-build
-  website:
-    jobs:
-      - build-website
-      - docs-link-checker:
-          requires:
-            - build-website
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only run link checker on non forks
-      - deploy-website:
-          requires:
-            - docs-link-checker
-          context: static-sites
-          filters:
-            branches:
-              only: stable-website
-  frontend:
-    jobs:
-      - frontend-cache:
-          filters:
-            branches:
-              ignore:
-                - stable-website
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test:
-          requires:
-            - ember-build
+  # website:
+  #   jobs:
+  #     - build-website
+  #     - docs-link-checker:
+  #         requires:
+  #           - build-website
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - /^pull\/.*$/ # only run link checker on non forks
+  #     - deploy-website:
+  #         requires:
+  #           - docs-link-checker
+  #         context: static-sites
+  #         filters:
+  #           branches:
+  #             only: stable-website
+  # frontend:
+  #   jobs:
+  #     - frontend-cache:
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - stable-website
+  #     - ember-build:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-test:
+  #         requires:
+  #           - ember-build
