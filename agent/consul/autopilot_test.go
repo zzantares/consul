@@ -74,7 +74,6 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 		retry.Run(t, func(r *retry.R) { r.Check(wantPeers(s, 5)) })
 	}
 
-	require := require.New(t)
 	testrpc.WaitForLeader(t, s1.RPC, "dc1")
 	leaderIndex := -1
 	for i, s := range servers {
@@ -83,6 +82,8 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 			break
 		}
 	}
+
+	require := require.New(t)
 	require.NotEqual(leaderIndex, -1)
 
 	// Shutdown two non-leader servers
@@ -109,6 +110,7 @@ func testCleanupDeadServer(t *testing.T, raftVersion int) {
 		}
 	})
 
+	testrpc.WaitForLeader(t, s1.RPC, "dc1")
 	// Make sure the dead servers are removed and we're back to 3 total peers
 	for _, s := range servers {
 		_, killed := killed[string(s.config.NodeID)]
