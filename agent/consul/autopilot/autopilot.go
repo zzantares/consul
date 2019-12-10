@@ -181,10 +181,9 @@ func (a *Autopilot) pruneDeadServers() error {
 		return nil
 	}
 
-	// Failed servers are known to Serf and marked failed, and stale servers
-	// are known to Raft but not Serf.
-	var failed []serf.Member
-	staleRaftServers := make(map[string]raft.Server)
+	// Failed servers are known to Serf and marked failed.
+	failed := map[string]serf.Member{}
+	raftServers := make(map[string]raft.Server)
 	raftNode := a.delegate.Raft()
 	future := raftNode.GetConfiguration()
 	if err := future.Error(); err != nil {
@@ -193,47 +192,53 @@ func (a *Autopilot) pruneDeadServers() error {
 
 	raftConfig := future.Configuration()
 	for _, server := range raftConfig.Servers {
-		staleRaftServers[string(server.Address)] = server
+		raftServers[string(server.Address)] = server
 	}
 	serfWAN := a.delegate.SerfWAN()
 	serfLAN := a.delegate.SerfLAN()
+
+	// Add every serf member that is marked as server and in state
+	// StatusFailed to failed.
 	for _, member := range serfLAN.Members() {
-		server, err := a.delegate.IsServer(member)
+		_, err := a.delegate.IsServer(member)
 		if err != nil {
 			a.logger.Printf("[INFO] autopilot: Error parsing server info for %q: %s", member.Name, err)
 			continue
 		}
-		if server != nil {
-			// todo(kyhavlov): change this to index by UUID
-			s, found := staleRaftServers[server.Addr.String()]
-			if found {
-				delete(staleRaftServers, server.Addr.String())
-			}
+		if member.Status == serf.StatusFailed {
+			failed[member.Name] = member
+		}
+	}
 
-			if member.Status == serf.StatusFailed {
-				// If the node is a nonvoter, we can remove it immediately.
-				if found && s.Suffrage == raft.Nonvoter {
-					a.logger.Printf("[INFO] autopilot: Attempting removal of failed server node %q", member.Name)
-					go serfLAN.RemoveFailedNode(member.Name)
-					if serfWAN != nil {
-						go serfWAN.RemoveFailedNode(member.Name)
-					}
-				} else {
-					failed = append(failed, member)
+	// Remove and prune raft nonvoters immediately from failed because we
+	// don't need to check the quorum size for them.
+	for name, member := range failed {
+		// todo(kyhavlov): change this to index by UUID
+		s, found := raftServers[member.Addr.String()]
+		if !found {
+			continue
+		}
 
-				}
+		if s.Suffrage == raft.Nonvoter {
+			a.logger.Printf("[INFO] autopilot: Attempting removal of failed server node %q", member.Name)
+			go serfLAN.RemoveFailedNode(member.Name)
+			if serfWAN != nil {
+				go serfWAN.RemoveFailedNode(member.Name)
 			}
+			delete(failed, name)
 		}
 	}
 
 	// We can bail early if there's nothing to do.
-	removalCount := len(failed) + len(staleRaftServers)
+	removalCount := len(failed)
 	if removalCount == 0 {
 		return nil
 	}
 
 	peers := NumPeers(raftConfig)
 
+	// We can bail early if removing servers would leave the cluster below
+	// MinQuorum.
 	if peers-removalCount < int(conf.MinQuorum) {
 		a.logger.Printf("[DEBUG] autopilot: Failed to remove dead servers: removing %d would be less then quorum of %d.", removalCount, conf.MinQuorum)
 		return nil
@@ -256,7 +261,7 @@ func (a *Autopilot) pruneDeadServers() error {
 		if err != nil {
 			return err
 		}
-		for _, raftServer := range staleRaftServers {
+		for _, raftServer := range raftServers {
 			a.logger.Printf("[INFO] autopilot: Attempting removal of stale %s", fmtServer(raftServer))
 			var future raft.Future
 			if minRaftProtocol >= 2 {
