@@ -2,7 +2,6 @@ package proxy
 
 import (
 	"fmt"
-	"log"
 	"strings"
 	"sync"
 	"time"
@@ -30,9 +29,7 @@ const (
 // will result in panics.
 type RegisterMonitor struct {
 	// Logger is the logger for the monitor.
-	Logger *log.Logger
-
-	Logger2 hclog.Logger
+	Logger hclog.Logger
 
 	// Client is the API client to a specific Consul agent. This agent is
 	// where the service will be registered.
@@ -92,15 +89,9 @@ const (
 func NewRegisterMonitor() *RegisterMonitor {
 	var lock sync.Mutex
 
-	logger2 := hclog.New(&hclog.LoggerOptions{
-		Level: log.LstdFlags,
-	})
-	logger := logger2.StandardLogger(&hclog.StandardLoggerOptions{
-		InferLevels: true,
-	})
+	logger := hclog.New(&hclog.LoggerOptions{})
 	return &RegisterMonitor{
 		Logger:          logger, // default logger
-		Logger2:         logger2,
 		ReconcilePeriod: RegisterReconcilePeriod,
 		TTLPeriod:       RegisterTTLPeriod,
 		lock:            &lock,
@@ -166,7 +157,7 @@ func (r *RegisterMonitor) Run() {
 			heartbeatTimer.Reset(r.TTLPeriod / 3)
 
 		case <-stopCh:
-			r.Logger.Printf("[INFO] proxy: stop request received, deregistering")
+			r.Logger.Info("stop request received, deregistering")
 			r.deregister()
 			return
 		}
@@ -200,7 +191,7 @@ func (r *RegisterMonitor) register() {
 	if currentService != nil &&
 		currentService.ServiceAddress == r.LocalAddress &&
 		currentService.ServicePort == r.LocalPort {
-		r.Logger.Printf("[DEBUG] proxy: service already registered, not re-registering")
+		r.Logger.Debug("service already registered, not re-registering")
 		return
 	}
 
@@ -223,11 +214,11 @@ func (r *RegisterMonitor) register() {
 		},
 	})
 	if err != nil {
-		r.Logger.Printf("[WARN] proxy: Failed to register Consul service: %s", err)
+		r.Logger.Warn("Failed to register Consul service", "error", err)
 		return
 	}
 
-	r.Logger.Printf("[INFO] proxy: registered Consul service: %s", serviceID)
+	r.Logger.Info("registered Consul service", "service", serviceID)
 }
 
 // heartbeat just pings the TTL check for our service.
@@ -236,7 +227,7 @@ func (r *RegisterMonitor) heartbeat() {
 	// since we do a couple tries within the TTL period.
 	if err := r.Client.Agent().PassTTL(r.checkID(), ""); err != nil {
 		if !strings.Contains(err.Error(), "does not have associated") {
-			r.Logger.Printf("[WARN] proxy: heartbeat failed: %s", err)
+			r.Logger.Warn("heartbeat failed", "error", err)
 		}
 	}
 }
@@ -251,7 +242,7 @@ func (r *RegisterMonitor) deregister() {
 			return
 		}
 
-		r.Logger.Printf("[WARN] proxy: service deregister failed: %s", err)
+		r.Logger.Warn("service deregister failed", "error", err)
 		time.Sleep(500 * time.Millisecond)
 	}
 }

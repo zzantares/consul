@@ -132,6 +132,7 @@ func (c *cmd) Run(args []string) int {
 	// Setup the log outputs
 	logConfig := &logger.Config{
 		LogLevel: c.logLevel,
+		Name:     "proxy",
 	}
 	logger2, logGate, _, logOutput, ok := logger.Setup(logConfig, c.UI)
 	if !ok {
@@ -365,7 +366,7 @@ func (c *cmd) registerMonitor(client *api.Client) (*RegisterMonitor, error) {
 	}
 
 	m := NewRegisterMonitor()
-	m.Logger = c.logger
+	m.Logger = c.logger2
 	m.Client = client
 	m.Service = c.service
 	m.IDSuffix = c.registerId
