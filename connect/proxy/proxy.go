@@ -51,7 +51,7 @@ func (p *Proxy) Serve() error {
 			return err
 
 		case newCfg := <-p.cfgWatcher.Watch():
-			p.logger.Printf("[DEBUG] got new config")
+			p.logger2.Debug("got new config")
 
 			if cfg == nil {
 				// Initial setup
@@ -59,7 +59,7 @@ func (p *Proxy) Serve() error {
 				// Setup telemetry if configured
 				_, err := lib.InitTelemetry(newCfg.Telemetry)
 				if err != nil {
-					p.logger.Printf("[ERR] proxy telemetry config error: %s", err)
+					p.logger2.Error("proxy telemetry config error", "error", err)
 				}
 
 				// Setup Service instance now we know target ID etc
@@ -71,27 +71,26 @@ func (p *Proxy) Serve() error {
 
 				go func() {
 					<-service.ReadyWait()
-					p.logger.Printf("[INFO] Proxy loaded config and ready to serve")
+					p.logger2.Info("Proxy loaded config and ready to serve")
 					tcfg := service.ServerTLSConfig()
 					cert, _ := tcfg.GetCertificate(nil)
 					leaf, _ := x509.ParseCertificate(cert.Certificate[0])
-					p.logger.Printf("[INFO] TLS Identity: %s", leaf.URIs[0])
 					roots, err := connect.CommonNamesFromCertPool(tcfg.RootCAs)
 					if err != nil {
-						p.logger.Printf("[ERR] Failed to parse root subjects: %s", err)
+						p.logger2.Error("Failed to parse root subjects", "error", err)
 					} else {
-						p.logger.Printf("[INFO] TLS Roots   : %v", roots)
+						p.logger2.Info("Parsed TLS identity", "uri", leaf.URIs[0], "roots", roots)
 					}
 
 					// Only start a listener if we have a port set. This allows
 					// the configuration to disable our public listener.
 					if newCfg.PublicListener.BindPort != 0 {
 						newCfg.PublicListener.applyDefaults()
-						l := NewPublicListener(p.service, newCfg.PublicListener, p.logger, p.logger2)
+						l := NewPublicListener(p.service, newCfg.PublicListener, p.logger2)
 						err = p.startListener("public listener", l)
 						if err != nil {
 							// This should probably be fatal.
-							p.logger.Printf("[ERR] failed to start public listener: %s", err)
+							p.logger2.Error("failed to start public listener", "error", err)
 							failCh <- err
 						}
 
@@ -106,16 +105,18 @@ func (p *Proxy) Serve() error {
 				uc.applyDefaults()
 
 				if uc.LocalBindPort < 1 {
-					p.logger.Printf("[ERR] upstream %s has no local_bind_port. "+
-						"Can't start upstream.", uc.String())
+					p.logger2.Error("upstream has no local_bind_port. "+
+						"Can't start upstream.", "upstream", uc.String())
 					continue
 				}
 
-				l := NewUpstreamListener(p.service, p.client, uc, p.logger, p.logger2)
+				l := NewUpstreamListener(p.service, p.client, uc, p.logger2)
 				err := p.startListener(uc.String(), l)
 				if err != nil {
-					p.logger.Printf("[ERR] failed to start upstream %s: %s", uc.String(),
-						err)
+					p.logger2.Error("failed to start upstream",
+						"upstream", uc.String(),
+						"error", err,
+					)
 				}
 			}
 			cfg = newCfg
@@ -128,14 +129,14 @@ func (p *Proxy) Serve() error {
 
 // startPublicListener is run from the internal state machine loop
 func (p *Proxy) startListener(name string, l *Listener) error {
-	p.logger.Printf("[INFO] %s starting on %s", name, l.BindAddr())
+	p.logger2.Info("Starting listener", "listener", name, "bind_addr", l.BindAddr())
 	go func() {
 		err := l.Serve()
 		if err != nil {
-			p.logger.Printf("[ERR] %s stopped with error: %s", name, err)
+			p.logger2.Error("listener stopped with error", "listener", name, "error", err)
 			return
 		}
-		p.logger.Printf("[INFO] %s stopped", name)
+		p.logger2.Info("listener stopped", "listener", name)
 	}()
 
 	go func() {

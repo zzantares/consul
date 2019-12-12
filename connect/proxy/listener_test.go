@@ -128,7 +128,7 @@ func TestPublicListener(t *testing.T) {
 	sink := testSetupMetrics(t)
 
 	svc := connect.TestService(t, "db", ca)
-	l := NewPublicListener(svc, cfg, testutil.LogShim(testutil.Logger(t)), testutil.Logger(t))
+	l := NewPublicListener(svc, cfg, testutil.Logger(t))
 
 	// Run proxy
 	go func() {
@@ -195,8 +195,8 @@ func TestUpstreamListener(t *testing.T) {
 		CertURI: agConnect.TestSpiffeIDService(t, "db"),
 	})
 
-	logger2 := testutil.Logger(t)
-	l := newUpstreamListenerWithResolver(svc, cfg, rf, testutil.LogShim(logger2), logger2)
+	logger := testutil.Logger(t)
+	l := newUpstreamListenerWithResolver(svc, cfg, rf, logger)
 
 	// Run proxy
 	go func() {
