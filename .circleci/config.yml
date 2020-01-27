@@ -91,7 +91,7 @@ jobs:
   go-test:
     docker:
       - image: *GOLANG_IMAGE
-    parallelism: 8
+    parallelism: 3
     environment:
       <<: *ENVIRONMENT
       GOTAGS: "" # No tags for OSS but there are for enterprise
