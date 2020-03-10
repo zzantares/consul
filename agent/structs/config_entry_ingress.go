@@ -70,6 +70,17 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 		}
 		declaredPorts[listener.Port] = true
 
+		for _, s := range listener.Services {
+			if s.Prefix != "" {
+				return fmt.Errorf("Prefix is only valid for service_prefix definitions (listener on port %d)", listener.Port)
+			}
+		}
+		for _, s := range listener.ServicePrefixes {
+			if s.Name != "" {
+				return fmt.Errorf("Name is only valid for service definitions (listener on port %d)", listener.Port)
+			}
+		}
+
 		// Validate that http features aren't being used with tcp or another non-supported protocol.
 		if listener.Protocol != "http" {
 			if listener.Header != "" {
