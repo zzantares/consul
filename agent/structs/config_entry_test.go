@@ -537,21 +537,18 @@ func TestDecodeConfigEntry(t *testing.T) {
 			snake: `
 				kind = "ingress-gateway"
 				name = "ingress-web"
-				
+
 				listeners = [
 					{
 						port = 8080
 						protocol = "http"
-						
 						header = "Host"
-						
 						service_prefixes = [
 							{
 								prefix = "bar-"
 								namespace = "foo"
 							}
 						]
-						
 						services = [
 							{
 								name = "web"
@@ -587,21 +584,17 @@ func TestDecodeConfigEntry(t *testing.T) {
 			camel: `
 				Kind = "ingress-gateway"
 				Name = "ingress-web"
-				
 				Listeners = [
 					{
 						Port = 8080
 						Protocol = "http"
-						
 						Header = "Host"
-						
 						ServicePrefixes = [
 							{
 								Prefix = "bar-"
 								Namespace = "foo"
 							}
 						]
-						
 						Services = [
 							{
 								Name = "web"
