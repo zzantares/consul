@@ -20,6 +20,7 @@ const (
 	ServiceRouter   string = "service-router"
 	ServiceSplitter string = "service-splitter"
 	ServiceResolver string = "service-resolver"
+	IngressGateway  string = "ingress-gateway"
 
 	ProxyConfigGlobal string = "global"
 
@@ -291,6 +292,7 @@ func DecodeConfigEntry(raw map[string]interface{}) (ConfigEntry, error) {
 	raw = lib.PatchSliceOfMaps(raw, skipWhenPatching, nil)
 
 	lib.TranslateKeys(raw, translateKeysDict)
+	//return nil, fmt.Errorf("raw map: %v", raw)
 
 	var md mapstructure.Metadata
 	decodeConf := &mapstructure.DecoderConfig{
@@ -376,6 +378,18 @@ func ConfigEntryDecodeRulesForKind(kind string) (skipWhenPatching []string, tran
 			"only_passing":    "onlypassing",
 			"service_subset":  "servicesubset",
 		}, nil
+	case IngressGateway:
+		return []string{
+				"listeners",
+				"Listeners",
+				"listeners.service_prefixes",
+				"Listeners.ServicePrefixes",
+				"listeners.services",
+				"Listeners.Services",
+			}, map[string]string{
+				"service_prefixes": "serviceprefixes",
+				"service_subset":   "servicesubset",
+			}, nil
 	default:
 		return nil, nil, fmt.Errorf("kind %q should be explicitly handled here", kind)
 	}
@@ -466,6 +480,8 @@ func MakeConfigEntry(kind, name string) (ConfigEntry, error) {
 		return &ServiceSplitterConfigEntry{Name: name}, nil
 	case ServiceResolver:
 		return &ServiceResolverConfigEntry{Name: name}, nil
+	case IngressGateway:
+		return &IngressGatewayConfigEntry{Name: name}, nil
 	default:
 		return nil, fmt.Errorf("invalid config entry kind: %s", kind)
 	}
@@ -476,6 +492,8 @@ func ValidateConfigEntryKind(kind string) bool {
 	case ServiceDefaults, ProxyDefaults:
 		return true
 	case ServiceRouter, ServiceSplitter, ServiceResolver:
+		return true
+	case IngressGateway:
 		return true
 	default:
 		return false
