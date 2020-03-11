@@ -890,21 +890,12 @@ const (
 	// service will proxy connections based off the SNI header set by other
 	// connect proxies
 	ServiceKindMeshGateway ServiceKind = "mesh-gateway"
-)
 
-func ServiceKindFromString(kind string) (ServiceKind, error) {
-	switch kind {
-	case string(ServiceKindTypical):
-		return ServiceKindTypical, nil
-	case string(ServiceKindConnectProxy):
-		return ServiceKindConnectProxy, nil
-	case string(ServiceKindMeshGateway):
-		return ServiceKindMeshGateway, nil
-	default:
-		// have to return something and it may as well be typical
-		return ServiceKindTypical, fmt.Errorf("Invalid service kind: %s", kind)
-	}
-}
+	// ServiceKindIngressGateway is an Ingress Gateway for the Connect feature.
+	// This service allows external traffic to enter the mesh based on
+	// centralized configuration.
+	ServiceKindIngressGateway ServiceKind = "ingress-gateway"
+)
 
 // Type to hold a address and port of a service
 type ServiceAddress struct {
@@ -1148,35 +1139,35 @@ func (s *NodeService) Validate() error {
 	}
 
 	// MeshGateway validation
-	if s.Kind == ServiceKindMeshGateway {
-		// Gateways must have a port
-		if s.Port == 0 {
-			result = multierror.Append(result, fmt.Errorf("Port must be non-zero for a Mesh Gateway"))
+	if s.Kind == ServiceKindMeshGateway || s.Kind == ServiceKindIngressGateway {
+		// Mesh Gateways must have a port
+		if s.Port == 0 && s.Kind == ServiceKindMeshGateway {
+			result = multierror.Append(result, fmt.Errorf("Port must be non-zero for a %s", s.Kind))
 		}
 
 		// Gateways cannot have sidecars
 		if s.Connect.SidecarService != nil {
-			result = multierror.Append(result, fmt.Errorf("Mesh Gateways cannot have a sidecar service defined"))
+			result = multierror.Append(result, fmt.Errorf("%s cannot have a sidecar service defined", s.Kind))
 		}
 
 		if s.Proxy.DestinationServiceName != "" {
-			result = multierror.Append(result, fmt.Errorf("The Proxy.DestinationServiceName configuration is invalid for Mesh Gateways"))
+			result = multierror.Append(result, fmt.Errorf("The Proxy.DestinationServiceName configuration is invalid for %s", s.Kind))
 		}
 
 		if s.Proxy.DestinationServiceID != "" {
-			result = multierror.Append(result, fmt.Errorf("The Proxy.DestinationServiceID configuration is invalid for Mesh Gateways"))
+			result = multierror.Append(result, fmt.Errorf("The Proxy.DestinationServiceID configuration is invalid for %s", s.Kind))
 		}
 
 		if s.Proxy.LocalServiceAddress != "" {
-			result = multierror.Append(result, fmt.Errorf("The Proxy.LocalServiceAddress configuration is invalid for Mesh Gateways"))
+			result = multierror.Append(result, fmt.Errorf("The Proxy.LocalServiceAddress configuration is invalid for %s", s.Kind))
 		}
 
 		if s.Proxy.LocalServicePort != 0 {
-			result = multierror.Append(result, fmt.Errorf("The Proxy.LocalServicePort configuration is invalid for Mesh Gateways"))
+			result = multierror.Append(result, fmt.Errorf("The Proxy.LocalServicePort configuration is invalid for %s", s.Kind))
 		}
 
 		if len(s.Proxy.Upstreams) != 0 {
-			result = multierror.Append(result, fmt.Errorf("The Proxy.Upstreams configuration is invalid for Mesh Gateways"))
+			result = multierror.Append(result, fmt.Errorf("The Proxy.Upstreams configuration is invalid for %s", s.Kind))
 		}
 	}
 
