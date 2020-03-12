@@ -187,6 +187,8 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 		f = h.serviceNodesConnect
 	case args.TagFilter:
 		f = h.serviceNodesTagFilter
+	case args.Ingress:
+		f = h.serviceNodesIngress
 	default:
 		f = h.serviceNodesDefault
 	}
@@ -201,9 +203,9 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 		return err
 	}
 
-	// If we're doing a connect query, we need read access to the service
+	// If we're doing a connect or ingress query, we need read access to the service
 	// we're trying to find proxies for, so check that.
-	if args.Connect {
+	if args.Connect || args.Ingress {
 		if authz != nil && authz.ServiceRead(args.ServiceName, &authzContext) != acl.Allow {
 			// Just return nil, which will return an empty response (tested)
 			return nil
@@ -282,6 +284,10 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 
 func (h *Health) serviceNodesConnect(ws memdb.WatchSet, s *state.Store, args *structs.ServiceSpecificRequest) (uint64, structs.CheckServiceNodes, error) {
 	return s.CheckConnectServiceNodes(ws, args.ServiceName, &args.EnterpriseMeta)
+}
+
+func (h *Health) serviceNodesIngress(ws memdb.WatchSet, s *state.Store, args *structs.ServiceSpecificRequest) (uint64, structs.CheckServiceNodes, error) {
+	return s.IngressGatewaysForService(ws, args.ServiceName, &args.EnterpriseMeta)
 }
 
 func (h *Health) serviceNodesTagFilter(ws memdb.WatchSet, s *state.Store, args *structs.ServiceSpecificRequest) (uint64, structs.CheckServiceNodes, error) {
