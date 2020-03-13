@@ -556,9 +556,30 @@ func TestTxnEndpoint_UpdateCheck(t *testing.T) {
 				}
 			}
 		}
+	},
+	{
+		"Check": {
+			"Verb": "set",
+			"Check": {
+				"Node": "%s",
+				"CheckID": "nodecheck",
+				"Name": "Node http check",
+				"Status": "passing",
+				"Notes": "Http based health check",
+				"Output": "success",
+				"ServiceID": "",
+				"ServiceName": "",
+				"Definition": {
+					"Interval": "10s",
+					"Timeout": "10s",
+					"DeregisterCriticalServiceAfter": "15m",
+					"ScriptArgs": ["curl", "http://localhost:9000"]
+				}
+			}
+		}
 	}
 ]
-`, a.config.NodeName, a.config.NodeName, a.config.NodeName)))
+`, a.config.NodeName, a.config.NodeName, a.config.NodeName, a.config.NodeName)))
 	req, _ := http.NewRequest("PUT", "/v1/txn", buf)
 	resp := httptest.NewRecorder()
 	obj, err := a.srv.Txn(resp, req)
@@ -566,15 +587,15 @@ func TestTxnEndpoint_UpdateCheck(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 	if resp.Code != 200 {
-		t.Fatalf("expected 200, got %d", resp.Code)
+		t.Fatalf("expected 200, got %d: %v", resp.Code, resp)
 	}
 
 	txnResp, ok := obj.(structs.TxnResponse)
 	if !ok {
 		t.Fatalf("bad type: %T", obj)
 	}
-	if len(txnResp.Results) != 3 {
-		t.Fatalf("bad: %v", txnResp)
+	if len(txnResp.Results) != 4 {
+		t.Fatalf("bad number of tests: %v", txnResp)
 	}
 	index := txnResp.Results[0].Check.ModifyIndex
 	expected := structs.TxnResponse{
@@ -642,6 +663,104 @@ func TestTxnEndpoint_UpdateCheck(t *testing.T) {
 						ModifyIndex: index,
 					},
 					EnterpriseMeta: *structs.DefaultEnterpriseMeta(),
+				},
+			},
+			&structs.TxnResult{
+				Check: &structs.HealthCheck{
+					Node:    a.config.NodeName,
+					CheckID: "nodecheck",
+					Name:    "Node http check",
+					Status:  api.HealthPassing,
+					Notes:   "Http based health check",
+					Output:  "success",
+					Definition: structs.HealthCheckDefinition{
+						Interval:                       10 * time.Second,
+						Timeout:                        10 * time.Second,
+						DeregisterCriticalServiceAfter: 15 * time.Minute,
+						ScriptArgs:                     []string{"curl", "http://localhost:9000"},
+					},
+					RaftIndex: structs.RaftIndex{
+						CreateIndex: index,
+						ModifyIndex: index,
+					},
+				},
+			},
+		},
+	}
+	assert.Equal(t, expected, txnResp)
+}
+
+func TestTxnEndpoint_Script_UpdateCheck(t *testing.T) {
+	t.Parallel()
+	a := NewTestAgent(t, t.Name(), "")
+	defer a.Shutdown()
+	testrpc.WaitForTestAgent(t, a.RPC, "dc1")
+
+	// Make sure the fields of a check are handled correctly when both creating and
+	// updating, and test both sets of duration fields to ensure backwards compatibility.
+	buf := bytes.NewBuffer([]byte(fmt.Sprintf(`
+[
+	{
+		"Check": {
+			"Verb": "set",
+			"Check": {
+				"Node": "%s",
+				"CheckID": "nodecheck",
+				"Name": "Node http check",
+				"Status": "passing",
+				"Notes": "Http based health check",
+				"Output": "success",
+				"ServiceID": "",
+				"ServiceName": "",
+				"Definition": {
+					"Interval": "10s",
+					"Timeout": "10s",
+					"DeregisterCriticalServiceAfter": "15m",
+					"ScriptArgs": ["curl", "http://localhost:9000"]
+				}
+			}
+		}
+	}
+]
+`, a.config.NodeName)))
+	req, _ := http.NewRequest("PUT", "/v1/txn", buf)
+	resp := httptest.NewRecorder()
+	obj, err := a.srv.Txn(resp, req)
+	if err != nil {
+		t.Fatalf("err: %v", err)
+	}
+	if resp.Code != 200 {
+		t.Fatalf("expected 200, got %d: %v", resp.Code, resp)
+	}
+
+	txnResp, ok := obj.(structs.TxnResponse)
+	if !ok {
+		t.Fatalf("bad type: %T", obj)
+	}
+	if len(txnResp.Results) != 1 {
+		t.Fatalf("bad number of results: %v \n", txnResp)
+	}
+	index := txnResp.Results[0].Check.ModifyIndex
+	expected := structs.TxnResponse{
+		Results: structs.TxnResults{
+			&structs.TxnResult{
+				Check: &structs.HealthCheck{
+					Node:    a.config.NodeName,
+					CheckID: "nodecheck",
+					Name:    "Node http check",
+					Status:  api.HealthPassing,
+					Notes:   "Http based health check",
+					Output:  "success",
+					Definition: structs.HealthCheckDefinition{
+						Interval:                       10 * time.Second,
+						Timeout:                        10 * time.Second,
+						DeregisterCriticalServiceAfter: 15 * time.Minute,
+						ScriptArgs:                     []string{"curl", "http://localhost:9000"},
+					},
+					RaftIndex: structs.RaftIndex{
+						CreateIndex: index,
+						ModifyIndex: index,
+					},
 				},
 			},
 		},
