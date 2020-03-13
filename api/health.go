@@ -48,6 +48,7 @@ type HealthCheck struct {
 // HealthCheckDefinition is used to store the details about
 // a health check's execution.
 type HealthCheckDefinition struct {
+	ScriptArgs                             []string
 	HTTP                                   string
 	Header                                 map[string][]string
 	Method                                 string
