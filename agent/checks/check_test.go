@@ -142,6 +142,28 @@ func TestCheckMonitor_Timeout(t *testing.T) {
 	}
 }
 
+func TestCheckMonitor_NoOutputMaxSize(t *testing.T) {
+	notif := mock.NewNotify()
+	logger := testutil.Logger(t)
+	statusHandler := NewStatusHandler(notif, logger, 0, 0)
+
+	cid := structs.NewCheckID("foo", nil)
+	check := &CheckMonitor{
+		Notify:     notif,
+		CheckID:    cid,
+		ScriptArgs: []string{"sh", "-c", "sleep 1 && exit 0"},
+		Interval:   10 * time.Millisecond,
+		Timeout:    5 * time.Millisecond,
+		// Test purpose: not including `OutputMaxSize: DefaultBufSize,` does not panic
+		Logger:        logger,
+		StatusHandler: statusHandler,
+	}
+	check.Start()
+	defer check.Stop()
+
+	time.Sleep(250 * time.Millisecond)
+}
+
 func TestCheckMonitor_RandomStagger(t *testing.T) {
 	// t.Parallel() // timing test. no parallel
 	notif := mock.NewNotify()

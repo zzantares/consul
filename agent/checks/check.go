@@ -80,6 +80,9 @@ type CheckMonitor struct {
 func (c *CheckMonitor) Start() {
 	c.stopLock.Lock()
 	defer c.stopLock.Unlock()
+	if c.OutputMaxSize < 1 {
+		c.OutputMaxSize = DefaultBufSize
+	}
 	c.stop = false
 	c.stopCh = make(chan struct{})
 	go c.run()
