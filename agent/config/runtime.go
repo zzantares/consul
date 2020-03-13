@@ -456,6 +456,8 @@ type RuntimeConfig struct {
 	// hcl: ca_path = string
 	CAPath string
 
+	CatalogNodes []*structs.RegisterRequest
+
 	// CertFile is used to provide a TLS certificate that is used for serving
 	// TLS connections. Must be provided to serve TLS connections.
 	//

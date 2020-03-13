@@ -283,7 +283,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 			return RuntimeConfig{}, fmt.Errorf("Error parsing %s: %s", s.Name, err)
 		}
 
-		// if we have a single 'check' or 'service' we need to add them to the
+		// if we have a single 'check', 'service', or 'catalog' we need to add them to the
 		// list of checks and services first since we cannot merge them
 		// generically and later values would clobber earlier ones.
 		if c2.Check != nil {
@@ -293,6 +293,10 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		if c2.Service != nil {
 			c2.Services = append(c2.Services, *c2.Service)
 			c2.Service = nil
+		}
+		if c2.CatalogNode != nil {
+			c2.CatalogNodes = append(c2.CatalogNodes, *c2.CatalogNode)
+			c2.CatalogNode = nil
 		}
 
 		c = Merge(c, c2)
@@ -334,7 +338,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	}
 
 	// ----------------------------------------------------------------
-	// checks and services
+	// checks, services, catalog
 	//
 
 	var checks []*structs.CheckDefinition
@@ -351,6 +355,14 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 	}
 	if c.Service != nil {
 		services = append(services, b.serviceVal(c.Service))
+	}
+
+	var catalogs []*structs.RegisterRequest
+	for _, catalog := range c.CatalogNodes {
+		catalogs = append(catalogs, b.catalogVal(&catalog))
+	}
+	if c.CatalogNode != nil {
+		catalogs = append(catalogs, b.catalogVal(c.CatalogNode))
 	}
 
 	// ----------------------------------------------------------------
@@ -868,6 +880,7 @@ func (b *Builder) Build() (rt RuntimeConfig, err error) {
 		BootstrapExpect:                        b.intVal(c.BootstrapExpect),
 		CAFile:                                 b.stringVal(c.CAFile),
 		CAPath:                                 b.stringVal(c.CAPath),
+		CatalogNodes:                           catalogs,
 		CertFile:                               b.stringVal(c.CertFile),
 		CheckUpdateInterval:                    b.durationVal("check_update_interval", c.CheckUpdateInterval),
 		CheckOutputMaxSize:                     b.intValWithDefault(c.CheckOutputMaxSize, 4096),
@@ -1325,6 +1338,119 @@ func (b *Builder) checkVal(v *CheckDefinition) *structs.CheckDefinition {
 		DeregisterCriticalServiceAfter: b.durationVal(fmt.Sprintf("check[%s].deregister_critical_service_after", id), v.DeregisterCriticalServiceAfter),
 		OutputMaxSize:                  b.intValWithDefault(v.OutputMaxSize, checks.DefaultBufSize),
 		EnterpriseMeta:                 v.EnterpriseMeta.ToStructs(),
+	}
+}
+
+func (b *Builder) catalogVal(v *CatalogNode) *structs.RegisterRequest {
+	if v == nil {
+		return nil
+	}
+
+	var checks structs.HealthChecks
+	for _, check := range v.Checks {
+		checks = append(checks, b.catalogCheckVal(&check))
+	}
+	if v.Check != nil {
+		checks = append(checks, b.catalogCheckVal(v.Check))
+	}
+
+	meta := make(map[string]string)
+	if err := structs.ValidateServiceMetadata(structs.ServiceKindTypical, v.NodeMeta, false); err != nil {
+		b.err = multierror.Append(fmt.Errorf("invalid meta for node %s: %v", b.stringVal(v.Node), err))
+	} else {
+		meta = v.NodeMeta
+	}
+
+	return &structs.RegisterRequest{
+		Datacenter:      b.stringVal(v.Datacenter),
+		ID:              types.NodeID(b.stringVal(v.ID)),
+		Node:            b.stringVal(v.Node),
+		Address:         b.stringVal(v.Address),
+		TaggedAddresses: v.TaggedAddresses,
+		NodeMeta:        meta,
+		Service:         b.catalogServiceVal(v.Service),
+		Checks:          checks,
+		SkipNodeUpdate:  b.boolVal(v.SkipNodeUpdate),
+	}
+}
+
+func (b *Builder) catalogServiceVal(v *CatalogService) *structs.NodeService {
+	if v == nil {
+		return nil
+	}
+
+	meta := make(map[string]string)
+	if err := structs.ValidateServiceMetadata(structs.ServiceKindTypical, v.Meta, false); err != nil {
+		b.err = multierror.Append(fmt.Errorf("invalid meta for service %s: %v", b.stringVal(v.Service), err))
+	} else {
+		meta = v.Meta
+	}
+
+	serviceWeights := &structs.Weights{Passing: 1, Warning: 1}
+	if v.Weights != nil {
+		if v.Weights.Passing != nil {
+			serviceWeights.Passing = *v.Weights.Passing
+		}
+		if v.Weights.Warning != nil {
+			serviceWeights.Warning = *v.Weights.Warning
+		}
+	}
+	if err := structs.ValidateWeights(serviceWeights); err != nil {
+		b.err = multierror.Append(fmt.Errorf("Invalid weight definition for service %s: %s", b.stringVal(v.Service), err))
+	}
+
+	return &structs.NodeService{
+		// Kind:              b.serviceKindVal(v.Kind), This is used for proxy
+		ID:                b.stringVal(v.ID),
+		Service:           b.stringVal(v.Service),
+		Tags:              v.Tags,
+		Meta:              meta,
+		Port:              b.intVal(v.Port),
+		Address:           b.stringVal(v.Address),
+		TaggedAddresses:   b.svcTaggedAddresses(v.TaggedAddresses),
+		Weights:           serviceWeights,
+		EnableTagOverride: b.boolVal(v.EnableTagOverride),
+	}
+}
+
+func (b *Builder) catalogCheckVal(v *CatalogCheck) *structs.HealthCheck {
+	if v == nil {
+		return nil
+	}
+
+	def := v.Definition
+
+	return &structs.HealthCheck{
+		Node:        b.stringVal(v.Node),
+		CheckID:     types.CheckID(b.stringVal(v.ID)),
+		Name:        b.stringVal(v.Name),
+		Status:      b.stringVal(v.Status),
+		Notes:       b.stringVal(v.Notes),
+		Output:      b.stringVal(v.Output),
+		ServiceID:   b.stringVal(v.ServiceID),
+		ServiceName: b.stringVal(v.ServiceName),
+		ServiceTags: v.ServiceTags,
+		Type:        b.stringVal(v.Type),
+		Definition: structs.HealthCheckDefinition{
+			HTTP:                           b.stringVal(def.HTTP),
+			TLSSkipVerify:                  b.boolVal(def.TLSSkipVerify),
+			Header:                         def.Header,
+			Method:                         b.stringVal(def.Method),
+			Body:                           b.stringVal(def.Body),
+			TCP:                            b.stringVal(def.TCP),
+			Interval:                       b.durationVal(fmt.Sprintf("check[%s].interval", *v.Name), def.Interval),
+			OutputMaxSize:                  b.uintValWithDefault(def.OutputMaxSize, checks.DefaultBufSize),
+			Timeout:                        b.durationVal(fmt.Sprintf("check[%s].timeout", *v.Name), def.Timeout),
+			DeregisterCriticalServiceAfter: b.durationVal(fmt.Sprintf("check[%s].deregister_critical_service_after", *v.Name), def.DeregisterCriticalServiceAfter),
+			ScriptArgs:                     def.ScriptArgs,
+			DockerContainerID:              b.stringVal(def.DockerContainerID),
+			Shell:                          b.stringVal(def.Shell),
+			GRPC:                           b.stringVal(def.GRPC),
+			GRPCUseTLS:                     b.boolVal(def.GRPCUseTLS),
+			AliasNode:                      b.stringVal(def.AliasNode),
+			AliasService:                   b.stringVal(def.AliasService),
+			TTL:                            b.durationVal(fmt.Sprintf("check[%s].ttl", *v.Name), def.TTL),
+		},
 	}
 }
 

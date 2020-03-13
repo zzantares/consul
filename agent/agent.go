@@ -477,11 +477,14 @@ func (a *Agent) Start() error {
 
 	a.serviceManager.Start()
 
-	// Load checks/services/metadata.
+	// Load checks/services/catalog/metadata.
 	if err := a.loadServices(c, nil); err != nil {
 		return err
 	}
 	if err := a.loadChecks(c, nil); err != nil {
+		return err
+	}
+	if err := a.loadCatalog(c, ConfigSourceLocal); err != nil {
 		return err
 	}
 	if err := a.loadMetadata(c); err != nil {
@@ -3514,6 +3517,74 @@ func (a *Agent) deletePid() error {
 	return nil
 }
 
+// loadCatalog will load catalog definitions from configuration and register
+// the definition with catalog
+func (a *Agent) loadCatalog(conf *config.RuntimeConfig, source configSource) error {
+	// Register the checks from config
+
+	for _, node := range conf.CatalogNodes {
+		// only allow script checks for catalog if local-script-check config is enabled
+		// unlike script checks for services, catalog only supports
+		for _, c := range node.Checks {
+			if c.CheckType().IsScript() && (source != ConfigSourceLocal || !a.config.EnableLocalScriptChecks) {
+				return fmt.Errorf("Local catalog scripts are disabled on this agent; to enable, configure 'enable_local_script_checks' to true")
+			}
+		}
+
+		// Setup the default DC if not provided
+		if node.Datacenter == "" {
+			node.Datacenter = a.config.Datacenter
+		}
+		// TODO: switch to transaction?
+		var out struct{}
+		if err := a.RPC("Catalog.Register", node, &out); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// unloadCatalog will deregister all catalog nodes besides the nain node
+func (a *Agent) unloadCatalog() error {
+	// get all nodes
+	req := structs.DCSpecificRequest{
+		Datacenter: a.config.Datacenter,
+	}
+
+	var resp structs.IndexedNodes
+	if err := a.RPC("Catalog.ListNodes", &req, &resp); err != nil {
+		return fmt.Errorf("Failed to retrieve catalog nodes for deregistering: %v", err)
+	}
+
+	if resp.Nodes == nil {
+		return nil
+	}
+
+	for _, node := range resp.Nodes {
+		// remove all nodes except main node
+		if node.Node == a.config.NodeName {
+			continue
+		}
+		// deregister the whole node
+		in := structs.DeregisterRequest{
+			Datacenter: node.Datacenter,
+			Node:       node.Node,
+		}
+		// Setup the default DC if not provided
+		if in.Datacenter == "" {
+			in.Datacenter = a.config.Datacenter
+		}
+
+		var out struct{}
+		if err := a.RPC("Catalog.Deregister", &in, &out); err != nil {
+			return fmt.Errorf("Failed to deregister catalog %v: %v", in, err)
+		}
+		a.logger.Debug("removed catalog", "catalog", in.Node)
+	}
+	return nil
+}
+
 // loadServices will load service definitions from configuration and persisted
 // definitions on disk, and load them into the local agent.
 func (a *Agent) loadServices(conf *config.RuntimeConfig, snap map[structs.CheckID]*structs.HealthCheck) error {
@@ -4037,6 +4108,9 @@ func (a *Agent) ReloadConfig(newCfg *config.RuntimeConfig) error {
 	if err := a.unloadChecks(); err != nil {
 		return fmt.Errorf("Failed unloading checks: %s", err)
 	}
+	if err := a.unloadCatalog(); err != nil {
+		return fmt.Errorf("Failed unloading catalog: %s", err)
+	}
 	a.unloadMetadata()
 
 	// Reload tokens - should be done before all the other loading
@@ -4055,6 +4129,9 @@ func (a *Agent) ReloadConfig(newCfg *config.RuntimeConfig) error {
 	}
 	if err := a.loadChecks(newCfg, snap); err != nil {
 		return fmt.Errorf("Failed reloading checks: %s", err)
+	}
+	if err := a.loadCatalog(newCfg, ConfigSourceLocal); err != nil {
+		return err
 	}
 	if err := a.loadMetadata(newCfg); err != nil {
 		return fmt.Errorf("Failed reloading metadata: %s", err)

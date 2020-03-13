@@ -96,6 +96,9 @@ func Parse(data string, format string) (c Config, err error) {
 		"service.proxy.expose.paths",
 		"services.proxy.expose.paths",
 		"acl.tokens.managed_service_provider",
+		"catalog_nodes",
+		"catalog_nodes.checks",
+		"catalog_node.checks",
 
 		// Need all the service(s) exceptions also for nested sidecar service.
 		"service.connect.sidecar_service.checks",
@@ -194,6 +197,8 @@ type Config struct {
 	BootstrapExpect                  *int                     `json:"bootstrap_expect,omitempty" hcl:"bootstrap_expect" mapstructure:"bootstrap_expect"`
 	CAFile                           *string                  `json:"ca_file,omitempty" hcl:"ca_file" mapstructure:"ca_file"`
 	CAPath                           *string                  `json:"ca_path,omitempty" hcl:"ca_path" mapstructure:"ca_path"`
+	CatalogNode                      *CatalogNode             `json:"catalog_node,omitempty" hcl:"catalog_node" mapstructure:"catalog_node"`
+	CatalogNodes                     []CatalogNode            `json:"catalog_nodes,omitempty" hcl:"catalog_nodes" mapstructure:"catalog_nodes"`
 	CertFile                         *string                  `json:"cert_file,omitempty" hcl:"cert_file" mapstructure:"cert_file"`
 	Check                            *CheckDefinition         `json:"check,omitempty" hcl:"check" mapstructure:"check"` // needs to be a pointer to avoid partial merges
 	CheckOutputMaxSize               *int                     `json:"check_output_max_size,omitempty" hcl:"check_output_max_size" mapstructure:"check_output_max_size"`
@@ -316,6 +321,71 @@ type Config struct {
 	SyncCoordinateRateTarget   *float64 `json:"sync_coordinate_rate_target,omitempty" hcl:"sync_coordinate_rate_target" mapstructure:"sync_coordinate_rate_target"`
 	Version                    *string  `json:"version,omitempty" hcl:"version" mapstructure:"version"`
 	VersionPrerelease          *string  `json:"version_prerelease,omitempty" hcl:"version_prerelease" mapstructure:"version_prerelease"`
+}
+
+// CatalogNode represents node to register with catalog
+type CatalogNode struct {
+	ID              *string           `json:"id,omitempty" hcl:"id" mapstructure:"id"`
+	Node            *string           `json:"node,omitempty" hcl:"node" mapstructure:"node"`
+	Address         *string           `json:"address,omitempty" hcl:"address" mapstructure:"address"`
+	TaggedAddresses map[string]string `json:"tagged_addresses,omitempty" hcl:"tagged_addresses" mapstructure:"tagged_addresses"`
+	NodeMeta        map[string]string `json:"node_meta,omitempty" hcl:"node_meta" mapstructure:"node_meta"`
+	Datacenter      *string           `json:"datacenter,omitempty" hcl:"datacenter" mapstructure:"datacenter"`
+	Service         *CatalogService   `json:"service,omitempty" hcl:"service" mapstructure:"service"`
+	Check           *CatalogCheck     `json:"check,omitempty" hcl:"check" mapstructure:"check"`
+	Checks          []CatalogCheck    `json:"checks,omitempty" hcl:"checks" mapstructure:"checks"`
+	SkipNodeUpdate  *bool             `json:"skip_node_update,omitempty" hcl:"skip_node_update" mapstructure:"skip_node_update"`
+}
+
+// CatalogService represents a service to register with a catalog node. Field of CatalogNode
+type CatalogService struct {
+	Kind              *string                   `json:"kind,omitempty" hcl:"kind" mapstructure:"kind"`
+	ID                *string                   `json:"id,omitempty" hcl:"id" mapstructure:"id"`
+	Service           *string                   `json:"service,omitempty" hcl:"service" mapstructure:"service"`
+	Tags              []string                  `json:"tags,omitempty" hcl:"tags" mapstructure:"tags"`
+	Meta              map[string]string         `json:"meta,omitempty" hcl:"meta" mapstructure:"meta"`
+	Port              *int                      `json:"port,omitempty" hcl:"port" mapstructure:"port"`
+	Address           *string                   `json:"address,omitempty" hcl:"address" mapstructure:"address"`
+	TaggedAddresses   map[string]ServiceAddress `json:"tagged_addresses,omitempty" hcl:"tagged_addresses" mapstructure:"tagged_addresses"`
+	Weights           *ServiceWeights           `json:"weights,omitempty" hcl:"weights" mapstructure:"weights"`
+	EnableTagOverride *bool                     `json:"enable_tag_override,omitempty" hcl:"enable_tag_override" mapstructure:"enable_tag_override"`
+}
+
+// CatalogCheck represents a check to register with a catalog node. Field of CatalogNode
+type CatalogCheck struct {
+	Node        *string                 `json:"node,omitempty" hcl:"node" mapstructure:"node"`
+	ID          *string                 `json:"id,omitempty" hcl:"id" mapstructure:"id"`
+	Name        *string                 `json:"name,omitempty" hcl:"name" mapstructure:"name"`
+	Status      *string                 `json:"status,omitempty" hcl:"status" mapstructure:"status"`
+	Notes       *string                 `json:"notes,omitempty" hcl:"notes" mapstructure:"notes"`
+	Output      *string                 `json:"output,omitempty" hcl:"output" mapstructure:"output"`
+	ServiceID   *string                 `json:"service_id,omitempty" hcl:"service_id" mapstructure:"service_id"`
+	ServiceName *string                 `json:"service_name,omitempty" hcl:"service_name" mapstructure:"service_name"`
+	ServiceTags []string                `json:"service_tags,omitempty" hcl:"service_tags" mapstructure:"service_tags"`
+	Type        *string                 `json:"type,omitempty" hcl:"type" mapstructure:"type"`
+	Definition  *CatalogCheckDefinition `json:"definition,omitempty" hcl:"definition" mapstructure:"definition"`
+}
+
+// CatalogCheckDefinition represents the definition for a catalog check. Field of CatalogCheckDefinition
+type CatalogCheckDefinition struct {
+	HTTP                           *string             `json:"http,omitempty" hcl:"http" mapstructure:"http"`
+	TLSSkipVerify                  *bool               `json:"tls_skip_verify,omitempty" hcl:"tls_skip_verify" mapstructure:"tls_skip_verify"`
+	Header                         map[string][]string `json:"header,omitempty" hcl:"header" mapstructure:"header"`
+	Method                         *string             `json:"method,omitempty" hcl:"method" mapstructure:"method"`
+	Body                           *string             `json:"body,omitempty" hcl:"body" mapstructure:"body"`
+	TCP                            *string             `json:"tcp,omitempty" hcl:"tcp" mapstructure:"tcp"`
+	Interval                       *string             `json:"interval,omitempty" hcl:"interval" mapstructure:"interval"`
+	OutputMaxSize                  *uint               `json:"output_max_size,omitempty" hcl:"output_max_size" mapstructure:"output_max_size"`
+	Timeout                        *string             `json:"timeout,omitempty" hcl:"timeout" mapstructure:"timeout"`
+	DeregisterCriticalServiceAfter *string             `json:"deregister_critical_service_after,omitempty" hcl:"deregister_critical_service_after" mapstructure:"deregister_critical_service_after"`
+	ScriptArgs                     []string            `json:"script_args,omitempty" hcl:"script_args" mapstructure:"script_args"`
+	DockerContainerID              *string             `json:"docker_container_id,omitempty" hcl:"docker_container_id" mapstructure:"docker_container_id"`
+	Shell                          *string             `json:"shell,omitempty" hcl:"shell" mapstructure:"shell"`
+	GRPC                           *string             `json:"grpc,omitempty" hcl:"grpc" mapstructure:"grpc"`
+	GRPCUseTLS                     *bool               `json:"grpc_use_tls,omitempty" hcl:"grpc_use_tls" mapstructure:"grpc_use_tls"`
+	AliasNode                      *string             `json:"alias_node,omitempty" hcl:"alias_node" mapstructure:"alias_node"`
+	AliasService                   *string             `json:"alias_service,omitempty" hcl:"alias_service" mapstructure:"alias_service"`
+	TTL                            *string             `json:"ttl,omitempty" hcl:"ttl" mapstructure:"ttl"`
 }
 
 type GossipLANConfig struct {
