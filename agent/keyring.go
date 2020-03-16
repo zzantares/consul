@@ -112,19 +112,19 @@ func decodeStringKey(key string) ([]byte, error) {
 	return base64.StdEncoding.DecodeString(key)
 }
 
-// keyringProcess is used to abstract away the semantic similarities in
+// KeyringOperation is used to abstract away the semantic similarities in
 // performing various operations on the encryption keyring.
-func (a *Agent) keyringProcess(args *structs.KeyringRequest) (*structs.KeyringResponses, error) {
+func (a *Agent) KeyringOperation(args *structs.KeyringRequest) (structs.KeyringResponses, error) {
 	var reply structs.KeyringResponses
 
 	if _, ok := a.delegate.(*consul.Server); !ok {
-		return nil, fmt.Errorf("keyring operations must run against a server node")
+		return reply, fmt.Errorf("keyring operations must run against a server node")
 	}
 	if err := a.RPC("Internal.KeyringOperation", args, &reply); err != nil {
-		return &reply, err
+		return reply, err
 	}
 
-	return &reply, nil
+	return reply, nil
 }
 
 // ParseRelayFactor validates and converts the given relay factor to uint8
@@ -142,40 +142,6 @@ func ValidateLocalOnly(local bool, list bool) error {
 		return fmt.Errorf("local-only can only be set for list requests")
 	}
 	return nil
-}
-
-// ListKeys lists out all keys installed on the collective Consul cluster. This
-// includes both servers and clients in all DC's.
-func (a *Agent) ListKeys(token string, relayFactor uint8) (*structs.KeyringResponses, error) {
-	args := structs.KeyringRequest{Operation: structs.KeyringList}
-	parseKeyringRequest(&args, token, relayFactor)
-	return a.keyringProcess(&args)
-}
-
-// InstallKey installs a new gossip encryption key
-func (a *Agent) InstallKey(key, token string, relayFactor uint8) (*structs.KeyringResponses, error) {
-	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringInstall}
-	parseKeyringRequest(&args, token, relayFactor)
-	return a.keyringProcess(&args)
-}
-
-// UseKey changes the primary encryption key used to encrypt messages
-func (a *Agent) UseKey(key, token string, relayFactor uint8) (*structs.KeyringResponses, error) {
-	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringUse}
-	parseKeyringRequest(&args, token, relayFactor)
-	return a.keyringProcess(&args)
-}
-
-// RemoveKey will remove a gossip encryption key from the keyring
-func (a *Agent) RemoveKey(key, token string, relayFactor uint8) (*structs.KeyringResponses, error) {
-	args := structs.KeyringRequest{Key: key, Operation: structs.KeyringRemove}
-	parseKeyringRequest(&args, token, relayFactor)
-	return a.keyringProcess(&args)
-}
-
-func parseKeyringRequest(req *structs.KeyringRequest, token string, relayFactor uint8) {
-	req.Token = token
-	req.RelayFactor = relayFactor
 }
 
 // keyringIsMissingKey checks whether a key is part of a keyring. Returns true
