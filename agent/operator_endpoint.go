@@ -112,30 +112,29 @@ func (s *HTTPServer) OperatorKeyringEndpoint(resp http.ResponseWriter, req *http
 	// Switch on the method
 	switch req.Method {
 	case "GET":
-		return s.KeyringList(resp, req, &args)
+		return s.KeyringList(&args)
 	case "POST":
-		return s.KeyringInstall(resp, req, &args)
+		return nil, s.KeyringInstall(&args)
 	case "PUT":
-		return s.KeyringUse(resp, req, &args)
+		return nil, s.KeyringUse(&args)
 	case "DELETE":
-		return s.KeyringRemove(resp, req, &args)
+		return nil, s.KeyringRemove(&args)
 	default:
 		return nil, MethodNotAllowedError{req.Method, []string{"GET", "POST", "PUT", "DELETE"}}
 	}
 }
 
 // KeyringInstall is used to install a new gossip encryption key into the cluster
-func (s *HTTPServer) KeyringInstall(resp http.ResponseWriter, req *http.Request, args *keyringArgs) (interface{}, error) {
+func (s *HTTPServer) KeyringInstall(args *keyringArgs) error {
 	responses, err := s.agent.InstallKey(args.Key, args.Token, args.RelayFactor)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return nil, keyringErrorsOrNil(responses.Responses)
+	return keyringErrorsOrNil(responses.Responses)
 }
 
 // KeyringList is used to list the keys installed in the cluster
-func (s *HTTPServer) KeyringList(resp http.ResponseWriter, req *http.Request, args *keyringArgs) (interface{}, error) {
+func (s *HTTPServer) KeyringList(args *keyringArgs) ([]*structs.KeyringResponse, error) {
 	responses, err := s.agent.ListKeys(args.Token, args.RelayFactor)
 	if err != nil {
 		return nil, err
@@ -145,23 +144,22 @@ func (s *HTTPServer) KeyringList(resp http.ResponseWriter, req *http.Request, ar
 }
 
 // KeyringRemove is used to list the keys installed in the cluster
-func (s *HTTPServer) KeyringRemove(resp http.ResponseWriter, req *http.Request, args *keyringArgs) (interface{}, error) {
+func (s *HTTPServer) KeyringRemove(args *keyringArgs) error {
 	responses, err := s.agent.RemoveKey(args.Key, args.Token, args.RelayFactor)
 	if err != nil {
-		return nil, err
+		return err
 	}
-
-	return nil, keyringErrorsOrNil(responses.Responses)
+	return keyringErrorsOrNil(responses.Responses)
 }
 
 // KeyringUse is used to change the primary gossip encryption key
-func (s *HTTPServer) KeyringUse(resp http.ResponseWriter, req *http.Request, args *keyringArgs) (interface{}, error) {
+func (s *HTTPServer) KeyringUse(args *keyringArgs) error {
 	responses, err := s.agent.UseKey(args.Key, args.Token, args.RelayFactor)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return nil, keyringErrorsOrNil(responses.Responses)
+	return keyringErrorsOrNil(responses.Responses)
 }
 
 func keyringErrorsOrNil(responses []*structs.KeyringResponse) error {
