@@ -108,6 +108,10 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 		len(c.ConsulServers) == 0
 }
 
+type configSnapshotIngressGateway struct {
+	Leaf *structs.IssuedCert
+}
+
 // ConfigSnapshot captures all the resulting config needed for a proxy instance.
 // It is meant to be point-in-time coherent and is used to deliver the current
 // config state to observers who need it to be pushed in (e.g. XDS server).
@@ -130,6 +134,9 @@ type ConfigSnapshot struct {
 
 	// mesh-gateway specific
 	MeshGateway configSnapshotMeshGateway
+
+	// ingress-gateway specific
+	IngressGateway configSnapshotIngressGateway
 
 	// Skip intentions for now as we don't push those down yet, just pre-warm them.
 }
