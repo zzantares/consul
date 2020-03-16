@@ -4290,6 +4290,14 @@ func (a *Agent) registerCache() {
 		RefreshTimeout: 10 * time.Minute,
 	})
 
+	a.cache.RegisterType(cachetype.ConfigEntryName, &cachetype.ConfigEntries{
+		RPC: a,
+	}, &cache.RegisterOptions{
+		Refresh:        true,
+		RefreshTimer:   0 * time.Second,
+		RefreshTimeout: 10 * time.Minute,
+	})
+
 	a.cache.RegisterType(cachetype.ServiceHTTPChecksName, &cachetype.ServiceHTTPChecks{
 		Agent: a,
 	}, &cache.RegisterOptions{

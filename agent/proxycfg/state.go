@@ -32,6 +32,7 @@ const (
 	consulServerListWatchID            = "consul-server-list"
 	datacentersWatchID                 = "datacenters"
 	serviceResolversWatchID            = "service-resolvers"
+	ingressGatewaysWatchID             = "ingress-gateways"
 	svcChecksWatchIDPrefix             = cachetype.ServiceHTTPChecksName + ":"
 	serviceIDPrefix                    = string(structs.UpstreamDestTypeService) + ":"
 	preparedQueryIDPrefix              = string(structs.UpstreamDestTypePreparedQuery) + ":"
@@ -106,8 +107,10 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 // The returned state needs its required dependencies to be set before Watch
 // can be called.
 func newState(ns *structs.NodeService, token string) (*state, error) {
-	if ns.Kind != structs.ServiceKindConnectProxy && ns.Kind != structs.ServiceKindMeshGateway {
-		return nil, errors.New("not a connect-proxy or mesh-gateway")
+	if ns.Kind != structs.ServiceKindConnectProxy &&
+		ns.Kind != structs.ServiceKindMeshGateway &&
+		ns.Kind != structs.ServiceKindIngressGateway {
+		return nil, errors.New("not a connect-proxy, mesh-gateway, or ingress-gateway")
 	}
 
 	proxyCfg, err := copyProxyConfig(ns)
@@ -181,6 +184,8 @@ func (s *state) initWatches() error {
 		return s.initWatchesConnectProxy()
 	case structs.ServiceKindMeshGateway:
 		return s.initWatchesMeshGateway()
+	case structs.ServiceKindIngressGateway:
+		return s.initWatchesIngressGateway()
 	default:
 		return fmt.Errorf("Unsupported service kind")
 	}
@@ -432,6 +437,55 @@ func (s *state) initWatchesMeshGateway() error {
 	return err
 }
 
+func (s *state) initWatchesIngressGateway() error {
+	// Watch for root changes
+	err := s.cache.Notify(s.ctx, cachetype.ConnectCARootName, &structs.DCSpecificRequest{
+		Datacenter:   s.source.Datacenter,
+		QueryOptions: structs.QueryOptions{Token: s.token},
+		Source:       *s.source,
+	}, rootsWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch the leaf cert
+	err = s.cache.Notify(s.ctx, cachetype.ConnectCALeafName, &cachetype.ConnectCALeafRequest{
+		Datacenter:     s.source.Datacenter,
+		Token:          s.token,
+		Service:        s.service,
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, leafWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch the service's own ingress-gateway config entry
+	err = s.cache.Notify(s.ctx, cachetype.ConfigEntryName, &structs.ConfigEntryQuery{
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		Kind:           structs.IngressGateway,
+		Name:           s.service,
+		EnterpriseMeta: *structs.WildcardEnterpriseMeta(),
+	}, ingressGatewaysWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch for all services so that we can filter on service-prefixes
+	err = s.cache.Notify(s.ctx, cachetype.CatalogServiceListName, &structs.DCSpecificRequest{
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		Source:         *s.source,
+		EnterpriseMeta: *structs.WildcardEnterpriseMeta(),
+	}, serviceListWatchID, s.ch)
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *state) initialConfigSnapshot() ConfigSnapshot {
 	snap := ConfigSnapshot{
 		Kind:            s.kind,
@@ -464,6 +518,7 @@ func (s *state) initialConfigSnapshot() ConfigSnapshot {
 		snap.MeshGateway.ServiceResolvers = make(map[structs.ServiceID]*structs.ServiceResolverConfigEntry)
 		// there is no need to initialize the map of service resolvers as we
 		// fully rebuild it every time we get updates
+	case structs.ServiceKindIngressGateway:
 	}
 
 	return snap
@@ -563,6 +618,8 @@ func (s *state) handleUpdate(u cache.UpdateEvent, snap *ConfigSnapshot) error {
 		return s.handleUpdateConnectProxy(u, snap)
 	case structs.ServiceKindMeshGateway:
 		return s.handleUpdateMeshGateway(u, snap)
+	case structs.ServiceKindIngressGateway:
+		return s.handleUpdateIngressGateway(u, snap)
 	default:
 		return fmt.Errorf("Unsupported service kind")
 	}
@@ -960,6 +1017,48 @@ func (s *state) handleUpdateMeshGateway(u cache.UpdateEvent, snap *ConfigSnapsho
 		default:
 			// do nothing for now
 		}
+	}
+
+	return nil
+}
+
+func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnapshot) error {
+	if u.Err != nil {
+		return fmt.Errorf("error filling agent cache: %v", u.Err)
+	}
+
+	switch u.CorrelationID {
+	case rootsWatchID:
+		roots, ok := u.Result.(*structs.IndexedCARoots)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		snap.Roots = roots
+	case leafWatchID:
+		leaf, ok := u.Result.(*structs.IssuedCert)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		snap.IngressGateway.Leaf = leaf
+	case ingressGatewaysWatchID:
+		configEntry, ok := u.Result.(*structs.ConfigEntryResponse)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+
+		ingressGateway, ok := configEntry.Entry.(*structs.IngressGatewayConfigEntry)
+		if !ok {
+			return fmt.Errorf("invalid type for config entry: %T", configEntry.Entry)
+		}
+
+		for _, listener := range ingressGateway.Listeners {
+			// Save necessary information on snapshot
+			// Set up watches for all services that are configured
+			for _, svc := listener.Services {
+				
+			}
+		}
+	default:
 	}
 
 	return nil
