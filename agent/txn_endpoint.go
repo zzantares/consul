@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 	"time"
 
@@ -325,6 +326,12 @@ func (s *HTTPServer) Txn(resp http.ResponseWriter, req *http.Request) (interface
 		s.parseDC(req, &args.Datacenter)
 		s.parseToken(req, &args.Token)
 
+		if err := s.validateTxnScriptChecks(args); err != nil {
+			resp.WriteHeader(http.StatusBadRequest)
+			fmt.Fprintf(resp, "Registering catalog script check remotely is prohibited: %v", err)
+			return nil, nil
+		}
+
 		var reply structs.TxnResponse
 		if err := s.agent.RPC("Txn.Apply", &args, &reply); err != nil {
 			return nil, err
@@ -350,4 +357,62 @@ func (s *HTTPServer) Txn(resp http.ResponseWriter, req *http.Request) (interface
 
 	// Otherwise, return the results of the successful transaction.
 	return ret, nil
+}
+
+// validateTxnScriptChecks confirms whether a request, which checks that are script checks
+// is allowed to be registered. Only allow an update to an existing script check if the
+// script arguments are the same. Do not allow new script checks, new checks to become
+// script checks, and existing script checks to change script. Intending to allow things
+// like updating a check with new status or output
+func (s *HTTPServer) validateTxnScriptChecks(req structs.TxnRequest) error {
+	scriptChecks := make([]structs.HealthCheck, 0)
+	readops := make([]*structs.TxnOp, 0)
+	for _, op := range req.Ops {
+		if op.Check != nil && op.Check.Check.CheckType().IsScript() {
+			scriptChecks = append(scriptChecks, op.Check.Check)
+			readop := &structs.TxnOp{
+				Check: &structs.TxnCheckOp{
+					Verb:  api.CheckGet,
+					Check: op.Check.Check,
+				},
+			}
+			readops = append(readops, readop)
+		}
+	}
+
+	if len(scriptChecks) == 0 {
+		return nil
+	}
+
+	in := structs.TxnReadRequest{
+		Datacenter: req.Datacenter,
+		Ops:        readops,
+	}
+
+	var out structs.TxnReadResponse
+	if err := s.agent.RPC("Txn.Read", &in, &out); err != nil {
+		return fmt.Errorf("Failed to retrieve checks for validating script check: %v", err)
+	}
+	if out.Error() != nil {
+		return fmt.Errorf("Error while retrieving checks for validating script checks. Potential new script check which is prohibited: %v", out.Error())
+	}
+
+	checks := make(map[types.CheckID]*structs.HealthCheck)
+	for _, r := range out.Results {
+		checks[checkHash(r.Check)] = r.Check
+	}
+
+	for _, c := range scriptChecks {
+		existingCheck := checks[checkHash(&c)]
+		if existingCheck == nil {
+			return fmt.Errorf("Creating a new script definition for a new check is prohibited: %v", c)
+		}
+		if reflect.DeepEqual(existingCheck.Definition.ScriptArgs, c.Definition.ScriptArgs) {
+			// only script check register allowed is for updating an existing check with same args
+			continue
+		}
+		return fmt.Errorf("Creating a new script definition for a existing check is prohibited: %v", c)
+	}
+
+	return nil
 }

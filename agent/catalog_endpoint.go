@@ -3,11 +3,13 @@ package agent
 import (
 	"fmt"
 	"net/http"
+	"reflect"
 	"strings"
 
 	metrics "github.com/armon/go-metrics"
 	cachetype "github.com/hashicorp/consul/agent/cache-types"
 	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/types"
 )
 
 func (s *HTTPServer) CatalogRegister(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
@@ -29,6 +31,13 @@ func (s *HTTPServer) CatalogRegister(resp http.ResponseWriter, req *http.Request
 	if args.Datacenter == "" {
 		args.Datacenter = s.agent.config.Datacenter
 	}
+
+	if err := s.validateCatalogScriptChecks(args); err != nil {
+		resp.WriteHeader(http.StatusBadRequest)
+		fmt.Fprintf(resp, "Registering catalog script check remotely is prohibited: %v", err)
+		return nil, nil
+	}
+
 	s.parseToken(req, &args.Token)
 
 	// Forward to the servers
@@ -41,6 +50,62 @@ func (s *HTTPServer) CatalogRegister(resp http.ResponseWriter, req *http.Request
 	metrics.IncrCounterWithLabels([]string{"client", "api", "success", "catalog_register"}, 1,
 		[]metrics.Label{{Name: "node", Value: s.nodeName()}})
 	return true, nil
+}
+
+// validateCatalogScriptChecks confirms whether a request, which checks that are script checks
+// is allowed to be registered. Only allow an update to an existing script check if the
+// script arguments are the same. Do not allow new script checks, new checks to become
+// script checks, and existing script checks to change script. Intending to allow things
+// like updating a check with new status or output
+func (s *HTTPServer) validateCatalogScriptChecks(req structs.RegisterRequest) error {
+	scriptChecks := make([]structs.HealthCheck, 0)
+	if req.Check != nil && req.Check.CheckType().IsScript() {
+		scriptChecks = append(scriptChecks, *req.Check)
+	}
+	for _, c := range req.Checks {
+		if c.CheckType().IsScript() {
+			scriptChecks = append(scriptChecks, *c)
+		}
+	}
+
+	if len(scriptChecks) == 0 {
+		return nil
+	}
+
+	in := structs.NodeSpecificRequest{
+		Datacenter: req.Datacenter,
+		Node:       req.Node,
+	}
+	var out structs.IndexedHealthChecks
+	if err := s.agent.RPC("Health.NodeChecks", &in, &out); err != nil {
+		return fmt.Errorf("Failed to retrieve catalog nodes for validating script check: %v", err)
+	}
+
+	checks := make(map[types.CheckID]*structs.HealthCheck)
+	for _, check := range out.HealthChecks {
+		checks[checkHash(check)] = check
+	}
+
+	for _, c := range scriptChecks {
+		existingCheck := checks[checkHash(&c)]
+		if existingCheck == nil {
+			return fmt.Errorf("Creating a new script definition for a new check is prohibited: %v", c)
+		}
+		if reflect.DeepEqual(existingCheck.Definition.ScriptArgs, c.Definition.ScriptArgs) {
+			// only script check register allowed is for updating an existing check with same args
+			continue
+		}
+		return fmt.Errorf("Creating a new script definition for a existing check is prohibited: %v", c)
+	}
+
+	return nil
+}
+
+func checkHash(check *structs.HealthCheck) types.CheckID {
+	if check.ServiceID != "" {
+		return types.CheckID(fmt.Sprintf("%s/%s/%s", check.Node, check.ServiceID, check.CheckID))
+	}
+	return types.CheckID(fmt.Sprintf("%s/%s", check.Node, check.CheckID))
 }
 
 func (s *HTTPServer) CatalogDeregister(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
