@@ -32,6 +32,8 @@ func (s *Server) clustersFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot, token st
 		return s.clustersFromSnapshotConnectProxy(cfgSnap, token)
 	case structs.ServiceKindMeshGateway:
 		return s.clustersFromSnapshotMeshGateway(cfgSnap, token)
+	case structs.ServiceKindIngressGateway:
+		return s.clustersFromSnapshotIngressGateway(cfgSnap, token)
 	default:
 		return nil, fmt.Errorf("Invalid service kind: %v", cfgSnap.Kind)
 	}

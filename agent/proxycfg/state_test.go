@@ -749,6 +749,53 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 						},
 					},
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
+						require.Len(t, snap.IngressGateway.WatchedUpstreams, 1)
+						require.Len(t, snap.IngressGateway.WatchedUpstreams["api"], 1)
+					},
+				},
+				verificationStage{
+					requiredWatches: map[string]verifyWatchRequest{
+						"upstream-target:api.default.dc1:api": genVerifyServiceWatch("api", "", "dc1", true),
+					},
+					events: []cache.UpdateEvent{
+						cache.UpdateEvent{
+							CorrelationID: "upstream-target:api.default.dc1:api",
+							Result: &structs.IndexedCheckServiceNodes{
+								Nodes: structs.CheckServiceNodes{
+									{
+										Node: &structs.Node{
+											Node:    "node1",
+											Address: "127.0.0.1",
+										},
+										Service: &structs.NodeService{
+											ID:      "api1",
+											Service: "api",
+										},
+									},
+								},
+							},
+							Err: nil,
+						},
+					},
+					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
+						require.Len(t, snap.IngressGateway.WatchedUpstreamEndpoints, 1)
+						require.Contains(t, snap.IngressGateway.WatchedUpstreamEndpoints, "api")
+						require.Len(t, snap.IngressGateway.WatchedUpstreamEndpoints["api"], 1)
+						require.Contains(t, snap.IngressGateway.WatchedUpstreamEndpoints["api"], "api.default.dc1")
+						require.Equal(t, snap.IngressGateway.WatchedUpstreamEndpoints["api"]["api.default.dc1"],
+							structs.CheckServiceNodes{
+								{
+									Node: &structs.Node{
+										Node:    "node1",
+										Address: "127.0.0.1",
+									},
+									Service: &structs.NodeService{
+										ID:      "api1",
+										Service: "api",
+									},
+								},
+							},
+						)
 					},
 				},
 			},

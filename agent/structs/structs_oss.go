@@ -43,7 +43,7 @@ func (m *EnterpriseMeta) LessThan(_ *EnterpriseMeta) bool {
 }
 
 func (m *EnterpriseMeta) NamespaceOrDefault() string {
-	return "default"
+	return DefaultNamespace
 }
 
 func EnterpriseMetaInitializer(_ string) EnterpriseMeta {
