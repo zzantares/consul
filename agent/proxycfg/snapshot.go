@@ -110,13 +110,25 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 
 type configSnapshotIngressGateway struct {
 	Leaf                     *structs.IssuedCert
-	Services                 map[structs.ServiceID]struct{}
 	Config                   *structs.IngressGatewayConfigEntry
+	Services                 map[structs.ServiceID]struct{}
 	WatchedDiscoveryChains   map[string]context.CancelFunc
 	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain // this is keyed by the Upstream.Identifier(), not the chain name
 	WatchedUpstreams         map[string]map[string]context.CancelFunc
 	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
-	WatchedServiceChecks     map[structs.ServiceID][]structs.CheckType // TODO: missing garbage collection
+}
+
+func (c *configSnapshotIngressGateway) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+	return c.Leaf == nil &&
+		c.Config == nil &&
+		len(c.Services) == 0 &&
+		len(c.DiscoveryChain) == 0 &&
+		len(c.WatchedDiscoveryChains) == 0 &&
+		len(c.WatchedUpstreams) == 0 &&
+		len(c.WatchedUpstreamEndpoints) == 0
 }
 
 // ConfigSnapshot captures all the resulting config needed for a proxy instance.
@@ -160,6 +172,11 @@ func (s *ConfigSnapshot) Valid() bool {
 			}
 		}
 		return s.Roots != nil && (s.MeshGateway.WatchedServicesSet || len(s.MeshGateway.ServiceGroups) > 0)
+	case structs.ServiceKindIngressGateway:
+		return s.Roots != nil &&
+			s.IngressGateway.Leaf != nil &&
+			s.IngressGateway.Config != nil &&
+			s.IngressGateway.Services != nil
 	default:
 		return false
 	}
