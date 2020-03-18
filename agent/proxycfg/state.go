@@ -32,7 +32,7 @@ const (
 	consulServerListWatchID            = "consul-server-list"
 	datacentersWatchID                 = "datacenters"
 	serviceResolversWatchID            = "service-resolvers"
-	ingressGatewaysWatchID             = "ingress-gateways"
+	ingressGatewayConfigWatchID        = "ingress-gateway-config"
 	svcChecksWatchIDPrefix             = cachetype.ServiceHTTPChecksName + ":"
 	serviceIDPrefix                    = string(structs.UpstreamDestTypeService) + ":"
 	preparedQueryIDPrefix              = string(structs.UpstreamDestTypePreparedQuery) + ":"
@@ -1027,20 +1027,38 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 		return fmt.Errorf("error filling agent cache: %v", u.Err)
 	}
 
-	switch u.CorrelationID {
-	case rootsWatchID:
+	switch {
+	case u.CorrelationID == rootsWatchID:
 		roots, ok := u.Result.(*structs.IndexedCARoots)
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		snap.Roots = roots
-	case leafWatchID:
+	case u.CorrelationID == leafWatchID:
 		leaf, ok := u.Result.(*structs.IssuedCert)
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		snap.IngressGateway.Leaf = leaf
-	case ingressGatewaysWatchID:
+	case u.CorrelationID == serviceListWatchID:
+		// Store the list of services.
+		services, ok := u.Result.(*structs.IndexedServiceList)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+
+		svcMap := make(map[structs.ServiceID]struct{})
+		for _, svc := range services.Services {
+			sid := svc.ToServiceID()
+			svcMap[sid] = struct{}{}
+		}
+
+		snap.IngressGateway.Services = svcMap
+
+		// Update our discovery chain watches.
+		s.resetIngressDiscoveryWatches(snap)
+
+	case u.CorrelationID == ingressGatewayConfigWatchID:
 		configEntry, ok := u.Result.(*structs.ConfigEntryResponse)
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
@@ -1051,14 +1069,173 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 			return fmt.Errorf("invalid type for config entry: %T", configEntry.Entry)
 		}
 
-		for _, listener := range ingressGateway.Listeners {
-			// Save necessary information on snapshot
-			// Set up watches for all services that are configured
-			for _, svc := listener.Services {
-				
+		snap.IngressGateway.Config = ingressGateway
+
+		// Update our discovery chain watches.
+		s.resetIngressDiscoveryWatches(snap)
+
+	case strings.HasPrefix(u.CorrelationID, "discovery-chain:"):
+		resp, ok := u.Result.(*structs.DiscoveryChainResponse)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		svc := strings.TrimPrefix(u.CorrelationID, "discovery-chain:")
+		snap.IngressGateway.DiscoveryChain[svc] = resp.Chain
+
+		if err := s.resetIngressWatchesFromChain(svc, resp.Chain, snap); err != nil {
+			return err
+		}
+
+	case strings.HasPrefix(u.CorrelationID, "upstream-target:"):
+		resp, ok := u.Result.(*structs.IndexedCheckServiceNodes)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		correlationID := strings.TrimPrefix(u.CorrelationID, "upstream-target:")
+		targetID, svc, ok := removeColonPrefix(correlationID)
+		if !ok {
+			return fmt.Errorf("invalid correlation id %q", u.CorrelationID)
+		}
+
+		m, ok := snap.IngressGateway.WatchedUpstreamEndpoints[svc]
+		if !ok {
+			m = make(map[string]structs.CheckServiceNodes)
+			snap.IngressGateway.WatchedUpstreamEndpoints[svc] = m
+		}
+		snap.IngressGateway.WatchedUpstreamEndpoints[svc][targetID] = resp.Nodes
+
+	default:
+	}
+
+	return nil
+}
+
+func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
+	services := make(map[string]string)
+	servicePrefixes := make(map[string]string)
+	for _, listener := range snap.IngressGateway.Config.Listeners {
+		for _, svc := range listener.ServicePrefixes {
+			services[svc.Prefix] = svc.Namespace
+		}
+		for _, svc := range listener.Services {
+			services[svc.Name] = svc.Namespace
+		}
+	}
+
+	watchedSvcs := make(map[string]struct{})
+	for svc, _ := range snap.IngressGateway.Services {
+		// Check whether the service is included by our gateway's config.
+		matches := false
+		namespace := s.proxyID.NamespaceOrDefault()
+		for prefix, ns := range servicePrefixes {
+			if strings.HasPrefix(svc.ID, prefix) {
+				matches = true
+				if ns != "" {
+					namespace = ns
+				}
+				break
 			}
 		}
-	default:
+
+		if ns, ok := services[svc.ID]; ok {
+			matches = true
+			if ns != "" {
+				namespace = ns
+			}
+		}
+		if !matches {
+			continue
+		}
+
+		watchedSvcs[svc.StringHash()] = struct{}{}
+		if _, ok := snap.IngressGateway.WatchedDiscoveryChains[svc.StringHash()]; ok {
+			continue
+		}
+
+		ctx, cancel := context.WithCancel(s.ctx)
+		err := s.cache.Notify(ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
+			Datacenter:           s.source.Datacenter,
+			QueryOptions:         structs.QueryOptions{Token: s.token},
+			Name:                 svc.ID,
+			EvaluateInDatacenter: s.source.Datacenter,
+			EvaluateInNamespace:  namespace,
+			// OverrideMeshGateway:    s.proxyCfg.MeshGateway.OverlayWith(u.MeshGateway),
+			// OverrideConnectTimeout: cfg.ConnectTimeout(),
+		}, "discovery-chain:"+svc.StringHash(), s.ch)
+		if err != nil {
+			return err
+		}
+
+		snap.IngressGateway.WatchedDiscoveryChains[svc.StringHash()] = cancel
+	}
+
+	for id, cancelFn := range snap.IngressGateway.WatchedDiscoveryChains {
+		if _, ok := watchedSvcs[id]; !ok {
+			cancelFn()
+			delete(snap.IngressGateway.WatchedDiscoveryChains, id)
+		}
+	}
+
+	return nil
+}
+
+func (s *state) resetIngressWatchesFromChain(
+	id string,
+	chain *structs.CompiledDiscoveryChain,
+	snap *ConfigSnapshot,
+) error {
+	s.logger.Trace("resetting watches for discovery chain", "id", id)
+	if chain == nil {
+		return fmt.Errorf("not possible to arrive here with no discovery chain")
+	}
+
+	// Initialize relevant sub maps.
+	if _, ok := snap.IngressGateway.WatchedUpstreams[id]; !ok {
+		snap.ConnectProxy.WatchedUpstreams[id] = make(map[string]context.CancelFunc)
+	}
+	if _, ok := snap.IngressGateway.WatchedUpstreamEndpoints[id]; !ok {
+		snap.ConnectProxy.WatchedUpstreamEndpoints[id] = make(map[string]structs.CheckServiceNodes)
+	}
+
+	// We could invalidate this selectively based on a hash of the relevant
+	// resolver information, but for now just reset anything about this
+	// upstream when the chain changes in any way.
+	//
+	// TODO(rb): content hash based add/remove
+	for targetID, cancelFn := range snap.IngressGateway.WatchedUpstreams[id] {
+		s.logger.Trace("stopping watch of target",
+			"upstream", id,
+			"chain", chain.ServiceName,
+			"target", targetID,
+		)
+		delete(snap.IngressGateway.WatchedUpstreams[id], targetID)
+		delete(snap.IngressGateway.WatchedUpstreamEndpoints[id], targetID)
+		cancelFn()
+	}
+
+	for _, target := range chain.Targets {
+		s.logger.Trace("initializing watch of target",
+			"upstream", id,
+			"chain", chain.ServiceName,
+			"target", target.ID,
+			"mesh-gateway-mode", target.MeshGateway.Mode,
+		)
+
+		ctx, cancel := context.WithCancel(s.ctx)
+		err := s.watchConnectProxyService(
+			ctx,
+			"upstream-target:"+target.ID+":"+id,
+			target.Service,
+			target.Datacenter,
+			target.Subset.Filter,
+			target.GetEnterpriseMetadata(),
+		)
+		if err != nil {
+			cancel()
+			return err
+		}
+
+		snap.IngressGateway.WatchedUpstreams[id][target.ID] = cancel
 	}
 
 	return nil
