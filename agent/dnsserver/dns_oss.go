@@ -1,6 +1,6 @@
 // +build !consulent
 
-package agent
+package dnsserver
 
 import (
 	"fmt"
@@ -15,7 +15,7 @@ func getEnterpriseDNSConfig(conf *config.RuntimeConfig) enterpriseDNSConfig {
 	return enterpriseDNSConfig{}
 }
 
-func (d *DNSServer) parseDatacenterAndEnterpriseMeta(labels []string, _ *dnsConfig, datacenter *string, _ *structs.EnterpriseMeta) bool {
+func (d *DNSServer) parseDatacenterAndEnterpriseMeta(labels []string, _ *Config, datacenter *string, _ *structs.EnterpriseMeta) bool {
 	switch len(labels) {
 	case 1:
 		*datacenter = labels[0]

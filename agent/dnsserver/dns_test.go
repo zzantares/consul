@@ -1,4 +1,4 @@
-package agent
+package dnsserver
 
 import (
 	"fmt"
@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/agent"
 	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
@@ -205,7 +206,7 @@ func TestDNS_EmptyAltDomain(t *testing.T) {
 
 func TestDNS_NodeLookup(t *testing.T) {
 	t.Parallel()
-	a := NewTestAgent(t, t.Name(), "")
+	a := agent.NewTestAgent(t, t.Name(), "")
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -6853,7 +6854,7 @@ func TestDNS_ConfigReload(t *testing.T) {
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
 	for _, s := range a.dnsServers {
-		cfg := s.config.Load().(*dnsConfig)
+		cfg := s.config.Load().(*Config)
 		require.Equal(t, []string{"8.8.8.8:53"}, cfg.Recursors)
 		require.False(t, cfg.AllowStale)
 		require.Equal(t, 20*time.Second, cfg.MaxStale)
@@ -6898,7 +6899,7 @@ func TestDNS_ConfigReload(t *testing.T) {
 	require.NoError(t, err)
 
 	for _, s := range a.dnsServers {
-		cfg := s.config.Load().(*dnsConfig)
+		cfg := s.config.Load().(*Config)
 		require.Equal(t, []string{"1.1.1.1:53"}, cfg.Recursors)
 		require.True(t, cfg.AllowStale)
 		require.Equal(t, 21*time.Second, cfg.MaxStale)
