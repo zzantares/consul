@@ -109,7 +109,14 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 }
 
 type configSnapshotIngressGateway struct {
-	Leaf *structs.IssuedCert
+	Leaf                     *structs.IssuedCert
+	Services                 map[structs.ServiceID]struct{}
+	Config                   *structs.IngressGatewayConfigEntry
+	WatchedDiscoveryChains   map[string]context.CancelFunc
+	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain // this is keyed by the Upstream.Identifier(), not the chain name
+	WatchedUpstreams         map[string]map[string]context.CancelFunc
+	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
+	WatchedServiceChecks     map[structs.ServiceID][]structs.CheckType // TODO: missing garbage collection
 }
 
 // ConfigSnapshot captures all the resulting config needed for a proxy instance.
