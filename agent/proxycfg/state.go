@@ -1120,7 +1120,8 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 }
 
 func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
-	if snap.IngressGateway.Config == nil {
+	// Exit early if we don't have both the gateway config and service list.
+	if snap.IngressGateway.Config == nil || snap.IngressGateway.Services == nil {
 		return nil
 	}
 
@@ -1165,6 +1166,11 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 			continue
 		}
 
+		corrID := svc.ID
+		if namespace != "" && namespace != structs.DefaultNamespace {
+			corrID = namespace + "/" + corrID
+		}
+
 		ctx, cancel := context.WithCancel(s.ctx)
 		err := s.cache.Notify(ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
 			Datacenter:           s.source.Datacenter,
@@ -1174,7 +1180,7 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 			EvaluateInNamespace:  namespace,
 			// OverrideMeshGateway:    s.proxyCfg.MeshGateway.OverlayWith(u.MeshGateway),
 			// OverrideConnectTimeout: cfg.ConnectTimeout(),
-		}, "discovery-chain:"+svc.StringHash(), s.ch)
+		}, "discovery-chain:"+corrID, s.ch)
 		if err != nil {
 			cancel()
 			return err

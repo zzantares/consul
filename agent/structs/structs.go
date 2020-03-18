@@ -118,6 +118,9 @@ const (
 	// WildcardSpecifier is the string which should be used for specifying a wildcard
 	// The exact semantics of the wildcard is left up to the code where its used.
 	WildcardSpecifier = "*"
+
+	// DefaultNamespace is the default namespace identifier.
+	DefaultNamespace = "default"
 )
 
 var allowedConsulMetaKeysForMeshGateway = map[string]struct{}{MetaWANFederationKey: struct{}{}}
