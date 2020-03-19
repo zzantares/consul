@@ -8,7 +8,6 @@ import (
 )
 
 type configSnapshotConnectProxy struct {
-	Leaf                     *structs.IssuedCert
 	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain // this is keyed by the Upstream.Identifier(), not the chain name
 	WatchedUpstreams         map[string]map[string]context.CancelFunc
 	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
@@ -23,8 +22,7 @@ func (c *configSnapshotConnectProxy) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Leaf == nil &&
-		len(c.DiscoveryChain) == 0 &&
+	return len(c.DiscoveryChain) == 0 &&
 		len(c.WatchedUpstreams) == 0 &&
 		len(c.WatchedUpstreamEndpoints) == 0 &&
 		len(c.WatchedGateways) == 0 &&
@@ -109,11 +107,10 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 }
 
 type configSnapshotIngressGateway struct {
-	Leaf                     *structs.IssuedCert
 	Config                   *structs.IngressGatewayConfigEntry
 	Services                 map[structs.ServiceID]struct{}
 	WatchedDiscoveryChains   map[string]context.CancelFunc
-	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain // this is keyed by the Upstream.Identifier(), not the chain name
+	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain
 	WatchedUpstreams         map[string]map[string]context.CancelFunc
 	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
 }
@@ -122,8 +119,7 @@ func (c *configSnapshotIngressGateway) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Leaf == nil &&
-		c.Config == nil &&
+	return c.Config == nil &&
 		len(c.Services) == 0 &&
 		len(c.DiscoveryChain) == 0 &&
 		len(c.WatchedDiscoveryChains) == 0 &&
@@ -147,6 +143,8 @@ type ConfigSnapshot struct {
 
 	ServerSNIFn ServerSNIFunc
 	Roots       *structs.IndexedCARoots
+	// Used for connect-proxy and ingress-gateway proxies
+	Leaf *structs.IssuedCert
 
 	// connect-proxy specific
 	ConnectProxy configSnapshotConnectProxy
@@ -164,7 +162,7 @@ type ConfigSnapshot struct {
 func (s *ConfigSnapshot) Valid() bool {
 	switch s.Kind {
 	case structs.ServiceKindConnectProxy:
-		return s.Roots != nil && s.ConnectProxy.Leaf != nil
+		return s.Roots != nil && s.Leaf != nil
 	case structs.ServiceKindMeshGateway:
 		if s.ServiceMeta[structs.MetaWANFederationKey] == "1" {
 			if len(s.MeshGateway.ConsulServers) == 0 {
@@ -174,7 +172,7 @@ func (s *ConfigSnapshot) Valid() bool {
 		return s.Roots != nil && (s.MeshGateway.WatchedServicesSet || len(s.MeshGateway.ServiceGroups) > 0)
 	case structs.ServiceKindIngressGateway:
 		return s.Roots != nil &&
-			s.IngressGateway.Leaf != nil &&
+			s.Leaf != nil &&
 			s.IngressGateway.Config != nil &&
 			s.IngressGateway.Services != nil
 	default:
