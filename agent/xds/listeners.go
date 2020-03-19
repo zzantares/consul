@@ -40,6 +40,8 @@ func (s *Server) listenersFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot, token s
 		return s.listenersFromSnapshotConnectProxy(cfgSnap, token)
 	case structs.ServiceKindMeshGateway:
 		return s.listenersFromSnapshotMeshGateway(cfgSnap, token)
+	case structs.ServiceKindIngressGateway:
+		return s.listenersFromSnapshotIngressGateway(cfgSnap, token)
 	default:
 		return nil, fmt.Errorf("Invalid service kind: %v", cfgSnap.Kind)
 	}
@@ -224,6 +226,10 @@ func (s *Server) listenersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsh
 	}
 
 	return resources, err
+}
+
+func (s *Server) listenersFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot, token string) ([]proto.Message, error) {
+	return nil, nil
 }
 
 // makeListener returns a listener with name and bind details set. Filters must
@@ -868,12 +874,12 @@ func makeCommonTLSContext(cfgSnap *proxycfg.ConfigSnapshot) *envoyauth.CommonTls
 			&envoyauth.TlsCertificate{
 				CertificateChain: &envoycore.DataSource{
 					Specifier: &envoycore.DataSource_InlineString{
-						InlineString: cfgSnap.ConnectProxy.Leaf.CertPEM,
+						InlineString: cfgSnap.Leaf.CertPEM,
 					},
 				},
 				PrivateKey: &envoycore.DataSource{
 					Specifier: &envoycore.DataSource_InlineString{
-						InlineString: cfgSnap.ConnectProxy.Leaf.PrivateKeyPEM,
+						InlineString: cfgSnap.Leaf.PrivateKeyPEM,
 					},
 				},
 			},

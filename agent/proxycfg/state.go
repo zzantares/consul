@@ -647,7 +647,7 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
-		snap.ConnectProxy.Leaf = leaf
+		snap.Leaf = leaf
 
 	case u.CorrelationID == intentionsWatchID:
 		// Not in snapshot currently, no op
@@ -1043,7 +1043,7 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
-		snap.IngressGateway.Leaf = leaf
+		snap.Leaf = leaf
 	case u.CorrelationID == serviceListWatchID:
 		// Store the list of services.
 		services, ok := u.Result.(*structs.IndexedServiceList)
