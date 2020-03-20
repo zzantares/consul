@@ -201,8 +201,8 @@ func TestManager_BasicLifecycle(t *testing.T) {
 				ServiceMeta:     webProxy.Meta,
 				TaggedAddresses: make(map[string]structs.ServiceAddress),
 				Roots:           roots,
+				Leaf:            leaf,
 				ConnectProxy: configSnapshotConnectProxy{
-					Leaf: leaf,
 					DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
 						"db": dbDefaultChain(),
 					},
@@ -246,8 +246,8 @@ func TestManager_BasicLifecycle(t *testing.T) {
 				ServiceMeta:     webProxy.Meta,
 				TaggedAddresses: make(map[string]structs.ServiceAddress),
 				Roots:           roots,
+				Leaf:            leaf,
 				ConnectProxy: configSnapshotConnectProxy{
-					Leaf: leaf,
 					DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
 						"db": dbSplitChain(),
 					},
@@ -394,7 +394,7 @@ func testManager_BasicLifecycle(
 	types.leaf.Set(leafCacheKey, newLeaf)
 
 	// Expect new roots in snapshot
-	expectSnap.ConnectProxy.Leaf = newLeaf
+	expectSnap.Leaf = newLeaf
 	assertWatchChanRecvs(t, wCh, expectSnap)
 	assertWatchChanRecvs(t, wCh2, expectSnap)
 

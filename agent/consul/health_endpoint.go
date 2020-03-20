@@ -251,6 +251,9 @@ func (h *Health) ServiceNodes(args *structs.ServiceSpecificRequest, reply *struc
 		if args.Connect {
 			key = "connect"
 		}
+		if args.Ingress {
+			key = "ingress"
+		}
 
 		metrics.IncrCounterWithLabels([]string{"health", key, "query"}, 1,
 			[]metrics.Label{{Name: "service", Value: args.ServiceName}})

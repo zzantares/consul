@@ -63,26 +63,25 @@ func TestIngressConfigEntry_Validate(t *testing.T) {
 			expectErr: "host header routing is only supported for protocol",
 		},
 		{
-			name: "http features: service prefixes",
+			name: "http features: wildcard",
 			entry: IngressGatewayConfigEntry{
 				Kind: "ingress-gateway",
 				Name: "ingress-web",
 				Listeners: []IngressListener{
 					{
 						Port:     1111,
-						Protocol: "tcp",
-						ServicePrefixes: []IngressService{
+						Protocol: "http",
+						Services: []IngressService{
 							{
-								Prefix: "prefix-",
+								Name: "*",
 							},
 						},
 					},
 				},
 			},
-			expectErr: "service prefixing is only supported for protocol",
 		},
 		{
-			name: "http features: service prefixes",
+			name: "http features: wildcard service on invalid protocol",
 			entry: IngressGatewayConfigEntry{
 				Kind: "ingress-gateway",
 				Name: "ingress-web",
@@ -90,15 +89,15 @@ func TestIngressConfigEntry_Validate(t *testing.T) {
 					{
 						Port:     1111,
 						Protocol: "tcp",
-						ServicePrefixes: []IngressService{
+						Services: []IngressService{
 							{
-								Prefix: "prefix-",
+								Name: "*",
 							},
 						},
 					},
 				},
 			},
-			expectErr: "service prefixing is only supported for protocol",
+			expectErr: "Wildcard service name is only valid for protocol",
 		},
 		{
 			name: "http features: multiple services",
@@ -138,42 +137,41 @@ func TestIngressConfigEntry_Validate(t *testing.T) {
 			expectErr: "no service declared for listener with port 1111",
 		},
 		{
-			name: "services cannot define a prefix",
+			name: "wildcard namespace not supported",
 			entry: IngressGatewayConfigEntry{
 				Kind: "ingress-gateway",
 				Name: "ingress-web",
 				Listeners: []IngressListener{
 					{
-						Port:     1234,
-						Protocol: "http",
+						Port:     1111,
+						Protocol: "tcp",
 						Services: []IngressService{
 							{
-								Prefix: "prefix-",
+								Name:      "foo",
+								Namespace: "*",
 							},
 						},
 					},
 				},
 			},
-			expectErr: "Prefix is only valid for service_prefix definitions",
+			expectErr: "Wildcard namespace is not supported for ingress services",
 		},
 		{
-			name: "service_prefixes cannot define a name",
+			name: "empty service name not supported",
 			entry: IngressGatewayConfigEntry{
 				Kind: "ingress-gateway",
 				Name: "ingress-web",
 				Listeners: []IngressListener{
 					{
-						Port:     1234,
-						Protocol: "http",
-						ServicePrefixes: []IngressService{
-							{
-								Name: "web",
-							},
+						Port:     1111,
+						Protocol: "tcp",
+						Services: []IngressService{
+							{},
 						},
 					},
 				},
 			},
-			expectErr: "Name is only valid for service definitions",
+			expectErr: "Service name cannot be blank",
 		},
 	}
 

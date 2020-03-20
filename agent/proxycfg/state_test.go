@@ -526,7 +526,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 				require.True(t, snap.MeshGateway.IsEmpty())
 				require.Equal(t, indexedRoots, snap.Roots)
 
-				require.Equal(t, issuedCert, snap.ConnectProxy.Leaf)
+				require.Equal(t, issuedCert, snap.Leaf)
 				require.Len(t, snap.ConnectProxy.DiscoveryChain, 5, "%+v", snap.ConnectProxy.DiscoveryChain)
 				require.Len(t, snap.ConnectProxy.WatchedUpstreams, 5, "%+v", snap.ConnectProxy.WatchedUpstreams)
 				require.Len(t, snap.ConnectProxy.WatchedUpstreamEndpoints, 5, "%+v", snap.ConnectProxy.WatchedUpstreamEndpoints)
@@ -552,7 +552,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 				require.True(t, snap.MeshGateway.IsEmpty())
 				require.Equal(t, indexedRoots, snap.Roots)
 
-				require.Equal(t, issuedCert, snap.ConnectProxy.Leaf)
+				require.Equal(t, issuedCert, snap.Leaf)
 				require.Len(t, snap.ConnectProxy.DiscoveryChain, 5, "%+v", snap.ConnectProxy.DiscoveryChain)
 				require.Len(t, snap.ConnectProxy.WatchedUpstreams, 5, "%+v", snap.ConnectProxy.WatchedUpstreams)
 				require.Len(t, snap.ConnectProxy.WatchedUpstreamEndpoints, 5, "%+v", snap.ConnectProxy.WatchedUpstreamEndpoints)
@@ -677,7 +677,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					},
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 						require.False(t, snap.Valid(), "gateway without services is not valid")
-						require.Equal(t, issuedCert, snap.IngressGateway.Leaf)
+						require.Equal(t, issuedCert, snap.Leaf)
 					},
 				},
 				verificationStage{
@@ -692,7 +692,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					},
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 						require.False(t, snap.Valid(), "gateway without a config entry is not valid")
-						require.Empty(t, snap.IngressGateway.Services)
+						require.Empty(t, snap.IngressGateway.ServiceLists)
 					},
 				},
 				verificationStage{
@@ -724,10 +724,9 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 						},
 					},
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
-						sid := structs.NewServiceID("api", nil)
-						require.Len(t, snap.IngressGateway.Services, 2)
+						require.Len(t, snap.IngressGateway.ServiceLists["default"], 2)
 						require.Len(t, snap.IngressGateway.WatchedDiscoveryChains, 1)
-						require.Contains(t, snap.IngressGateway.WatchedDiscoveryChains, sid.StringHash())
+						require.Contains(t, snap.IngressGateway.WatchedDiscoveryChains, "api")
 					},
 				},
 				verificationStage{

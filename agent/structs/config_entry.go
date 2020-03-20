@@ -382,13 +382,10 @@ func ConfigEntryDecodeRulesForKind(kind string) (skipWhenPatching []string, tran
 		return []string{
 				"listeners",
 				"Listeners",
-				"listeners.service_prefixes",
-				"Listeners.ServicePrefixes",
 				"listeners.services",
 				"Listeners.Services",
 			}, map[string]string{
-				"service_prefixes": "serviceprefixes",
-				"service_subset":   "servicesubset",
+				"service_subset": "servicesubset",
 			}, nil
 	default:
 		return nil, nil, fmt.Errorf("kind %q should be explicitly handled here", kind)

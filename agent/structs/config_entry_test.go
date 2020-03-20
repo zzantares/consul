@@ -543,16 +543,10 @@ func TestDecodeConfigEntry(t *testing.T) {
 						port = 8080
 						protocol = "http"
 						header = "Host"
-						service_prefixes = [
-							{
-								prefix = "bar-"
-								namespace = "foo"
-							}
-						]
 						services = [
 							{
 								name = "web"
-								namespace = "*"
+								namespace = "foo"
 							},
 							{
 								name = "db"
@@ -574,7 +568,7 @@ func TestDecodeConfigEntry(t *testing.T) {
 						services = [
 							{
 								name = "postgres"
-								namespace = "*"
+								namespace = "bar"
 								service_subset = "v1"
 							}
 						]
@@ -589,16 +583,10 @@ func TestDecodeConfigEntry(t *testing.T) {
 						Port = 8080
 						Protocol = "http"
 						Header = "Host"
-						ServicePrefixes = [
-							{
-								Prefix = "bar-"
-								Namespace = "foo"
-							}
-						]
 						Services = [
 							{
 								Name = "web"
-								Namespace = "*"
+								Namespace = "foo"
 							},
 							{
 								Name = "db"
@@ -620,7 +608,7 @@ func TestDecodeConfigEntry(t *testing.T) {
 						Services = [
 							{
 								Name = "postgres"
-								Namespace = "*"
+								Namespace = "bar"
 								ServiceSubset = "v1"
 							}
 						]
@@ -635,16 +623,10 @@ func TestDecodeConfigEntry(t *testing.T) {
 						Port:     8080,
 						Protocol: "http",
 						Header:   "Host",
-						ServicePrefixes: []IngressService{
-							IngressService{
-								Prefix:    "bar-",
-								Namespace: "foo",
-							},
-						},
 						Services: []IngressService{
 							IngressService{
 								Name:      "web",
-								Namespace: "*",
+								Namespace: "foo",
 							},
 							IngressService{
 								Name: "db",
@@ -666,7 +648,7 @@ func TestDecodeConfigEntry(t *testing.T) {
 						Services: []IngressService{
 							IngressService{
 								Name:          "postgres",
-								Namespace:     "*",
+								Namespace:     "bar",
 								ServiceSubset: "v1",
 							},
 						},

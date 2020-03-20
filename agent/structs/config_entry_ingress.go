@@ -24,15 +24,20 @@ type IngressListener struct {
 	Protocol string
 	Header   string
 
-	ServicePrefixes []IngressService
-	Services        []IngressService
+	Services []IngressService
 }
 
 type IngressService struct {
-	Prefix        string
 	Name          string
 	Namespace     string
 	ServiceSubset string
+}
+
+func (i IngressService) NamespaceOrDefault() string {
+	if i.Namespace == "" {
+		return DefaultNamespace
+	}
+	return i.Namespace
 }
 
 func (e *IngressGatewayConfigEntry) GetKind() string {
@@ -71,13 +76,14 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 		declaredPorts[listener.Port] = true
 
 		for _, s := range listener.Services {
-			if s.Prefix != "" {
-				return fmt.Errorf("Prefix is only valid for service_prefix definitions (listener on port %d)", listener.Port)
+			if s.Name == "*" && listener.Protocol != "http" {
+				return fmt.Errorf("Wildcard service name is only valid for protocol = 'http' (listener on port %d)", listener.Port)
 			}
-		}
-		for _, s := range listener.ServicePrefixes {
-			if s.Name != "" {
-				return fmt.Errorf("Name is only valid for service definitions (listener on port %d)", listener.Port)
+			if s.Namespace == WildcardSpecifier {
+				return fmt.Errorf("Wildcard namespace is not supported for ingress services (listener on port %d)", listener.Port)
+			}
+			if s.Name == "" {
+				return fmt.Errorf("Service name cannot be blank (listener on port %d)", listener.Port)
 			}
 		}
 
@@ -85,10 +91,6 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 		if listener.Protocol != "http" {
 			if listener.Header != "" {
 				return fmt.Errorf("Host header routing is only supported for protocol = 'http'")
-			}
-
-			if len(listener.ServicePrefixes) > 0 {
-				return fmt.Errorf("Service prefixing is only supported for protocol = 'http'")
 			}
 
 			if len(listener.Services) > 1 {

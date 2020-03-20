@@ -2122,14 +2122,13 @@ func (s *Store) IngressGatewaysForService(ws memdb.WatchSet, serviceName string,
 		ingressConfig := entry.(*structs.IngressGatewayConfigEntry)
 		for _, listener := range ingressConfig.Listeners {
 			for _, service := range listener.Services {
-				if service.Name == serviceName {
-					ingressServices = append(ingressServices, ingressConfig.Name)
-					break
+				// If the request specified a different namespace and it wasn't the wildcard, skip this service.
+				namespace := entMeta.NamespaceOrDefault()
+				if namespace != service.NamespaceOrDefault() && namespace != "*" {
+					continue
 				}
-			}
 
-			for _, service := range listener.ServicePrefixes {
-				if strings.HasPrefix(serviceName, service.Prefix) {
+				if service.Name == serviceName || service.Name == structs.WildcardSpecifier {
 					ingressServices = append(ingressServices, ingressConfig.Name)
 					break
 				}
@@ -2137,7 +2136,6 @@ func (s *Store) IngressGatewaysForService(ws memdb.WatchSet, serviceName string,
 		}
 	}
 
-	//
 	var maxIdx uint64
 	var nodes structs.CheckServiceNodes
 	for _, ingressService := range ingressServices {
