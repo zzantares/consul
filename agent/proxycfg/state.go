@@ -1119,42 +1119,51 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 	return nil
 }
 
+type serviceInfo struct {
+	Namespace string
+	Port      int
+}
+
 func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 	// Exit early if we don't have both the gateway config and service list.
 	if snap.IngressGateway.Config == nil || snap.IngressGateway.Services == nil {
 		return nil
 	}
 
-	services := make(map[string]string)
-	servicePrefixes := make(map[string]string)
+	services := make(map[string]serviceInfo)
+	servicePrefixes := make(map[string]serviceInfo)
 	for _, listener := range snap.IngressGateway.Config.Listeners {
 		for _, svc := range listener.ServicePrefixes {
-			services[svc.Prefix] = svc.Namespace
+			services[svc.Prefix] = serviceInfo{svc.Namespace, listener.Port}
 		}
 		for _, svc := range listener.Services {
-			services[svc.Name] = svc.Namespace
+			services[svc.Name] = serviceInfo{svc.Namespace, listener.Port}
 		}
 	}
 
+	var upstreams []structs.Upstream
 	watchedSvcs := make(map[string]struct{})
 	for svc := range snap.IngressGateway.Services {
 		// Check whether the service is included by our gateway's config.
 		matches := false
 		namespace := s.proxyID.NamespaceOrDefault()
-		for prefix, ns := range servicePrefixes {
+		port := -1
+		for prefix, info := range servicePrefixes {
 			if strings.HasPrefix(svc.ID, prefix) {
 				matches = true
-				if ns != "" {
-					namespace = ns
+				if info.Namespace != "" {
+					namespace = info.Namespace
+					port = info.Port
 				}
 				break
 			}
 		}
 
-		if ns, ok := services[svc.ID]; ok {
+		if info, ok := services[svc.ID]; ok {
 			matches = true
-			if ns != "" {
-				namespace = ns
+			if info.Namespace != "" {
+				namespace = info.Namespace
+				port = info.Port
 			}
 		}
 		if !matches {
@@ -1166,10 +1175,12 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 			continue
 		}
 
-		corrID := svc.ID
-		if namespace != "" && namespace != structs.DefaultNamespace {
-			corrID = namespace + "/" + corrID
+		u := structs.Upstream{
+			DestinationName:      svc.ID,
+			DestinationNamespace: namespace,
+			LocalBindPort:        port,
 		}
+		upstreams = append(upstreams, u)
 
 		ctx, cancel := context.WithCancel(s.ctx)
 		err := s.cache.Notify(ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
@@ -1180,7 +1191,7 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 			EvaluateInNamespace:  namespace,
 			// OverrideMeshGateway:    s.proxyCfg.MeshGateway.OverlayWith(u.MeshGateway),
 			// OverrideConnectTimeout: cfg.ConnectTimeout(),
-		}, "discovery-chain:"+corrID, s.ch)
+		}, "discovery-chain:"+u.Identifier(), s.ch)
 		if err != nil {
 			cancel()
 			return err
@@ -1195,6 +1206,8 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 			delete(snap.IngressGateway.WatchedDiscoveryChains, id)
 		}
 	}
+
+	snap.IngressGateway.Upstreams = upstreams
 
 	return nil
 }

@@ -109,6 +109,7 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 type configSnapshotIngressGateway struct {
 	Config                   *structs.IngressGatewayConfigEntry
 	Services                 map[structs.ServiceID]struct{}
+	Upstreams                []structs.Upstream
 	WatchedDiscoveryChains   map[string]context.CancelFunc
 	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain
 	WatchedUpstreams         map[string]map[string]context.CancelFunc
@@ -121,6 +122,7 @@ func (c *configSnapshotIngressGateway) IsEmpty() bool {
 	}
 	return c.Config == nil &&
 		len(c.Services) == 0 &&
+		len(c.Upstreams) == 0 &&
 		len(c.DiscoveryChain) == 0 &&
 		len(c.WatchedDiscoveryChains) == 0 &&
 		len(c.WatchedUpstreams) == 0 &&
@@ -198,6 +200,9 @@ func (s *ConfigSnapshot) Clone() (*ConfigSnapshot, error) {
 	case structs.ServiceKindMeshGateway:
 		snap.MeshGateway.WatchedDatacenters = nil
 		snap.MeshGateway.WatchedServices = nil
+	case structs.ServiceKindIngressGateway:
+		snap.IngressGateway.WatchedUpstreams = nil
+		snap.IngressGateway.WatchedDiscoveryChains = nil
 	}
 
 	return snap, nil

@@ -229,6 +229,25 @@ func (s *Server) listenersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsh
 }
 
 func (s *Server) listenersFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot, token string) ([]proto.Message, error) {
+	var resources []proto.Message
+	for _, u := range cfgSnap.IngressGateway.Upstreams {
+		id := u.Identifier()
+
+		chain := cfgSnap.IngressGateway.DiscoveryChain[id]
+
+		var upstreamListener proto.Message
+		var err error
+		if chain == nil || chain.IsDefault() {
+			upstreamListener, err = s.makeUpstreamListenerIgnoreDiscoveryChain(&u, chain, cfgSnap)
+		} else {
+			upstreamListener, err = s.makeUpstreamListenerForDiscoveryChain(&u, chain, cfgSnap)
+		}
+		if err != nil {
+			return nil, err
+		}
+		resources = append(resources, upstreamListener)
+	}
+
 	return nil, nil
 }
 
