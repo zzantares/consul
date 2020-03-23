@@ -68,7 +68,8 @@ func TestGenerateConfig(t *testing.T) {
 		Env         []string
 		Files       map[string]string
 		ProxyConfig map[string]interface{}
-		GRPCPort    int // only used for testing custom-configured grpc port
+		NoProxy     bool // only used to test error case with nil Proxy struct
+		GRPCPort    int  // only used for testing custom-configured grpc port
 		WantArgs    BootstrapTplArgs
 		WantErr     string
 	}{
@@ -496,6 +497,14 @@ func TestGenerateConfig(t *testing.T) {
 				LocalAgentClusterName: xds.LocalAgentClusterName,
 			},
 		},
+		{
+			// Ingress gateways do not setup the Proxy struct
+			Name:    "nil-proxy",
+			Flags:   []string{"-proxy-id", "test-proxy"},
+			Env:     []string{},
+			NoProxy: true,
+			WantErr: "service is not a Connect proxy, mesh gateway, or ingress gateway",
+		},
 	}
 
 	copyAndReplaceAll := func(s []string, old, new string) []string {
@@ -525,7 +534,7 @@ func TestGenerateConfig(t *testing.T) {
 
 			// Run a mock agent API that just always returns the proxy config in the
 			// test.
-			srv := httptest.NewServer(testMockAgent(tc.ProxyConfig, tc.GRPCPort))
+			srv := httptest.NewServer(testMockAgent(tc.ProxyConfig, tc.NoProxy, tc.GRPCPort))
 			defer srv.Close()
 
 			// Set the agent HTTP address in ENV to be our mock
@@ -576,10 +585,10 @@ func TestGenerateConfig(t *testing.T) {
 // testMockAgent combines testMockAgentProxyConfig and testMockAgentSelf,
 // routing /agent/service/... requests to testMockAgentProxyConfig and
 // routing /agent/self requests to testMockAgentSelf.
-func testMockAgent(agentCfg map[string]interface{}, grpcPort int) http.HandlerFunc {
+func testMockAgent(agentCfg map[string]interface{}, noProxy bool, grpcPort int) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.Contains(r.URL.Path, "/agent/service") {
-			testMockAgentProxyConfig(agentCfg)(w, r)
+			testMockAgentProxyConfig(agentCfg, noProxy)(w, r)
 			return
 		}
 
@@ -592,7 +601,7 @@ func testMockAgent(agentCfg map[string]interface{}, grpcPort int) http.HandlerFu
 	})
 }
 
-func testMockAgentProxyConfig(cfg map[string]interface{}) http.HandlerFunc {
+func testMockAgentProxyConfig(cfg map[string]interface{}, noProxy bool) http.HandlerFunc {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Parse the proxy-id from the end of the URL (blindly assuming it's correct
 		// format)
@@ -603,11 +612,13 @@ func testMockAgentProxyConfig(cfg map[string]interface{}) http.HandlerFunc {
 			Kind:    api.ServiceKindConnectProxy,
 			ID:      proxyID,
 			Service: proxyID,
-			Proxy: &api.AgentServiceConnectProxyConfig{
+		}
+		if !noProxy {
+			svc.Proxy = &api.AgentServiceConnectProxyConfig{
 				DestinationServiceName: serviceID,
 				DestinationServiceID:   serviceID,
 				Config:                 cfg,
-			},
+			}
 		}
 
 		cfgJSON, err := json.Marshal(svc)

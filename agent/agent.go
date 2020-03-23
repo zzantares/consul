@@ -4290,7 +4290,7 @@ func (a *Agent) registerCache() {
 		RefreshTimeout: 10 * time.Minute,
 	})
 
-	a.cache.RegisterType(cachetype.ConfigEntryName, &cachetype.ConfigEntries{
+	a.cache.RegisterType(cachetype.ConfigEntryName, &cachetype.ConfigEntry{
 		RPC: a,
 	}, &cache.RegisterOptions{
 		Refresh:        true,

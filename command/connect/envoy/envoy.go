@@ -565,18 +565,21 @@ func (c *cmd) generateConfig() ([]byte, error) {
 			return nil, fmt.Errorf("failed fetch proxy config from local agent: %s", err)
 		}
 
-		if svc.Proxy == nil {
-			return nil, errors.New("service is not a Connect proxy or mesh gateway")
+		// We expect every proxy except for Ingress Gateways to have svc.Proxy set
+		if svc.Proxy == nil && svc.Kind != api.ServiceKindIngressGateway {
+			return nil, errors.New("service is not a Connect proxy, mesh gateway, or ingress gateway")
 		}
 
-		// Parse the bootstrap config
-		if err := mapstructure.WeakDecode(svc.Proxy.Config, &bsCfg); err != nil {
-			return nil, fmt.Errorf("failed parsing Proxy.Config: %s", err)
-		}
+		if svc.Proxy != nil {
+			// Parse the bootstrap config
+			if err := mapstructure.WeakDecode(svc.Proxy.Config, &bsCfg); err != nil {
+				return nil, fmt.Errorf("failed parsing Proxy.Config: %s", err)
+			}
 
-		if svc.Proxy.DestinationServiceName != "" {
-			// Override cluster now we know the actual service name
-			args.ProxyCluster = svc.Proxy.DestinationServiceName
+			if svc.Proxy.DestinationServiceName != "" {
+				// Override cluster now we know the actual service name
+				args.ProxyCluster = svc.Proxy.DestinationServiceName
+			}
 		}
 	}
 
