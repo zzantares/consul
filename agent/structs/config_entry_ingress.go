@@ -35,7 +35,7 @@ type IngressService struct {
 
 func (i IngressService) NamespaceOrDefault() string {
 	if i.Namespace == "" {
-		return DefaultNamespace
+		return IntentionDefaultNamespace
 	}
 	return i.Namespace
 }
