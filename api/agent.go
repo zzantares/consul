@@ -28,6 +28,11 @@ const (
 	// service will proxy connections based off the SNI header set by other
 	// connect proxies
 	ServiceKindMeshGateway ServiceKind = "mesh-gateway"
+
+	// ServiceKindIngressGateway is an Ingress Gateway for the Connect feature.
+	// This service will ingress connections based of configuration defined in
+	// the ingress-gateway config entry.
+	ServiceKindIngressGateway ServiceKind = "ingress-gateway"
 )
 
 // UpstreamDestType is the type of upstream discovery mechanism.

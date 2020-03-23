@@ -251,104 +251,11 @@ func (c *cmd) Run(args []string) int {
 	}
 
 	if c.register {
-		if !c.meshGateway {
-			c.UI.Error("Auto-Registration can only be used for mesh gateways")
-			return 1
-		}
-
-		lanAddr, lanPort, err := parseAddress(c.address)
+		err := c.registerGateway()
 		if err != nil {
-			c.UI.Error(fmt.Sprintf("Failed to parse the -address parameter: %v", err))
+			c.UI.Error(err.Error())
 			return 1
 		}
-
-		taggedAddrs := make(map[string]api.ServiceAddress)
-
-		if lanAddr != "" {
-			taggedAddrs[structs.TaggedAddressLAN] = api.ServiceAddress{Address: lanAddr, Port: lanPort}
-		}
-
-		wanAddr := ""
-		wanPort := lanPort
-		if c.wanAddress != "" {
-			wanAddr, wanPort, err = parseAddress(c.wanAddress)
-			if err != nil {
-				c.UI.Error(fmt.Sprintf("Failed to parse the -wan-address parameter: %v", err))
-				return 1
-			}
-			taggedAddrs[structs.TaggedAddressWAN] = api.ServiceAddress{Address: wanAddr, Port: wanPort}
-		}
-
-		tcpCheckAddr := lanAddr
-		if tcpCheckAddr == "" {
-			// fallback to localhost as the gateway has to reside in the same network namespace
-			// as the agent
-			tcpCheckAddr = "127.0.0.1"
-		}
-
-		var proxyConf *api.AgentServiceConnectProxyConfig
-
-		if len(c.bindAddresses) > 0 {
-			// override all default binding rules and just bind to the user-supplied addresses
-			bindAddresses := make(map[string]api.ServiceAddress)
-
-			for addrName, addrStr := range c.bindAddresses {
-				addr, port, err := parseAddress(addrStr)
-				if err != nil {
-					c.UI.Error(fmt.Sprintf("Failed to parse the bind address: %s=%s: %v", addrName, addrStr, err))
-					return 1
-				}
-
-				bindAddresses[addrName] = api.ServiceAddress{Address: addr, Port: port}
-			}
-
-			proxyConf = &api.AgentServiceConnectProxyConfig{
-				Config: map[string]interface{}{
-					"envoy_mesh_gateway_no_default_bind": true,
-					"envoy_mesh_gateway_bind_addresses":  bindAddresses,
-				},
-			}
-		} else if canBind(lanAddr) && canBind(wanAddr) {
-			// when both addresses are bindable then we bind to the tagged addresses
-			// for creating the envoy listeners
-			proxyConf = &api.AgentServiceConnectProxyConfig{
-				Config: map[string]interface{}{
-					"envoy_mesh_gateway_no_default_bind":       true,
-					"envoy_mesh_gateway_bind_tagged_addresses": true,
-				},
-			}
-		} else if !canBind(lanAddr) && lanAddr != "" {
-			c.UI.Error(fmt.Sprintf("The LAN address %q will not be bindable. Either set a bindable address or override the bind addresses with -bind-address", lanAddr))
-			return 1
-		}
-
-		var meta map[string]string
-		if c.exposeServers {
-			meta = map[string]string{structs.MetaWANFederationKey: "1"}
-		}
-
-		svc := api.AgentServiceRegistration{
-			Kind:            api.ServiceKindMeshGateway,
-			Name:            c.meshGatewaySvcName,
-			Address:         lanAddr,
-			Port:            lanPort,
-			Meta:            meta,
-			TaggedAddresses: taggedAddrs,
-			Proxy:           proxyConf,
-			Check: &api.AgentServiceCheck{
-				Name:                           "Mesh Gateway Listening",
-				TCP:                            ipaddr.FormatAddressPort(tcpCheckAddr, lanPort),
-				Interval:                       "10s",
-				DeregisterCriticalServiceAfter: c.deregAfterCritical,
-			},
-		}
-
-		if err := client.Agent().ServiceRegister(&svc); err != nil {
-			c.UI.Error(fmt.Sprintf("Error registering service %q: %s", svc.Name, err))
-			return 1
-		}
-
-		c.UI.Output(fmt.Sprintf("Registered service: %s", svc.Name))
 	}
 
 	// See if we need to lookup proxyID
@@ -426,6 +333,102 @@ func (c *cmd) Run(args []string) int {
 }
 
 var errUnsupportedOS = errors.New("envoy: not implemented on this operating system")
+
+func (c *cmd) registerGateway() error {
+	if !c.meshGateway {
+		return errors.New("Auto-Registration can only be used for mesh gateways")
+	}
+
+	lanAddr, lanPort, err := parseAddress(c.address)
+	if err != nil {
+		return fmt.Errorf("Failed to parse the -address parameter: %v", err)
+	}
+
+	taggedAddrs := make(map[string]api.ServiceAddress)
+
+	if lanAddr != "" {
+		taggedAddrs[structs.TaggedAddressLAN] = api.ServiceAddress{Address: lanAddr, Port: lanPort}
+	}
+
+	var wanAddr string
+	if c.wanAddress != "" {
+		var wanPort int
+		wanAddr, wanPort, err = parseAddress(c.wanAddress)
+		if err != nil {
+			return fmt.Errorf("Failed to parse the -wan-address parameter: %v", err)
+		}
+		taggedAddrs[structs.TaggedAddressWAN] = api.ServiceAddress{Address: wanAddr, Port: wanPort}
+	}
+
+	tcpCheckAddr := lanAddr
+	if tcpCheckAddr == "" {
+		// fallback to localhost as the gateway has to reside in the same network namespace
+		// as the agent
+		tcpCheckAddr = "127.0.0.1"
+	}
+
+	var proxyConf *api.AgentServiceConnectProxyConfig
+
+	if len(c.bindAddresses) > 0 {
+		// override all default binding rules and just bind to the user-supplied addresses
+		bindAddresses := make(map[string]api.ServiceAddress)
+
+		for addrName, addrStr := range c.bindAddresses {
+			addr, port, err := parseAddress(addrStr)
+			if err != nil {
+				return fmt.Errorf("Failed to parse the bind address: %s=%s: %v", addrName, addrStr, err)
+			}
+
+			bindAddresses[addrName] = api.ServiceAddress{Address: addr, Port: port}
+		}
+
+		proxyConf = &api.AgentServiceConnectProxyConfig{
+			Config: map[string]interface{}{
+				"envoy_mesh_gateway_no_default_bind": true,
+				"envoy_mesh_gateway_bind_addresses":  bindAddresses,
+			},
+		}
+	} else if canBind(lanAddr) && canBind(wanAddr) {
+		// when both addresses are bindable then we bind to the tagged addresses
+		// for creating the envoy listeners
+		proxyConf = &api.AgentServiceConnectProxyConfig{
+			Config: map[string]interface{}{
+				"envoy_mesh_gateway_no_default_bind":       true,
+				"envoy_mesh_gateway_bind_tagged_addresses": true,
+			},
+		}
+	} else if !canBind(lanAddr) && lanAddr != "" {
+		return fmt.Errorf("The LAN address %q will not be bindable. Either set a bindable address or override the bind addresses with -bind-address", lanAddr)
+	}
+
+	var meta map[string]string
+	if c.exposeServers {
+		meta = map[string]string{structs.MetaWANFederationKey: "1"}
+	}
+
+	svc := api.AgentServiceRegistration{
+		Kind:            api.ServiceKindMeshGateway,
+		Name:            c.meshGatewaySvcName,
+		Address:         lanAddr,
+		Port:            lanPort,
+		Meta:            meta,
+		TaggedAddresses: taggedAddrs,
+		Proxy:           proxyConf,
+		Check: &api.AgentServiceCheck{
+			Name:                           "Mesh Gateway Listening",
+			TCP:                            ipaddr.FormatAddressPort(tcpCheckAddr, lanPort),
+			Interval:                       "10s",
+			DeregisterCriticalServiceAfter: c.deregAfterCritical,
+		},
+	}
+
+	if err := c.client.Agent().ServiceRegister(&svc); err != nil {
+		return fmt.Errorf("Error registering service %q: %s", svc.Name, err)
+	}
+
+	c.UI.Output(fmt.Sprintf("Registered service: %s", svc.Name))
+	return nil
+}
 
 func (c *cmd) findBinary() (string, error) {
 	if c.envoyBin != "" {
@@ -563,7 +566,9 @@ func (c *cmd) generateConfig() ([]byte, error) {
 			return nil, fmt.Errorf("failed fetch proxy config from local agent: %s", err)
 		}
 
-		if svc.Proxy == nil {
+		if !(svc.Kind == api.ServiceKindConnectProxy ||
+			svc.Kind == api.ServiceKindMeshGateway ||
+			svc.Kind == api.ServiceKindIngressGateway) {
 			return nil, errors.New("service is not a Connect proxy or mesh gateway")
 		}
 
