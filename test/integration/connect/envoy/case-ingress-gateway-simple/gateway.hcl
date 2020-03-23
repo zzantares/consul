@@ -1,4 +1,4 @@
 services {
-  name = "ingress"
+  name = "ingress-gateway"
   kind = "ingress-gateway"
 }
