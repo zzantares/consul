@@ -17,12 +17,10 @@ type IngressListener struct {
 	Protocol string
 	Header   string
 
-	ServicePrefixes []IngressService
-	Services        []IngressService
+	Services []IngressService
 }
 
 type IngressService struct {
-	Prefix        string
 	Name          string
 	Namespace     string
 	ServiceSubset string
