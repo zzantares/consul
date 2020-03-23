@@ -292,7 +292,6 @@ func DecodeConfigEntry(raw map[string]interface{}) (ConfigEntry, error) {
 	raw = lib.PatchSliceOfMaps(raw, skipWhenPatching, nil)
 
 	lib.TranslateKeys(raw, translateKeysDict)
-	//return nil, fmt.Errorf("raw map: %v", raw)
 
 	var md mapstructure.Metadata
 	decodeConf := &mapstructure.DecoderConfig{

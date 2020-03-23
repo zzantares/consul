@@ -1171,10 +1171,18 @@ func (s *state) resetIngressDiscoveryWatches(snap *ConfigSnapshot) error {
 }
 
 func (s *state) watchIngressDiscoveryChain(snap *ConfigSnapshot, service, namespace string, port int) (structs.Upstream, error) {
+	// todo: validate this on service registration for ingress gateway
+	addr, ok := snap.TaggedAddresses["lan"]
+	if !ok {
+		panic("fix this")
+	}
+
 	u := structs.Upstream{
 		DestinationName:      service,
 		DestinationNamespace: namespace,
+		LocalBindAddress:     addr.Address,
 		LocalBindPort:        port,
+		//Config:               map[string]interface{}{"protocol": listener.Protocol},
 	}
 
 	if _, ok := snap.IngressGateway.WatchedDiscoveryChains[u.Identifier()]; ok {

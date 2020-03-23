@@ -248,7 +248,7 @@ func (s *Server) listenersFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSna
 		resources = append(resources, upstreamListener)
 	}
 
-	return nil, nil
+	return resources, nil
 }
 
 // makeListener returns a listener with name and bind details set. Filters must
