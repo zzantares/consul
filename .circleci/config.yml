@@ -524,10 +524,8 @@ jobs:
           path: ui-v2/test-results
 
   envoy-integration-test-1.10.0:
-    docker:
-      # We only really need bash and docker-compose which is installed on all
-      # Circle images but pick Go since we have to pick one of them.
-      - image: *GOLANG_IMAGE
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       ENVOY_VERSIONS: "1.10.0"
     steps: &ENVOY_INTEGRATION_TEST_STEPS
@@ -535,7 +533,6 @@ jobs:
       # Get go binary from workspace
       - attach_workspace:
           at: .
-      - setup_remote_docker
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev.dockerfile .
       - run:
@@ -549,22 +546,22 @@ jobs:
           destination: container-logs
 
   envoy-integration-test-1.11.2:
-    docker:
-      - image: *GOLANG_IMAGE
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       ENVOY_VERSIONS: "1.11.2"
     steps: *ENVOY_INTEGRATION_TEST_STEPS
 
   envoy-integration-test-1.12.2:
-    docker:
-      - image: *GOLANG_IMAGE
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       ENVOY_VERSIONS: "1.12.2"
     steps: *ENVOY_INTEGRATION_TEST_STEPS
 
   envoy-integration-test-1.13.0:
-    docker:
-      - image: *GOLANG_IMAGE
+    machine:
+      image: ubuntu-1604:201903-01
     environment:
       ENVOY_VERSIONS: "1.13.0"
     steps: *ENVOY_INTEGRATION_TEST_STEPS
