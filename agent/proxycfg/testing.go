@@ -585,8 +585,8 @@ func TestConfigSnapshot(t testing.T) *ConfigSnapshot {
 			Upstreams: structs.TestUpstreams(t),
 		},
 		Roots: roots,
+		Leaf:  leaf,
 		ConnectProxy: configSnapshotConnectProxy{
-			Leaf: leaf,
 			DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
 				"db": dbChain,
 			},
@@ -880,8 +880,8 @@ func testConfigSnapshotDiscoveryChain(t testing.T, variation string, additionalE
 			Upstreams: structs.TestUpstreams(t),
 		},
 		Roots: roots,
+		Leaf:  leaf,
 		ConnectProxy: configSnapshotConnectProxy{
-			Leaf: leaf,
 			DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
 				"db": dbChain,
 			},
@@ -1033,6 +1033,53 @@ func testConfigSnapshotMeshGateway(t testing.T, populateServices bool, useFedera
 		}
 	}
 
+	return snap
+}
+
+func TestConfigSnapshotIngressGateway(t testing.T) *ConfigSnapshot {
+	return testConfigSnapshotIngressGateway(t, true)
+}
+
+func TestConfigSnapshotIngressGatewayNoServices(t testing.T) *ConfigSnapshot {
+	return testConfigSnapshotIngressGateway(t, false)
+}
+
+func testConfigSnapshotIngressGateway(t testing.T, populateServices bool) *ConfigSnapshot {
+	roots, leaf := TestCerts(t)
+	dbChain := discoverychain.TestCompileConfigEntries(
+		t, "db", "default", "dc1",
+		connect.TestClusterID+".consul", "dc1", nil)
+
+	snap := &ConfigSnapshot{
+		Kind:       structs.ServiceKindIngressGateway,
+		Service:    "ingress-gateway",
+		ProxyID:    structs.NewServiceID("ingress-gateway", nil),
+		Address:    "1.2.3.4",
+		Roots:      roots,
+		Leaf:       leaf,
+		Datacenter: "dc1",
+	}
+	if populateServices {
+		snap.IngressGateway = configSnapshotIngressGateway{
+			Config: nil,
+			DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
+				"db": dbChain,
+			},
+			WatchedUpstreamEndpoints: map[string]map[string]structs.CheckServiceNodes{
+				"db": map[string]structs.CheckServiceNodes{
+					"db.default.dc1": TestUpstreamNodes(t),
+				},
+			},
+			Upstreams: structs.Upstreams{
+				{
+					// We rely on this one having default type in a few tests...
+					DestinationName:  "db",
+					LocalBindPort:    9191,
+					LocalBindAddress: "2.3.4.5",
+				},
+			},
+		}
+	}
 	return snap
 }
 

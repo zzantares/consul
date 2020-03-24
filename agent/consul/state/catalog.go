@@ -1803,6 +1803,10 @@ func (s *Store) checkServiceNodes(ws memdb.WatchSet, serviceName string, connect
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
+	return s.checkServiceNodesTxn(tx, ws, serviceName, connect, entMeta)
+}
+
+func (s *Store) checkServiceNodesTxn(tx *memdb.Txn, ws memdb.WatchSet, serviceName string, connect bool, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
 	// Function for lookup
 	index := "service"
 	if connect {
@@ -2102,6 +2106,52 @@ func (s *Store) serviceDumpKindTxn(tx *memdb.Txn, ws memdb.WatchSet, kind struct
 	}
 
 	return s.parseCheckServiceNodes(tx, nil, idx, "", results, err)
+}
+
+func (s *Store) IngressGatewaysForService(ws memdb.WatchSet, serviceName string, entMeta *structs.EnterpriseMeta) (uint64, structs.CheckServiceNodes, error) {
+	tx := s.db.Txn(false)
+	defer tx.Abort()
+
+	_, entries, err := s.configEntriesByKindTxn(tx, ws, structs.IngressGateway, entMeta)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	var ingressServices []string
+	for _, entry := range entries {
+		ingressConfig := entry.(*structs.IngressGatewayConfigEntry)
+	ENTRIES_LOOP:
+		for _, listener := range ingressConfig.Listeners {
+			for _, service := range listener.Services {
+				// If the request specified a different namespace, skip this service.
+				namespace := entMeta.NamespaceOrDefault()
+				if namespace != service.NamespaceOrDefault() {
+					continue
+				}
+
+				if service.Name == serviceName || service.Name == structs.WildcardSpecifier {
+					ingressServices = append(ingressServices, ingressConfig.Name)
+					break ENTRIES_LOOP
+				}
+			}
+		}
+	}
+
+	var maxIdx uint64
+	var nodes structs.CheckServiceNodes
+	for _, ingressService := range ingressServices {
+		idx, n, err := s.checkServiceNodesTxn(tx, ws, ingressService, false, entMeta)
+		if err != nil {
+			return 0, nil, err
+		}
+		if idx > maxIdx {
+			maxIdx = idx
+		}
+
+		nodes = append(nodes, n...)
+	}
+
+	return maxIdx, nodes, nil
 }
 
 // parseNodes takes an iterator over a set of nodes and returns a struct

@@ -1412,6 +1412,8 @@ func (b *Builder) serviceKindVal(v *string) structs.ServiceKind {
 		return structs.ServiceKindMeshGateway
 	case string(structs.ServiceKindTerminatingGateway):
 		return structs.ServiceKindTerminatingGateway
+	case string(structs.ServiceKindIngressGateway):
+		return structs.ServiceKindIngressGateway
 	default:
 		return structs.ServiceKindTypical
 	}

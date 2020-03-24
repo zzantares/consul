@@ -8,7 +8,6 @@ import (
 )
 
 type configSnapshotConnectProxy struct {
-	Leaf                     *structs.IssuedCert
 	DiscoveryChain           map[string]*structs.CompiledDiscoveryChain // this is keyed by the Upstream.Identifier(), not the chain name
 	WatchedUpstreams         map[string]map[string]context.CancelFunc
 	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
@@ -23,8 +22,7 @@ func (c *configSnapshotConnectProxy) IsEmpty() bool {
 	if c == nil {
 		return true
 	}
-	return c.Leaf == nil &&
-		len(c.DiscoveryChain) == 0 &&
+	return len(c.DiscoveryChain) == 0 &&
 		len(c.WatchedUpstreams) == 0 &&
 		len(c.WatchedUpstreamEndpoints) == 0 &&
 		len(c.WatchedGateways) == 0 &&
@@ -108,6 +106,52 @@ func (c *configSnapshotMeshGateway) IsEmpty() bool {
 		len(c.ConsulServers) == 0
 }
 
+type configSnapshotIngressGateway struct {
+	// Config is the associated ingress-gateway config entry that we are generating watches for.
+	Config *structs.IngressGatewayConfigEntry
+
+	// ServiceLists is a map of maps, the first key being a namespace and the
+	// second being the service ID. This is used to separate out all services by
+	// namespace in order to deal with "*" wildcard specifiers.
+	ServiceLists map[string]map[structs.ServiceID]struct{}
+
+	// Upstreams is a list of upstreams this ingress gateway should serve traffic to. This is
+	// constructed from the ingress-gateway config entry, Config, and the
+	// ServiceLists fields.
+	Upstreams []structs.Upstream
+
+	// WatchedDiscoveryChains is a map of upstream.Identifier() -> CancelFunc's
+	// in order to cancel any watches when the ingress gateway configuration is
+	// changed.
+	WatchedDiscoveryChains map[string]context.CancelFunc
+
+	// DiscoveryChain is a map of upstream.Identifier() ->
+	// CompiledDiscoveryChain's, and is used to determine what services could be
+	// targeted by this upstream. We then instantiate watches for those targets.
+	DiscoveryChain map[string]*structs.CompiledDiscoveryChain
+
+	// WatchedUpstreams is a map of upstream.Identifier() -> (map of TargetID -> CancelFunc's)
+	// in order to cancel any watches when the ingress gateway configuration is
+	// changed.
+	WatchedUpstreams map[string]map[string]context.CancelFunc
+
+	// WatchedUpstreamEndpoints is a map of upstream.Identifier() -> (map of TargetID -> CheckServiceNodes)
+	// and is used to determine the backing endpoints of an upstream.
+	WatchedUpstreamEndpoints map[string]map[string]structs.CheckServiceNodes
+}
+
+func (c *configSnapshotIngressGateway) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+	return c.Config == nil &&
+		len(c.Upstreams) == 0 &&
+		len(c.DiscoveryChain) == 0 &&
+		len(c.WatchedDiscoveryChains) == 0 &&
+		len(c.WatchedUpstreams) == 0 &&
+		len(c.WatchedUpstreamEndpoints) == 0
+}
+
 // ConfigSnapshot captures all the resulting config needed for a proxy instance.
 // It is meant to be point-in-time coherent and is used to deliver the current
 // config state to observers who need it to be pushed in (e.g. XDS server).
@@ -124,12 +168,17 @@ type ConfigSnapshot struct {
 
 	ServerSNIFn ServerSNIFunc
 	Roots       *structs.IndexedCARoots
+	// Used for connect-proxy and ingress-gateway proxies
+	Leaf *structs.IssuedCert
 
 	// connect-proxy specific
 	ConnectProxy configSnapshotConnectProxy
 
 	// mesh-gateway specific
 	MeshGateway configSnapshotMeshGateway
+
+	// ingress-gateway specific
+	IngressGateway configSnapshotIngressGateway
 
 	// Skip intentions for now as we don't push those down yet, just pre-warm them.
 }
@@ -138,7 +187,7 @@ type ConfigSnapshot struct {
 func (s *ConfigSnapshot) Valid() bool {
 	switch s.Kind {
 	case structs.ServiceKindConnectProxy:
-		return s.Roots != nil && s.ConnectProxy.Leaf != nil
+		return s.Roots != nil && s.Leaf != nil
 	case structs.ServiceKindMeshGateway:
 		if s.ServiceMeta[structs.MetaWANFederationKey] == "1" {
 			if len(s.MeshGateway.ConsulServers) == 0 {
@@ -146,6 +195,11 @@ func (s *ConfigSnapshot) Valid() bool {
 			}
 		}
 		return s.Roots != nil && (s.MeshGateway.WatchedServicesSet || len(s.MeshGateway.ServiceGroups) > 0)
+	case structs.ServiceKindIngressGateway:
+		return s.Roots != nil &&
+			s.Leaf != nil &&
+			s.IngressGateway.Config != nil &&
+			s.IngressGateway.ServiceLists != nil
 	default:
 		return false
 	}
@@ -169,6 +223,9 @@ func (s *ConfigSnapshot) Clone() (*ConfigSnapshot, error) {
 	case structs.ServiceKindMeshGateway:
 		snap.MeshGateway.WatchedDatacenters = nil
 		snap.MeshGateway.WatchedServices = nil
+	case structs.ServiceKindIngressGateway:
+		snap.IngressGateway.WatchedUpstreams = nil
+		snap.IngressGateway.WatchedDiscoveryChains = nil
 	}
 
 	return snap, nil

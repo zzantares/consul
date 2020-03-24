@@ -32,6 +32,7 @@ const (
 	consulServerListWatchID            = "consul-server-list"
 	datacentersWatchID                 = "datacenters"
 	serviceResolversWatchID            = "service-resolvers"
+	ingressGatewayConfigWatchID        = "ingress-gateway-config"
 	svcChecksWatchIDPrefix             = cachetype.ServiceHTTPChecksName + ":"
 	serviceIDPrefix                    = string(structs.UpstreamDestTypeService) + ":"
 	preparedQueryIDPrefix              = string(structs.UpstreamDestTypePreparedQuery) + ":"
@@ -106,8 +107,10 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 // The returned state needs its required dependencies to be set before Watch
 // can be called.
 func newState(ns *structs.NodeService, token string) (*state, error) {
-	if ns.Kind != structs.ServiceKindConnectProxy && ns.Kind != structs.ServiceKindMeshGateway {
-		return nil, errors.New("not a connect-proxy or mesh-gateway")
+	if ns.Kind != structs.ServiceKindConnectProxy &&
+		ns.Kind != structs.ServiceKindMeshGateway &&
+		ns.Kind != structs.ServiceKindIngressGateway {
+		return nil, errors.New("not a connect-proxy, mesh-gateway, or ingress-gateway")
 	}
 
 	proxyCfg, err := copyProxyConfig(ns)
@@ -181,6 +184,8 @@ func (s *state) initWatches() error {
 		return s.initWatchesConnectProxy()
 	case structs.ServiceKindMeshGateway:
 		return s.initWatchesMeshGateway()
+	case structs.ServiceKindIngressGateway:
+		return s.initWatchesIngressGateway()
 	default:
 		return fmt.Errorf("Unsupported service kind")
 	}
@@ -432,6 +437,54 @@ func (s *state) initWatchesMeshGateway() error {
 	return err
 }
 
+func (s *state) initWatchesIngressGateway() error {
+	// Watch for root changes
+	err := s.cache.Notify(s.ctx, cachetype.ConnectCARootName, &structs.DCSpecificRequest{
+		Datacenter:   s.source.Datacenter,
+		QueryOptions: structs.QueryOptions{Token: s.token},
+		Source:       *s.source,
+	}, rootsWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch the leaf cert
+	err = s.cache.Notify(s.ctx, cachetype.ConnectCALeafName, &cachetype.ConnectCALeafRequest{
+		Datacenter:     s.source.Datacenter,
+		Token:          s.token,
+		Service:        s.service,
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, leafWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch the service's own ingress-gateway config entry
+	err = s.cache.Notify(s.ctx, cachetype.ConfigEntryName, &structs.ConfigEntryQuery{
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		Kind:           structs.IngressGateway,
+		Name:           s.service,
+		EnterpriseMeta: *structs.WildcardEnterpriseMeta(),
+	}, ingressGatewayConfigWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	// Watch the list of all services in the datacenter.
+	err = s.cache.Notify(s.ctx, cachetype.CatalogServiceListName, &structs.DCSpecificRequest{
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		Source:         *s.source,
+		EnterpriseMeta: *structs.WildcardEnterpriseMeta(),
+	}, serviceListWatchID, s.ch)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (s *state) initialConfigSnapshot() ConfigSnapshot {
 	snap := ConfigSnapshot{
 		Kind:            s.kind,
@@ -464,6 +517,11 @@ func (s *state) initialConfigSnapshot() ConfigSnapshot {
 		snap.MeshGateway.ServiceResolvers = make(map[structs.ServiceID]*structs.ServiceResolverConfigEntry)
 		// there is no need to initialize the map of service resolvers as we
 		// fully rebuild it every time we get updates
+	case structs.ServiceKindIngressGateway:
+		snap.IngressGateway.WatchedDiscoveryChains = make(map[string]context.CancelFunc)
+		snap.IngressGateway.DiscoveryChain = make(map[string]*structs.CompiledDiscoveryChain)
+		snap.IngressGateway.WatchedUpstreams = make(map[string]map[string]context.CancelFunc)
+		snap.IngressGateway.WatchedUpstreamEndpoints = make(map[string]map[string]structs.CheckServiceNodes)
 	}
 
 	return snap
@@ -563,6 +621,8 @@ func (s *state) handleUpdate(u cache.UpdateEvent, snap *ConfigSnapshot) error {
 		return s.handleUpdateConnectProxy(u, snap)
 	case structs.ServiceKindMeshGateway:
 		return s.handleUpdateMeshGateway(u, snap)
+	case structs.ServiceKindIngressGateway:
+		return s.handleUpdateIngressGateway(u, snap)
 	default:
 		return fmt.Errorf("Unsupported service kind")
 	}
@@ -586,7 +646,7 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
-		snap.ConnectProxy.Leaf = leaf
+		snap.Leaf = leaf
 
 	case u.CorrelationID == intentionsWatchID:
 		// Not in snapshot currently, no op
@@ -960,6 +1020,241 @@ func (s *state) handleUpdateMeshGateway(u cache.UpdateEvent, snap *ConfigSnapsho
 		default:
 			// do nothing for now
 		}
+	}
+
+	return nil
+}
+
+func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnapshot) error {
+	if u.Err != nil {
+		return fmt.Errorf("error filling agent cache: %v", u.Err)
+	}
+
+	switch {
+	case u.CorrelationID == rootsWatchID:
+		roots, ok := u.Result.(*structs.IndexedCARoots)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		snap.Roots = roots
+	case u.CorrelationID == leafWatchID:
+		leaf, ok := u.Result.(*structs.IssuedCert)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		snap.Leaf = leaf
+	case u.CorrelationID == serviceListWatchID:
+		// Store the list of services.
+		services, ok := u.Result.(*structs.IndexedServiceList)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+
+		serviceLists := make(map[string]map[structs.ServiceID]struct{})
+		for _, svc := range services.Services {
+			ns := svc.NamespaceOrDefault()
+			if _, ok := serviceLists[ns]; !ok {
+				serviceLists[ns] = make(map[structs.ServiceID]struct{})
+			}
+			sid := svc.ToServiceID()
+			serviceLists[ns][sid] = struct{}{}
+		}
+
+		snap.IngressGateway.ServiceLists = serviceLists
+
+		// Update our discovery chain watches.
+		if err := s.resetIngressUpstreamsAndDiscoveryWatches(snap); err != nil {
+			return err
+		}
+
+	case u.CorrelationID == ingressGatewayConfigWatchID:
+		configEntry, ok := u.Result.(*structs.ConfigEntryResponse)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+
+		ingressGateway, ok := configEntry.Entry.(*structs.IngressGatewayConfigEntry)
+		if !ok {
+			return fmt.Errorf("invalid type for config entry: %T", configEntry.Entry)
+		}
+
+		snap.IngressGateway.Config = ingressGateway
+
+		// Update our discovery chain watches.
+		if err := s.resetIngressUpstreamsAndDiscoveryWatches(snap); err != nil {
+			return err
+		}
+
+	case strings.HasPrefix(u.CorrelationID, "discovery-chain:"):
+		resp, ok := u.Result.(*structs.DiscoveryChainResponse)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		svc := strings.TrimPrefix(u.CorrelationID, "discovery-chain:")
+		snap.IngressGateway.DiscoveryChain[svc] = resp.Chain
+
+		if err := s.resetIngressWatchesFromChain(svc, resp.Chain, snap); err != nil {
+			return err
+		}
+
+	case strings.HasPrefix(u.CorrelationID, "upstream-target:"):
+		resp, ok := u.Result.(*structs.IndexedCheckServiceNodes)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		correlationID := strings.TrimPrefix(u.CorrelationID, "upstream-target:")
+		targetID, svc, ok := removeColonPrefix(correlationID)
+		if !ok {
+			return fmt.Errorf("invalid correlation id %q", u.CorrelationID)
+		}
+
+		_, ok = snap.IngressGateway.WatchedUpstreamEndpoints[svc]
+		if !ok {
+			m := make(map[string]structs.CheckServiceNodes)
+			snap.IngressGateway.WatchedUpstreamEndpoints[svc] = m
+		}
+		snap.IngressGateway.WatchedUpstreamEndpoints[svc][targetID] = resp.Nodes
+
+	default:
+		s.logger.Warn("received unknown update event", "event", u)
+	}
+
+	return nil
+}
+
+func (s *state) resetIngressUpstreamsAndDiscoveryWatches(snap *ConfigSnapshot) error {
+	// Exit early if we don't have both the gateway config and service list.
+	if snap.IngressGateway.Config == nil || snap.IngressGateway.ServiceLists == nil {
+		return nil
+	}
+
+	var upstreams []structs.Upstream
+	for _, listener := range snap.IngressGateway.Config.Listeners {
+		for _, svc := range listener.Services {
+			ns := svc.NamespaceOrDefault()
+			if svc.Name == structs.WildcardSpecifier {
+				for service := range snap.IngressGateway.ServiceLists[ns] {
+					u := upstreamForIngress(snap.Address, ns, service.ID, listener.Port)
+					upstreams = append(upstreams, u)
+				}
+			} else {
+				u := upstreamForIngress(snap.Address, ns, svc.Name, listener.Port)
+				upstreams = append(upstreams, u)
+			}
+		}
+	}
+	snap.IngressGateway.Upstreams = upstreams
+
+	watchedSvcs := make(map[string]struct{})
+	for _, u := range upstreams {
+		err := s.watchIngressDiscoveryChain(snap, u)
+		if err != nil {
+			return err
+		}
+		watchedSvcs[u.Identifier()] = struct{}{}
+	}
+
+	for id, cancelFn := range snap.IngressGateway.WatchedDiscoveryChains {
+		if _, ok := watchedSvcs[id]; !ok {
+			cancelFn()
+			delete(snap.IngressGateway.WatchedDiscoveryChains, id)
+		}
+	}
+
+	return nil
+}
+
+func upstreamForIngress(address, namespace, service string, port int) structs.Upstream {
+	if address == "" {
+		address = "0.0.0.0"
+	}
+	return structs.Upstream{
+		DestinationName:      service,
+		DestinationNamespace: namespace,
+		LocalBindAddress:     address,
+		LocalBindPort:        port,
+	}
+}
+
+func (s *state) watchIngressDiscoveryChain(snap *ConfigSnapshot, u structs.Upstream) error {
+	if _, ok := snap.IngressGateway.WatchedDiscoveryChains[u.Identifier()]; ok {
+		return nil
+	}
+
+	ctx, cancel := context.WithCancel(s.ctx)
+	err := s.cache.Notify(ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
+		Datacenter:           s.source.Datacenter,
+		QueryOptions:         structs.QueryOptions{Token: s.token},
+		Name:                 u.DestinationName,
+		EvaluateInDatacenter: s.source.Datacenter,
+		EvaluateInNamespace:  u.DestinationNamespace,
+		// OverrideMeshGateway:    s.proxyCfg.MeshGateway.OverlayWith(u.MeshGateway),
+		// OverrideConnectTimeout: cfg.ConnectTimeout(),
+	}, "discovery-chain:"+u.Identifier(), s.ch)
+	if err != nil {
+		cancel()
+		return err
+	}
+
+	snap.IngressGateway.WatchedDiscoveryChains[u.Identifier()] = cancel
+	return nil
+}
+
+func (s *state) resetIngressWatchesFromChain(
+	id string,
+	chain *structs.CompiledDiscoveryChain,
+	snap *ConfigSnapshot,
+) error {
+	s.logger.Trace("resetting watches for discovery chain", "id", id)
+	if chain == nil {
+		return fmt.Errorf("not possible to arrive here with no discovery chain")
+	}
+
+	// Initialize relevant sub maps.
+	if _, ok := snap.IngressGateway.WatchedUpstreams[id]; !ok {
+		snap.IngressGateway.WatchedUpstreams[id] = make(map[string]context.CancelFunc)
+	}
+	if _, ok := snap.IngressGateway.WatchedUpstreamEndpoints[id]; !ok {
+		snap.IngressGateway.WatchedUpstreamEndpoints[id] = make(map[string]structs.CheckServiceNodes)
+	}
+
+	// We could invalidate this selectively based on a hash of the relevant
+	// resolver information, but for now just reset anything about this
+	// upstream when the chain changes in any way.
+	for targetID, cancelFn := range snap.IngressGateway.WatchedUpstreams[id] {
+		s.logger.Trace("stopping watch of target",
+			"upstream", id,
+			"chain", chain.ServiceName,
+			"target", targetID,
+		)
+		delete(snap.IngressGateway.WatchedUpstreams[id], targetID)
+		delete(snap.IngressGateway.WatchedUpstreamEndpoints[id], targetID)
+		cancelFn()
+	}
+
+	for _, target := range chain.Targets {
+		s.logger.Trace("initializing watch of target",
+			"upstream", id,
+			"chain", chain.ServiceName,
+			"target", target.ID,
+			"mesh-gateway-mode", target.MeshGateway.Mode,
+		)
+
+		ctx, cancel := context.WithCancel(s.ctx)
+		err := s.watchConnectProxyService(
+			ctx,
+			"upstream-target:"+target.ID+":"+id,
+			target.Service,
+			target.Datacenter,
+			target.Subset.Filter,
+			target.GetEnterpriseMetadata(),
+		)
+		if err != nil {
+			cancel()
+			return err
+		}
+
+		snap.IngressGateway.WatchedUpstreams[id][target.ID] = cancel
 	}
 
 	return nil

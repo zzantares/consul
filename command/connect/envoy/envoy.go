@@ -529,7 +529,7 @@ func (c *cmd) generateConfig() ([]byte, error) {
 		}
 
 		if svc.Proxy == nil {
-			return nil, errors.New("service is not a Connect proxy or mesh gateway")
+			return nil, errors.New("service is not a Connect proxy, mesh gateway, or ingress gateway")
 		}
 
 		// Parse the bootstrap config

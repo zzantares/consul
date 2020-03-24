@@ -32,6 +32,8 @@ func (s *Server) clustersFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot, token st
 		return s.clustersFromSnapshotConnectProxy(cfgSnap, token)
 	case structs.ServiceKindMeshGateway:
 		return s.clustersFromSnapshotMeshGateway(cfgSnap, token)
+	case structs.ServiceKindIngressGateway:
+		return s.clustersFromSnapshotIngressGateway(cfgSnap, token)
 	default:
 		return nil, fmt.Errorf("Invalid service kind: %v", cfgSnap.Kind)
 	}
@@ -63,7 +65,21 @@ func (s *Server) clustersFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnapsh
 
 		} else {
 			chain := cfgSnap.ConnectProxy.DiscoveryChain[id]
-			upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(u, chain, cfgSnap)
+			chainEndpoints, ok := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
+			if !ok {
+				// this should not happen
+				return nil, fmt.Errorf("no endpoint map for upstream %q", id)
+			}
+
+			cfg, err := ParseUpstreamConfigNoDefaults(u.Config)
+			if err != nil {
+				// Don't hard fail on a config typo, just warn. The parse func returns
+				// default config if there is an error so it's safe to continue.
+				s.Logger.Warn("failed to parse", "upstream", u.Identifier(),
+					"error", err)
+			}
+
+			upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(u.Identifier(), cfg, chain, chainEndpoints, cfgSnap)
 			if err != nil {
 				return nil, err
 			}
@@ -192,6 +208,27 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 	return clusters, nil
 }
 
+func (s *Server) clustersFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot, token string) ([]proto.Message, error) {
+	var clusters []proto.Message
+	for id, chain := range cfgSnap.IngressGateway.DiscoveryChain {
+		chainEndpoints, ok := cfgSnap.IngressGateway.WatchedUpstreamEndpoints[id]
+		if !ok {
+			// this should not happen
+			return nil, fmt.Errorf("no endpoint map for upstream %q", id)
+		}
+
+		upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(id, UpstreamConfig{}, chain, chainEndpoints, cfgSnap)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, c := range upstreamClusters {
+			clusters = append(clusters, c)
+		}
+	}
+	return clusters, nil
+}
+
 func (s *Server) makeAppCluster(cfgSnap *proxycfg.ConfigSnapshot, name, pathProtocol string, port int) (*envoy.Cluster, error) {
 	var c *envoy.Cluster
 	var err error
@@ -293,22 +330,17 @@ func (s *Server) makeUpstreamClusterForPreparedQuery(upstream structs.Upstream, 
 }
 
 func (s *Server) makeUpstreamClustersForDiscoveryChain(
-	upstream structs.Upstream,
+	id string,
+	cfg UpstreamConfig,
 	chain *structs.CompiledDiscoveryChain,
+	chainEndpoints map[string]structs.CheckServiceNodes,
 	cfgSnap *proxycfg.ConfigSnapshot,
 ) ([]*envoy.Cluster, error) {
 	if chain == nil {
-		return nil, fmt.Errorf("cannot create upstream cluster without discovery chain for %s", upstream.Identifier())
+		return nil, fmt.Errorf("cannot create upstream cluster without discovery chain for %s", id)
 	}
 
-	cfg, err := ParseUpstreamConfigNoDefaults(upstream.Config)
-	if err != nil {
-		// Don't hard fail on a config typo, just warn. The parse func returns
-		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse", "upstream", upstream.Identifier(),
-			"error", err)
-	}
-
+	var err error
 	var escapeHatchCluster *envoy.Cluster
 	if cfg.ClusterJSON != "" {
 		if chain.IsDefault() {
@@ -320,20 +352,12 @@ func (s *Server) makeUpstreamClustersForDiscoveryChain(
 			}
 		} else {
 			s.Logger.Warn("ignoring escape hatch setting, because a discovery chain is configued for",
-				"discovery chain", chain.ServiceName, "upstream", upstream.Identifier(),
+				"discovery chain", chain.ServiceName, "upstream", id,
 				"envoy_cluster_json", chain.ServiceName)
 		}
 	}
 
-	id := upstream.Identifier()
-	chainEndpointMap, ok := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
-	if !ok {
-		// this should not happen
-		return nil, fmt.Errorf("no endpoint map for upstream %q", id)
-	}
-
 	var out []*envoy.Cluster
-
 	for _, node := range chain.Nodes {
 		if node.Type != structs.DiscoveryGraphNodeTypeResolver {
 			continue
@@ -352,7 +376,7 @@ func (s *Server) makeUpstreamClustersForDiscoveryChain(
 		if failoverThroughMeshGateway {
 			actualTargetID := firstHealthyTarget(
 				chain.Targets,
-				chainEndpointMap,
+				chainEndpoints,
 				targetID,
 				failover.Targets,
 			)
