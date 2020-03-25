@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"text/template"
 	"time"
@@ -221,6 +222,10 @@ func (a *TestAgent) Start() (err error) {
 		return fmt.Errorf("%s %s Error starting agent: %s", id, a.Name, err)
 	}
 
+	agent.delegate = &fakeRPCDelegate{
+		delegate:  agent.delegate,
+		endpoints: make(map[string]string),
+	}
 	a.Agent = agent
 
 	// Start the anti-entropy syncer
@@ -367,6 +372,45 @@ func (a *TestAgent) consulConfig() *consul.Config {
 		panic(err)
 	}
 	return c
+}
+
+// fakeRPCDelegate wraps the delegate interface, overriding the RPC method,
+// to support replacing RPC calls with fakes.
+type fakeRPCDelegate struct {
+	delegate
+	endpoints     map[string]string
+	endpointsLock sync.RWMutex
+}
+
+func (d *fakeRPCDelegate) RPC(method string, args interface{}, reply interface{}) error {
+	d.endpointsLock.RLock()
+	// fast path: only translate if there are overrides
+	if len(d.endpoints) > 0 {
+		p := strings.SplitN(method, ".", 2)
+		if e := d.endpoints[p[0]]; e != "" {
+			method = e + "." + p[1]
+		}
+	}
+	d.endpointsLock.RUnlock()
+	return d.delegate.RPC(method, args, reply)
+}
+
+func (a *TestAgent) registerEndpoint(name string, handler interface{}) error {
+	fake, ok := a.delegate.(*fakeRPCDelegate)
+	if !ok {
+		panic("TestAgent.delegate must be a fakeRPCDelegate to register fake RPC endpoints")
+	}
+	server, ok := fake.delegate.(interface {
+		RegisterEndpoint(name string, handler interface{}) error
+	})
+	if !ok {
+		panic("TestAgent.delegate must wrap a Server to register fake RPC endpoints")
+	}
+	realname := fmt.Sprintf("%s-%d", name, time.Now().UnixNano())
+	fake.endpointsLock.Lock()
+	fake.endpoints[name] = realname
+	fake.endpointsLock.Unlock()
+	return server.RegisterEndpoint(realname, handler)
 }
 
 // pickRandomPorts selects random ports from fixed size random blocks of
