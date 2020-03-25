@@ -231,6 +231,8 @@ and consider if they're appropriate for your deployment.
               "annotation-key": "annotation-value"
             ```
 
+  * <a name="v-server-extra-environment-vars" href="#v-server-extra-environment-vars">`extraEnvironmentVars`</a> (`string: "{}"`) - extraEnvVars is a list of extra environment variables to set with the stateful set. These could be used to include proxy settings required for cloud auto-join feature, in case kubernetes cluster is behind egress http proxies. Additionally, it could be used to configure custom consul parameters.
+
 * <a name="v-client" href="#v-client">`client`</a> - Values that configure running a Consul client on Kubernetes nodes.
 
   * <a name="v-client-enabled" href="#v-client-enabled">`enabled`</a> (`boolean: global.enabled`) - If true, the chart will install all the resources necessary for a Consul client on every Kubernetes node. This _does not_ require `server.enabled`, since the agents can be configured to join an external cluster.
@@ -306,6 +308,8 @@ and consider if they're appropriate for your deployment.
           beta.kubernetes.io/arch: amd64
         ```
 
+  * <a name="v-client-affinity" affinity="#v-client-affinity">`affinity`</a> (`string: ""`) - Affinity Settings for Client pods, formatted as a multi-line YAML string.
+
   * <a name="v-client-priorityclassname" href="#v-client-priorityclassname">`priorityClassName`</a> (`string: ""`) - This value references an existing Kubernetes [priorityClassName](https://kubernetes.io/docs/concepts/configuration/pod-priority-preemption/#pod-priority) that can be assigned to client pods.
 
   * <a name="v-client-annotations" href="#v-client-annotations">`annotations`</a> (`string: null`) - This value defines additional annotations for client pods. This should be a formatted as a multi-line string.
@@ -315,6 +319,8 @@ and consider if they're appropriate for your deployment.
           "sample/annotation1": "foo"
           "sample/annotation2": "bar"
         ```
+
+  * <a name="v-client-extra-environment-vars" href="#v-client-extra-environment-vars">`extraEnvironmentVars`</a> (`string: "{}"`) - extraEnvVars is a list of extra environment variables to set with the pod. These could be used to include proxy settings required for cloud auto-join feature, in case kubernetes cluster is behind egress http proxies. Additionally, it could be used to configure custom consul parameters.
 
   * <a name="v-client-dnspolicy" href="#v-client-dnspolicy">`dnsPolicy`</a> (`string: null`) - This value defines the [Pod DNS policy](https://kubernetes.io/docs/concepts/services-networking/dns-pod-service/#pod-s-dns-policy) for client pods to use.
 
@@ -586,6 +592,26 @@ to run the sync program.
   * <a name="v-meshgateway-hostnetwork" href="#v-meshgateway-hostnetwork">`hostNetwork`</a> (`boolean: false`) - If set to true, gateway Pods will run on the host network.
 
   * <a name="v-meshgateway-dnspolicy" href="#v-meshgateway-dnspolicy">`dnsPolicy`</a> (`string: null`) - dnsPolicy to use.
+
+  * <a name="v-meshgateway-consul-service-name" href="#v-meshgateway-consul-service-name">`consulServiceName`</a> (`string: ""`) - Override the default 'mesh-gateway' service name registered in Consul. Cannot be used if bootstrapACLs is true since the ACL token generated is only for the name 'mesh-gateway'.
+
+  * <a name="v-meshgateway-container-port" href="#v-meshgateway-container-port">`containerPort`</a> (`integer: 443`) - Port that the gateway will run on inside the container.
+
+  * <a name="v-meshgateway-host-port" href="#v-meshgateway-host-port">`hostPort`</a> (`integer: null`) - Optional hostPort for the gateway to be exposed on. This can be used with wanAddress.port and wanAddress.useNodeIP to expose the gateways directly from the node. If hostNetwork is true, this must be null or set to the same port as containerPort. NOTE: Cannot set to 8500 or 8502 because those are reserved for the Consul agent.
+
+  * <a name="v-meshgateway-enable-health-checks" href="#v-meshgateway-enable-health-checks">`enableHealthChecks`</a> (`boolean: true`) - If there are no connect-enabled services running, then the gateway will fail health checks. You may disable health checks as a temporary workaround.
+
+  * <a name="v-meshgateway-resources" href="#v-meshgateway-resources">`resources`</a> (`string: {}`) -
+
+  * <a name="v-meshgateway-affinity" href="#v-meshgateway-affinity">`affinity`</a> (`string: {}`) - By default, we set an anti affinity so that two gateway pods won't be on the same node. NOTE: Gateways require that Consul client agents are also running on the nodes alongside each gateway Pod.
+
+  * <a name="v-meshgateway-tolerations" href="#v-meshgateway-tolerations">`tolerations`</a> (`string: {}`) - Optional YAML string to specify tolerations.
+
+  * <a name="v-meshgateway-node-selector" href="#v-meshgateway-node-selector">`nodeSelector`</a> (`string: {}`) - Optional YAML string to specify a nodeSelector config.
+
+  * <a name="v-meshgateway-priority-class-name" href="#v-meshgateway-priority-class-name">`priorityClassName`</a> (`string: {}`) - Optional priorityClassName.
+
+  * <a name="v-meshgateway-annotations" href="#v-meshgateway-annotations">`annotations`</a> (`array<string>: null`) - Annotations to apply to the mesh gateway deployment.
 
 ## Helm Chart Examples
 
