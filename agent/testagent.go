@@ -341,8 +341,12 @@ func (a *TestAgent) HTTPAddr() string {
 	return a.srv.Addr
 }
 
+type lanSegmentAddresser interface {
+	LANSegmentAddr(name string) string
+}
+
 func (a *TestAgent) SegmentAddr(name string) string {
-	if server, ok := a.Agent.delegate.(*consul.Server); ok {
+	if server, ok := a.Agent.delegate.(lanSegmentAddresser); ok {
 		return server.LANSegmentAddr(name)
 	}
 	return ""

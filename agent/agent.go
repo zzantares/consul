@@ -1747,11 +1747,7 @@ func (a *Agent) ShutdownAgent() error {
 	var err error
 	if a.delegate != nil {
 		err = a.delegate.Shutdown()
-		if _, ok := a.delegate.(*consul.Server); ok {
-			a.logger.Info("consul server down")
-		} else {
-			a.logger.Info("consul client down")
-		}
+		a.logger.Info("consul agent shutdown")
 	}
 
 	pidErr := a.deletePid()
@@ -1849,10 +1845,16 @@ func (a *Agent) JoinLAN(addrs []string) (n int, err error) {
 	return
 }
 
+// wanSerfParticipant provides access to the WAN Serf pool.
+type wanSerfParticipant interface {
+	JoinWAN(addrs []string) (int, error)
+	WANMembers() []serf.Member
+}
+
 // JoinWAN is used to have the agent join a WAN cluster
 func (a *Agent) JoinWAN(addrs []string) (n int, err error) {
 	a.logger.Info("(WAN) joining", "wan_addresses", addrs)
-	if srv, ok := a.delegate.(*consul.Server); ok {
+	if srv, ok := a.delegate.(wanSerfParticipant); ok {
 		n, err = srv.JoinWAN(addrs)
 	} else {
 		err = fmt.Errorf("Must be a server to join WAN cluster")
@@ -1868,11 +1870,18 @@ func (a *Agent) JoinWAN(addrs []string) (n int, err error) {
 	return
 }
 
+// gatewayLocator provides support for Gateway WAN Federation
+type gatewayLocator interface {
+	PrimaryMeshGatewayAddressesReadyCh() <-chan struct{}
+	PickRandomMeshGatewaySuitableForDialing(dc string) string
+	RefreshPrimaryGatewayFallbackAddresses(addrs []string)
+}
+
 // PrimaryMeshGatewayAddressesReadyCh returns a channel that will be closed
 // when federation state replication ships back at least one primary mesh
 // gateway (not via fallback config).
 func (a *Agent) PrimaryMeshGatewayAddressesReadyCh() <-chan struct{} {
-	if srv, ok := a.delegate.(*consul.Server); ok {
+	if srv, ok := a.delegate.(gatewayLocator); ok {
 		return srv.PrimaryMeshGatewayAddressesReadyCh()
 	}
 	return nil
@@ -1880,7 +1889,7 @@ func (a *Agent) PrimaryMeshGatewayAddressesReadyCh() <-chan struct{} {
 
 // PickRandomMeshGatewaySuitableForDialing is a convenience function used for writing tests.
 func (a *Agent) PickRandomMeshGatewaySuitableForDialing(dc string) string {
-	if srv, ok := a.delegate.(*consul.Server); ok {
+	if srv, ok := a.delegate.(gatewayLocator); ok {
 		return srv.PickRandomMeshGatewaySuitableForDialing(dc)
 	}
 	return ""
@@ -1889,7 +1898,7 @@ func (a *Agent) PickRandomMeshGatewaySuitableForDialing(dc string) string {
 // RefreshPrimaryGatewayFallbackAddresses is used to update the list of current
 // fallback addresses for locating mesh gateways in the primary datacenter.
 func (a *Agent) RefreshPrimaryGatewayFallbackAddresses(addrs []string) error {
-	if srv, ok := a.delegate.(*consul.Server); ok {
+	if srv, ok := a.delegate.(gatewayLocator); ok {
 		srv.RefreshPrimaryGatewayFallbackAddresses(addrs)
 		return nil
 	}
@@ -1924,7 +1933,7 @@ func (a *Agent) LANMembers() []serf.Member {
 
 // WANMembers is used to retrieve the WAN members
 func (a *Agent) WANMembers() []serf.Member {
-	if srv, ok := a.delegate.(*consul.Server); ok {
+	if srv, ok := a.delegate.(wanSerfParticipant); ok {
 		return srv.WANMembers()
 	}
 	return nil

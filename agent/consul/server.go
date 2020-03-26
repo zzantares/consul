@@ -1383,6 +1383,8 @@ func (s *Server) intentionReplicationEnabled() bool {
 	return s.config.ConnectEnabled && s.config.Datacenter != s.config.PrimaryDatacenter
 }
 
+func (s *Server) IsServer() {}
+
 // peersInfoContent is used to help operators understand what happened to the
 // peers.json file. This is written to a file called peers.info in the same
 // location.
