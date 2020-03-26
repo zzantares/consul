@@ -47,6 +47,8 @@ type BootstrapTplArgs struct {
 	// service and is expected to be used for that purpose.
 	LocalAgentClusterName string
 
+	HealthBindAddress string
+
 	// Token is the Consul ACL token provided which is required to make gRPC
 	// discovery requests. If non-empty, this must be configured as the gRPC
 	// service "initial_metadata" with the key "x-consul-token" in order to

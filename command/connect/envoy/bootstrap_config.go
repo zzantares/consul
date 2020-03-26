@@ -207,6 +207,12 @@ func (c *BootstrapConfig) ConfigureArgs(args *BootstrapTplArgs) error {
 		}
 	}
 
+	if args.HealthBindAddress != "" {
+		if err := c.generateMetricsListenerConfig(args, args.HealthBindAddress, "envoy_health", "prefix", "/ready", "/ready"); err != nil {
+			return err
+		}
+	}
+
 	if c.TracingConfigJSON != "" {
 		args.TracingConfigJSON = c.TracingConfigJSON
 	}

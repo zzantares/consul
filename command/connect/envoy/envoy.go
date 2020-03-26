@@ -77,6 +77,7 @@ const (
 var supportedGateways = map[string]api.ServiceKind{
 	"mesh":        api.ServiceKindMeshGateway,
 	"terminating": api.ServiceKindTerminatingGateway,
+	"ingress":     api.ServiceKindIngressGateway,
 }
 
 func (c *cmd) init() {
@@ -237,7 +238,7 @@ func (c *cmd) Run(args []string) int {
 
 		kind, ok := supportedGateways[c.gateway]
 		if !ok {
-			c.UI.Error("Gateway must be one of: terminating or mesh")
+			c.UI.Error("Gateway must be one of: terminating, mesh, or ingress")
 			return 1
 		}
 		c.gatewayKind = kind
@@ -495,6 +496,11 @@ func (c *cmd) templateArgs() (*BootstrapTplArgs, error) {
 		caPEM = strings.Replace(string(content), "\n", "\\n", -1)
 	}
 
+	var healthBindAddr string
+	if c.gatewayKind == api.ServiceKindIngressGateway {
+		healthBindAddr = c.lanAddress.String()
+	}
+
 	return &BootstrapTplArgs{
 		ProxyCluster:          cluster,
 		ProxyID:               c.proxyID,
@@ -510,6 +516,7 @@ func (c *cmd) templateArgs() (*BootstrapTplArgs, error) {
 		LocalAgentClusterName: xds.LocalAgentClusterName,
 		Namespace:             httpCfg.Namespace,
 		EnvoyVersion:          c.envoyVersion,
+		HealthBindAddress:     healthBindAddr,
 	}, nil
 }
 
