@@ -807,6 +807,8 @@ func (s *state) handleUpdateMeshGateway(u cache.UpdateEvent, snap *ConfigSnapsho
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 
+		meshLogger.Debug("got service list result", "services", services.Services)
+
 		svcMap := make(map[structs.ServiceID]struct{})
 		for _, svc := range services.Services {
 			sid := svc.ToServiceID()
@@ -938,6 +940,7 @@ func (s *state) handleUpdateMeshGateway(u cache.UpdateEvent, snap *ConfigSnapsho
 			}
 
 			sid := structs.ServiceIDFromString(strings.TrimPrefix(u.CorrelationID, "connect-service:"))
+			meshLogger.Debug("got check service nodes for service", "service", sid.String(), "nodes", resp.Nodes)
 
 			if len(resp.Nodes) > 0 {
 				snap.MeshGateway.ServiceGroups[sid] = resp.Nodes

@@ -113,6 +113,7 @@ func makeExposeClusterName(destinationPort int) string {
 // for a mesh gateway. This will include 1 cluster per remote datacenter as well as
 // 1 cluster for each service subset.
 func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapshot, token string) ([]proto.Message, error) {
+	s.Logger.Debug("mesh gateway config snapshot", "service_groups", cfgSnap.MeshGateway.ServiceGroups, "services", cfgSnap.MeshGateway.WatchedServices)
 	datacenters := cfgSnap.MeshGateway.Datacenters()
 
 	// 1 cluster per remote dc + 1 cluster per local service (this is a lower bound - all subset specific clusters will be appended)
@@ -125,6 +126,7 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 		}
 		clusterName := connect.DatacenterSNI(dc, cfgSnap.Roots.TrustDomain)
 
+		s.Logger.Debug("generating cluster for", "cluster", clusterName)
 		cluster, err := s.makeMeshGatewayCluster(clusterName, cfgSnap)
 		if err != nil {
 			return nil, err
@@ -137,6 +139,7 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 		for _, dc := range datacenters {
 			clusterName := cfgSnap.ServerSNIFn(dc, "")
 
+			s.Logger.Debug("generating cluster for", "cluster", clusterName)
 			cluster, err := s.makeMeshGatewayCluster(clusterName, cfgSnap)
 			if err != nil {
 				return nil, err
@@ -148,6 +151,7 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 		for _, srv := range cfgSnap.MeshGateway.ConsulServers {
 			clusterName := cfgSnap.ServerSNIFn(cfgSnap.Datacenter, srv.Node.Node)
 
+			s.Logger.Debug("generating cluster for", "cluster", clusterName)
 			cluster, err := s.makeMeshGatewayCluster(clusterName, cfgSnap)
 			if err != nil {
 				return nil, err
@@ -161,6 +165,7 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 		clusterName := connect.ServiceSNI(svc.ID, "", svc.NamespaceOrDefault(), cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain)
 		resolver, hasResolver := cfgSnap.MeshGateway.ServiceResolvers[svc]
 
+		s.Logger.Debug("generating cluster for", "cluster", clusterName)
 		// Create the cluster for default/unnamed services
 		var cluster *envoy.Cluster
 		var err error
@@ -180,6 +185,7 @@ func (s *Server) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsho
 			for subsetName := range resolver.Subsets {
 				clusterName := connect.ServiceSNI(svc.ID, subsetName, svc.NamespaceOrDefault(), cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain)
 
+				s.Logger.Debug("generating cluster for", "cluster", clusterName)
 				cluster, err := s.makeMeshGatewayClusterWithConnectTimeout(clusterName, cfgSnap, resolver.ConnectTimeout)
 				if err != nil {
 					return nil, err
