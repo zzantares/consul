@@ -77,11 +77,19 @@ func (e *IngressGatewayConfigEntry) Normalize() error {
 	}
 
 	e.Kind = IngressGateway
-	for _, listener := range e.Listeners {
+	for i, listener := range e.Listeners {
+		if listener.Protocol == "" {
+			listener.Protocol = "tcp"
+		}
+
 		listener.Protocol = strings.ToLower(listener.Protocol)
 		for i := range listener.Services {
 			listener.Services[i].EnterpriseMeta.Normalize()
 		}
+
+		// Make sure to set the item back into the array, since we are not using
+		// pointers to structs
+		e.Listeners[i] = listener
 	}
 
 	e.EnterpriseMeta.Normalize()
