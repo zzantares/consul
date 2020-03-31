@@ -285,7 +285,7 @@ func genVerifyServiceWatch(expectedService, expectedFilter, expectedDatacenter s
 	return genVerifyServiceSpecificRequest(cachetype.HealthServicesName, expectedService, expectedFilter, expectedDatacenter, connect)
 }
 
-func genIngressConfigEntry() *structs.IngressGatewayConfigEntry {
+func genIngressConfigEntry(service string) *structs.IngressGatewayConfigEntry {
 	return &structs.IngressGatewayConfigEntry{
 		Name: "ingress-gateway",
 		Kind: "ingress-gateway",
@@ -293,7 +293,7 @@ func genIngressConfigEntry() *structs.IngressGatewayConfigEntry {
 			{
 				Port: 80,
 				Services: []structs.IngressService{
-					{Name: "api"},
+					{Name: service},
 				},
 			},
 		},
@@ -700,13 +700,13 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 						cache.UpdateEvent{
 							CorrelationID: ingressGatewayConfigWatchID,
 							Result: &structs.ConfigEntryResponse{
-								Entry: genIngressConfigEntry(),
+								Entry: genIngressConfigEntry("api"),
 							},
 						},
 					},
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 						require.True(t, snap.Valid(), "gateway is valid")
-						require.Equal(t, genIngressConfigEntry(), snap.IngressGateway.Config)
+						require.Equal(t, genIngressConfigEntry("api"), snap.IngressGateway.Config)
 					},
 				},
 				verificationStage{
@@ -795,6 +795,74 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 								},
 							},
 						)
+					},
+				},
+			},
+		},
+		"ingress-gateway-wildcard": testCase{
+			ns: structs.NodeService{
+				Kind:    structs.ServiceKindIngressGateway,
+				ID:      "ingress-gateway",
+				Service: "ingress-gateway",
+				Address: "10.0.1.1",
+			},
+			sourceDC: "dc1",
+			stages: []verificationStage{
+				verificationStage{
+					requiredWatches: map[string]verifyWatchRequest{
+						rootsWatchID:                genVerifyRootsWatch("dc1"),
+						leafWatchID:                 genVerifyLeafWatch("ingress-gateway", "dc1"),
+						ingressGatewayConfigWatchID: genVerifyConfigEntryWatch("ingress-gateway", "ingress-gateway", "dc1"),
+						serviceListWatchID:          genVerifyListServicesWatch("dc1"),
+					},
+					events: []cache.UpdateEvent{
+						rootWatchEvent(),
+						{
+							CorrelationID: leafWatchID,
+							Result:        issuedCert,
+							Err:           nil,
+						},
+						{
+							CorrelationID: ingressGatewayConfigWatchID,
+							Result: &structs.ConfigEntryResponse{
+								Entry: genIngressConfigEntry(structs.WildcardSpecifier),
+							},
+						},
+						{
+							CorrelationID: serviceListWatchID,
+							Result: &structs.IndexedServiceList{
+								Services: structs.ServiceList{
+									{Name: "api"},
+									{Name: "web"},
+									{Name: "db"},
+								},
+							},
+							Err: nil,
+						},
+					},
+					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
+						require.True(t, snap.Valid(), "gateway is valid")
+						require.Equal(t, genIngressConfigEntry(structs.WildcardSpecifier), snap.IngressGateway.Config)
+						// 2 upstreams on port 80 and 3 upstreams from wildcard on port 8080
+						require.Len(t, snap.IngressGateway.Upstreams, 3)
+						require.Contains(t, snap.IngressGateway.Upstreams, structs.Upstream{
+							DestinationName:      "api",
+							DestinationNamespace: "default",
+							LocalBindAddress:     "10.0.1.1",
+							LocalBindPort:        80,
+						})
+						require.Contains(t, snap.IngressGateway.Upstreams, structs.Upstream{
+							DestinationName:      "web",
+							DestinationNamespace: "default",
+							LocalBindAddress:     "10.0.1.1",
+							LocalBindPort:        80,
+						})
+						require.Contains(t, snap.IngressGateway.Upstreams, structs.Upstream{
+							DestinationName:      "db",
+							DestinationNamespace: "default",
+							LocalBindAddress:     "10.0.1.1",
+							LocalBindPort:        80,
+						})
 					},
 				},
 			},
