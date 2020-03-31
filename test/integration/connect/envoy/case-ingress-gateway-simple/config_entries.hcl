@@ -8,6 +8,7 @@ config_entries {
     listeners = [
       {
         port = 9999
+        protocol = "tcp"
         services = [
           {
             name = "s1"
