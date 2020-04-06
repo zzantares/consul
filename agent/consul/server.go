@@ -686,7 +686,7 @@ func (s *Server) setupRaft() error {
 		// Create the backend raft store for logs and stable storage.
 		store, err := raftboltdb.NewBoltStore(filepath.Join(path, "raft.db"))
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to create boltdb store: %w", err)
 		}
 		s.raftStore = store
 		stable = store
