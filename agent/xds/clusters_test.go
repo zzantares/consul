@@ -353,6 +353,16 @@ func TestClustersFromSnapshot(t *testing.T) {
 			create: proxycfg.TestConfigSnapshotIngressGatewayNoServices,
 			setup:  nil,
 		},
+		{
+			name:   "terminating-gateway",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup:  nil,
+		},
+		{
+			name:   "terminating-gateway-no-services",
+			create: proxycfg.TestConfigSnapshotTerminatingGatewayNoServices,
+			setup:  nil,
+		},
 	}
 
 	for _, tt := range tests {
