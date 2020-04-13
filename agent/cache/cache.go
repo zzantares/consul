@@ -385,7 +385,7 @@ RETRY_GET:
 
 	// At this point, we know we either don't have a value at all or the
 	// value we have is too old. We need to wait for new data.
-	waiterCh := c.fetch(key, r, true, 0, false)
+	waiterCh := c.fetch(key, r)
 
 	// No longer our first time through
 	first = false
@@ -414,26 +414,15 @@ func makeEntryKey(t, dc, token, key string) string {
 // If allowNew is true then the fetch should create the cache entry
 // if it doesn't exist. If this is false, then fetch will do nothing
 // if the entry doesn't exist. This latter case is to support refreshing.
-func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignoreExisting bool) <-chan struct{} {
-	info := r.Info
-
+func (c *Cache) fetch(key string, r request) <-chan struct{} {
 	// We acquire a write lock because we may have to set Fetching to true.
 	c.entriesLock.Lock()
 	defer c.entriesLock.Unlock()
-	ok, entryValid, entry := c.getEntryLocked(r.TypeEntry, key, info)
+	ok, entryValid, entry := c.getEntryLocked(r.TypeEntry, key, r.Info)
 
 	// This handles the case where a fetch succeeded after checking for its existence in
 	// getWithIndex. This ensures that we don't miss updates.
-	if ok && entryValid && !ignoreExisting {
-		ch := make(chan struct{})
-		close(ch)
-		return ch
-	}
-
-	// If we aren't allowing new values and we don't have an existing value,
-	// return immediately. We return an immediately-closed channel so nothing
-	// blocks.
-	if !ok && !allowNew {
+	if entryValid {
 		ch := make(chan struct{})
 		close(ch)
 		return ch
@@ -458,188 +447,206 @@ func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignore
 	c.entries[key] = entry
 	metrics.SetGauge([]string{"consul", "cache", "entries_count"}, float32(len(c.entries)))
 
-	tEntry := r.TypeEntry
-	// The actual Fetch must be performed in a goroutine.
-	go func() {
-		// If we have background refresh and currently are in "disconnected" state,
-		// waiting for a response might mean we mark our results as stale for up to
-		// 10 minutes (max blocking timeout) after connection is restored. To reduce
-		// that window, we assume that if the fetch takes more than 31 seconds then
-		// they are correctly blocking. We choose 31 seconds because yamux
-		// keepalives are every 30 seconds so the RPC should fail if the packets are
-		// being blackholed for more than 30 seconds.
-		var connectedTimer *time.Timer
-		if tEntry.Opts.Refresh && entry.Index > 0 &&
-			tEntry.Opts.RefreshTimeout > (31*time.Second) {
-			connectedTimer = time.AfterFunc(31*time.Second, func() {
-				c.entriesLock.Lock()
-				defer c.entriesLock.Unlock()
-				entry, ok := c.entries[key]
-				if !ok || entry.RefreshLostContact.IsZero() {
-					return
-				}
-				entry.RefreshLostContact = time.Time{}
-				c.entries[key] = entry
-			})
-		}
-
-		fOpts := FetchOptions{}
-		if tEntry.Type.SupportsBlocking() {
-			fOpts.MinIndex = entry.Index
-			fOpts.Timeout = tEntry.Opts.RefreshTimeout
-		}
-		if entry.Valid {
-			fOpts.LastResult = &FetchResult{
-				Value: entry.Value,
-				State: entry.State,
-				Index: entry.Index,
-			}
-		}
-
-		// Start building the new entry by blocking on the fetch.
-		result, err := r.Fetch(fOpts)
-		if connectedTimer != nil {
-			connectedTimer.Stop()
-		}
-
-		// Copy the existing entry to start.
-		newEntry := entry
-		newEntry.Fetching = false
-
-		// Importantly, always reset the Error. Having both Error and a Value that
-		// are non-nil is allowed in the cache entry but it indicates that the Error
-		// is _newer_ than the last good value. So if the err is nil then we need to
-		// reset to replace any _older_ errors and avoid them bubbling up. If the
-		// error is non-nil then we need to set it anyway and used to do it in the
-		// code below. See https://github.com/hashicorp/consul/issues/4480.
-		newEntry.Error = err
-
-		if result.Value != nil {
-			// A new value was given, so we create a brand new entry.
-			newEntry.Value = result.Value
-			newEntry.State = result.State
-			newEntry.Index = result.Index
-			newEntry.FetchedAt = time.Now()
-			if newEntry.Index < 1 {
-				// Less than one is invalid unless there was an error and in this case
-				// there wasn't since a value was returned. If a badly behaved RPC
-				// returns 0 when it has no data, we might get into a busy loop here. We
-				// set this to minimum of 1 which is safe because no valid user data can
-				// ever be written at raft index 1 due to the bootstrap process for
-				// raft. This insure that any subsequent background refresh request will
-				// always block, but allows the initial request to return immediately
-				// even if there is no data.
-				newEntry.Index = 1
-			}
-
-			// This is a valid entry with a result
-			newEntry.Valid = true
-		} else if result.State != nil && err == nil {
-			// Also set state if it's non-nil but Value is nil. This is important in the
-			// case we are returning nil due to a timeout or a transient error like rate
-			// limiting that we want to mask from the user - there is no result yet but
-			// we want to manage retrying internally before we return an error to user.
-			// The retrying state is in State so we need to still update that in the
-			// entry even if we don't have an actual result yet (e.g. hit a rate limit
-			// on first request for a leaf certificate).
-			newEntry.State = result.State
-		}
-
-		// Error handling
-		if err == nil {
-			metrics.IncrCounter([]string{"consul", "cache", "fetch_success"}, 1)
-			metrics.IncrCounter([]string{"consul", "cache", tEntry.Name, "fetch_success"}, 1)
-
-			if result.Index > 0 {
-				// Reset the attempts counter so we don't have any backoff
-				attempt = 0
-			} else {
-				// Result having a zero index is an implicit error case. There was no
-				// actual error but it implies the RPC found in index (nothing written
-				// yet for that type) but didn't take care to return safe "1" index. We
-				// don't want to actually treat it like an error by setting
-				// newEntry.Error to something non-nil, but we should guard against 100%
-				// CPU burn hot loops caused by that case which will never block but
-				// also won't backoff either. So we treat it as a failed attempt so that
-				// at least the failure backoff will save our CPU while still
-				// periodically refreshing so normal service can resume when the servers
-				// actually have something to return from the RPC. If we get in this
-				// state it can be considered a bug in the RPC implementation (to ever
-				// return a zero index) however since it can happen this is a safety net
-				// for the future.
-				attempt++
-			}
-
-			// If we have refresh active, this successful response means cache is now
-			// "connected" and should not be stale. Reset the lost contact timer.
-			if tEntry.Opts.Refresh {
-				newEntry.RefreshLostContact = time.Time{}
-			}
-		} else {
-			metrics.IncrCounter([]string{"consul", "cache", "fetch_error"}, 1)
-			metrics.IncrCounter([]string{"consul", "cache", tEntry.Name, "fetch_error"}, 1)
-
-			// Increment attempt counter
-			attempt++
-
-			// If we are refreshing and just failed, updated the lost contact time as
-			// our cache will be stale until we get successfully reconnected. We only
-			// set this on the first failure (if it's zero) so we can track how long
-			// it's been since we had a valid connection/up-to-date view of the state.
-			if tEntry.Opts.Refresh && newEntry.RefreshLostContact.IsZero() {
-				newEntry.RefreshLostContact = time.Now()
-			}
-		}
-
-		// Create a new waiter that will be used for the next fetch.
-		newEntry.Waiter = make(chan struct{})
-
-		// Set our entry
-		c.entriesLock.Lock()
-
-		// If this is a new entry (not in the heap yet), then setup the
-		// initial expiry information and insert. If we're already in
-		// the heap we do nothing since we're reusing the same entry.
-		if newEntry.Expiry == nil || newEntry.Expiry.HeapIndex == -1 {
-			newEntry.Expiry = &cacheEntryExpiry{Key: key}
-			newEntry.Expiry.Update(tEntry.Opts.LastGetTTL)
-			heap.Push(c.entriesExpiryHeap, newEntry.Expiry)
-		}
-
-		c.entries[key] = newEntry
-		c.entriesLock.Unlock()
-
-		// Trigger the old waiter
-		close(entry.Waiter)
-
-		// If refresh is enabled, run the refresh in due time. The refresh
-		// below might block, but saves us from spawning another goroutine.
-		if tEntry.Opts.Refresh {
-			// Check if cache was stopped
-			if atomic.LoadUint32(&c.stopped) == 1 {
-				return
-			}
-
-			// If we're over the attempt minimum, start an exponential backoff.
-			if wait := backOffWait(attempt); wait > 0 {
-				time.Sleep(wait)
-			}
-
-			// If we have a timer, wait for it
-			if tEntry.Opts.RefreshTimer > 0 {
-				time.Sleep(tEntry.Opts.RefreshTimer)
-			}
-
-			// Trigger. The "allowNew" field is false because in the time we were
-			// waiting to refresh we may have expired and got evicted. If that
-			// happened, we don't want to create a new entry.
-			r.Info.MustRevalidate = false
-			r.Info.MinIndex = 0
-			c.fetch(key, r, false, attempt, true)
-		}
-	}()
+	go c.runFetch(key, r, entry, 0)
 
 	return entry.Waiter
+}
+
+func (c *Cache) runFetch(key string, r request, entry cacheEntry, attempt uint) {
+	tEntry := r.TypeEntry
+	// If we have background refresh and currently are in "disconnected" state,
+	// waiting for a response might mean we mark our results as stale for up to
+	// 10 minutes (max blocking timeout) after connection is restored. To reduce
+	// that window, we assume that if the fetch takes more than 31 seconds then
+	// they are correctly blocking. We choose 31 seconds because yamux
+	// keepalives are every 30 seconds so the RPC should fail if the packets are
+	// being blackholed for more than 30 seconds.
+	var connectedTimer *time.Timer
+	if tEntry.Opts.Refresh && entry.Index > 0 &&
+		tEntry.Opts.RefreshTimeout > (31*time.Second) {
+		connectedTimer = time.AfterFunc(31*time.Second, func() {
+			c.entriesLock.Lock()
+			defer c.entriesLock.Unlock()
+			entry, ok := c.entries[key]
+			if !ok || entry.RefreshLostContact.IsZero() {
+				return
+			}
+			entry.RefreshLostContact = time.Time{}
+			c.entries[key] = entry
+		})
+	}
+
+	fOpts := FetchOptions{}
+	if tEntry.Type.SupportsBlocking() {
+		fOpts.MinIndex = entry.Index
+		fOpts.Timeout = tEntry.Opts.RefreshTimeout
+	}
+	if entry.Valid {
+		fOpts.LastResult = &FetchResult{
+			Value: entry.Value,
+			State: entry.State,
+			Index: entry.Index,
+		}
+	}
+
+	// Start building the new entry by blocking on the fetch.
+	result, err := r.Fetch(fOpts)
+	if connectedTimer != nil {
+		connectedTimer.Stop()
+	}
+
+	// Copy the existing entry to start.
+	newEntry := entry
+	newEntry.Fetching = false
+
+	// Importantly, always reset the Error. Having both Error and a Value that
+	// are non-nil is allowed in the cache entry but it indicates that the Error
+	// is _newer_ than the last good value. So if the err is nil then we need to
+	// reset to replace any _older_ errors and avoid them bubbling up. If the
+	// error is non-nil then we need to set it anyway and used to do it in the
+	// code below. See https://github.com/hashicorp/consul/issues/4480.
+	newEntry.Error = err
+
+	if result.Value != nil {
+		// A new value was given, so we create a brand new entry.
+		newEntry.Value = result.Value
+		newEntry.State = result.State
+		newEntry.Index = result.Index
+		newEntry.FetchedAt = time.Now()
+		if newEntry.Index < 1 {
+			// Less than one is invalid unless there was an error and in this case
+			// there wasn't since a value was returned. If a badly behaved RPC
+			// returns 0 when it has no data, we might get into a busy loop here. We
+			// set this to minimum of 1 which is safe because no valid user data can
+			// ever be written at raft index 1 due to the bootstrap process for
+			// raft. This insure that any subsequent background refresh request will
+			// always block, but allows the initial request to return immediately
+			// even if there is no data.
+			newEntry.Index = 1
+		}
+
+		// This is a valid entry with a result
+		newEntry.Valid = true
+	} else if result.State != nil && err == nil {
+		// Also set state if it's non-nil but Value is nil. This is important in the
+		// case we are returning nil due to a timeout or a transient error like rate
+		// limiting that we want to mask from the user - there is no result yet but
+		// we want to manage retrying internally before we return an error to user.
+		// The retrying state is in State so we need to still update that in the
+		// entry even if we don't have an actual result yet (e.g. hit a rate limit
+		// on first request for a leaf certificate).
+		newEntry.State = result.State
+	}
+
+	// Error handling
+	if err == nil {
+		metrics.IncrCounter([]string{"consul", "cache", "fetch_success"}, 1)
+		metrics.IncrCounter([]string{"consul", "cache", tEntry.Name, "fetch_success"}, 1)
+
+		if result.Index > 0 {
+			// Reset the attempts counter so we don't have any backoff
+			attempt = 0
+		} else {
+			// Result having a zero index is an implicit error case. There was no
+			// actual error but it implies the RPC found in index (nothing written
+			// yet for that type) but didn't take care to return safe "1" index. We
+			// don't want to actually treat it like an error by setting
+			// newEntry.Error to something non-nil, but we should guard against 100%
+			// CPU burn hot loops caused by that case which will never block but
+			// also won't backoff either. So we treat it as a failed attempt so that
+			// at least the failure backoff will save our CPU while still
+			// periodically refreshing so normal service can resume when the servers
+			// actually have something to return from the RPC. If we get in this
+			// state it can be considered a bug in the RPC implementation (to ever
+			// return a zero index) however since it can happen this is a safety net
+			// for the future.
+			attempt++
+		}
+
+		// If we have refresh active, this successful response means cache is now
+		// "connected" and should not be stale. Reset the lost contact timer.
+		if tEntry.Opts.Refresh {
+			newEntry.RefreshLostContact = time.Time{}
+		}
+	} else {
+		metrics.IncrCounter([]string{"consul", "cache", "fetch_error"}, 1)
+		metrics.IncrCounter([]string{"consul", "cache", tEntry.Name, "fetch_error"}, 1)
+
+		// Increment attempt counter
+		attempt++
+
+		// If we are refreshing and just failed, updated the lost contact time as
+		// our cache will be stale until we get successfully reconnected. We only
+		// set this on the first failure (if it's zero) so we can track how long
+		// it's been since we had a valid connection/up-to-date view of the state.
+		if tEntry.Opts.Refresh && newEntry.RefreshLostContact.IsZero() {
+			newEntry.RefreshLostContact = time.Now()
+		}
+	}
+
+	// Create a new waiter that will be used for the next fetch.
+	newEntry.Waiter = make(chan struct{})
+
+	// Set our entry
+	c.entriesLock.Lock()
+
+	// If this is a new entry (not in the heap yet), then setup the
+	// initial expiry information and insert. If we're already in
+	// the heap we do nothing since we're reusing the same entry.
+	if newEntry.Expiry == nil || newEntry.Expiry.HeapIndex == -1 {
+		newEntry.Expiry = &cacheEntryExpiry{Key: key}
+		newEntry.Expiry.Update(tEntry.Opts.LastGetTTL)
+		heap.Push(c.entriesExpiryHeap, newEntry.Expiry)
+	}
+
+	c.entries[key] = newEntry
+	c.entriesLock.Unlock()
+
+	// Trigger the old waiter
+	close(entry.Waiter)
+
+	// If refresh is enabled, run the refresh in due time. The refresh
+	// below might block, but saves us from spawning another goroutine.
+	if !tEntry.Opts.Refresh {
+		return
+	}
+
+	// Check if cache was stopped
+	if atomic.LoadUint32(&c.stopped) == 1 {
+		return
+	}
+
+	// If we're over the attempt minimum, start an exponential backoff.
+	if wait := backOffWait(attempt); wait > 0 {
+		time.Sleep(wait)
+	}
+
+	// If we have a timer, wait for it
+	if tEntry.Opts.RefreshTimer > 0 {
+		time.Sleep(tEntry.Opts.RefreshTimer)
+	}
+
+	// We acquire a write lock because we may have to set Fetching to true.
+	c.entriesLock.Lock()
+	defer c.entriesLock.Unlock()
+	entry, ok := c.entries[key]
+
+	// If the entry doesn't exist it must have been removed because the key
+	// is no longer being watched, so stop fetching.
+	// Also stop fetching if there is already a goroutine fetching this value.
+	if !ok || entry.Fetching {
+		return
+	}
+
+	// Set that we're fetching to true, which makes it so that future
+	// identical calls to fetch will return the same waiter rather than
+	// perform multiple fetches.
+	entry.Fetching = true
+	c.entries[key] = entry
+
+	r.Info.MustRevalidate = false
+	r.Info.MinIndex = 0
+	go c.runFetch(key, r, entry, attempt)
 }
 
 func backOffWait(failures uint) time.Duration {
