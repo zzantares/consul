@@ -385,10 +385,7 @@ RETRY_GET:
 
 	// At this point, we know we either don't have a value at all or the
 	// value we have is too old. We need to wait for new data.
-	waiterCh, err := c.fetch(key, r, true, 0, false)
-	if err != nil {
-		return nil, ResultMeta{Index: entry.Index}, err
-	}
+	waiterCh := c.fetch(key, r, true, 0, false)
 
 	// No longer our first time through
 	first = false
@@ -417,7 +414,7 @@ func makeEntryKey(t, dc, token, key string) string {
 // If allowNew is true then the fetch should create the cache entry
 // if it doesn't exist. If this is false, then fetch will do nothing
 // if the entry doesn't exist. This latter case is to support refreshing.
-func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignoreExisting bool) (<-chan struct{}, error) {
+func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignoreExisting bool) <-chan struct{} {
 	info := r.Info
 
 	// We acquire a write lock because we may have to set Fetching to true.
@@ -430,7 +427,7 @@ func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignore
 	if ok && entryValid && !ignoreExisting {
 		ch := make(chan struct{})
 		close(ch)
-		return ch, nil
+		return ch
 	}
 
 	// If we aren't allowing new values and we don't have an existing value,
@@ -439,13 +436,13 @@ func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignore
 	if !ok && !allowNew {
 		ch := make(chan struct{})
 		close(ch)
-		return ch, nil
+		return ch
 	}
 
 	// If we already have an entry and it is actively fetching, then return
 	// the currently active waiter.
 	if ok && entry.Fetching {
-		return entry.Waiter, nil
+		return entry.Waiter
 	}
 
 	// If we don't have an entry, then create it. The entry must be marked
@@ -642,7 +639,7 @@ func (c *Cache) fetch(key string, r request, allowNew bool, attempt uint, ignore
 		}
 	}()
 
-	return entry.Waiter, nil
+	return entry.Waiter
 }
 
 func backOffWait(failures uint) time.Duration {
