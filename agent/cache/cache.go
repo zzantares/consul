@@ -89,6 +89,24 @@ type typeEntry struct {
 	Opts *RegisterOptions
 }
 
+// If refresh is enabled, calculate age based on whether the background
+// routine is still connected.
+// For non-background refresh types, the age is just how long since we
+// fetched it last.
+func (t typeEntry) EntryAge(entry cacheEntry) time.Duration {
+	if t.Opts.Refresh {
+		if !entry.RefreshLostContact.IsZero() {
+			return time.Since(entry.RefreshLostContact)
+		}
+		return 0
+	}
+
+	if !entry.FetchedAt.IsZero() {
+		return time.Since(entry.FetchedAt)
+	}
+	return 0
+}
+
 // ResultMeta is returned from Get calls along with the value and can be used
 // to expose information about the cache status for debugging or testing.
 type ResultMeta struct {
@@ -308,25 +326,13 @@ RETRY_GET:
 	c.entriesLock.RUnlock()
 
 	if isEntryValid(r.TypeEntry, info, entry) {
-		meta := ResultMeta{Index: entry.Index}
 		if first {
 			metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, "hit"}, 1)
-			meta.Hit = true
 		}
-
-		// If refresh is enabled, calculate age based on whether the background
-		// routine is still connected.
-		if r.TypeEntry.Opts.Refresh {
-			meta.Age = time.Duration(0)
-			if !entry.RefreshLostContact.IsZero() {
-				meta.Age = time.Since(entry.RefreshLostContact)
-			}
-		} else {
-			// For non-background refresh types, the age is just how long since we
-			// fetched it last.
-			if !entry.FetchedAt.IsZero() {
-				meta.Age = time.Since(entry.FetchedAt)
-			}
+		meta := ResultMeta{
+			Hit:   first,
+			Age:   r.TypeEntry.EntryAge(entry),
+			Index: entry.Index,
 		}
 
 		// Touch the expiration and fix the heap.
@@ -372,7 +378,6 @@ RETRY_GET:
 		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, missKey}, 1)
 	}
 
-	// Set our timeout channel if we must
 	if info.Timeout > 0 && timeoutCh == nil {
 		timeoutCh = time.After(info.Timeout)
 	}
