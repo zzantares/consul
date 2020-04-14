@@ -16,6 +16,7 @@ package cache
 
 import (
 	"container/heap"
+	"context"
 	"fmt"
 	"sync"
 	"sync/atomic"
@@ -301,6 +302,8 @@ func entryExceedsMaxAge(maxAge time.Duration, entry cacheEntry) bool {
 // getWithIndex implements the main Get functionality but allows internal
 // callers (Watch) to manipulate the blocking index separately from the actual
 // request object.
+//
+// TODO: add context
 func (c *Cache) getWithIndex(r request) (interface{}, ResultMeta, error) {
 	info := r.Info
 	if info.Key == "" {
@@ -314,37 +317,28 @@ func (c *Cache) getWithIndex(r request) (interface{}, ResultMeta, error) {
 
 	key := makeEntryKey(r.TypeEntry.Name, info.Datacenter, info.Token, info.Key)
 
-	// First time through
-	first := true
-
-	// timeoutCh for watching our timeout
-	var timeoutCh <-chan time.Time
-
-RETRY_GET:
 	c.entriesLock.RLock()
 	entry := c.entries[key]
 	c.entriesLock.RUnlock()
 	entryValid := isEntryValid(r.TypeEntry, info, entry)
 
-	if first {
-		// We increment two different counters for cache misses. One if the miss
-		// was because we didn't have the data at all, and the other when the
-		// miss was due to an index not being available yet.
-		var metricKey string
-		switch {
-		case entryValid:
-			metricKey = "hit"
-		case info.MinIndex == 0:
-			metricKey = "miss_new"
-		default:
-			metricKey = "miss_block"
-		}
-		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, metricKey}, 1)
+	// We increment two different counters for cache misses. One if the miss
+	// was because we didn't have the data at all, and the other when the
+	// miss was due to an index not being available yet.
+	var metricKey string
+	switch {
+	case entryValid:
+		metricKey = "hit"
+	case info.MinIndex == 0:
+		metricKey = "miss_new"
+	default:
+		metricKey = "miss_block"
 	}
+	metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, metricKey}, 1)
 
 	if entryValid {
 		meta := ResultMeta{
-			Hit:   first,
+			Hit:   true,
 			Age:   r.TypeEntry.EntryAge(entry),
 			Index: entry.Index,
 		}
@@ -369,36 +363,24 @@ RETRY_GET:
 		return entry.Value, meta, nil
 	}
 
-	// If this isn't our first time through and our last value has an error, then
-	// we return the error. This has the behavior that we don't sit in a retry
-	// loop getting the same error for the entire duration of the timeout.
-	// Instead, we make one effort to fetch a new value, and if there was an
-	// error, we return. Note that the invariant is that if both entry.Value AND
-	// entry.Error are non-nil, the error _must_ be more recent than the Value. In
-	// other words valid fetches should reset the error. See
-	// https://github.com/hashicorp/consul/issues/4480.
-	if !first && entry.Error != nil {
-		return entry.Value, ResultMeta{Index: entry.Index}, entry.Error
-	}
-
-	if info.Timeout > 0 && timeoutCh == nil {
-		timeoutCh = time.After(info.Timeout)
+	ctx := context.TODO()
+	if info.Timeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, info.Timeout)
+		defer cancel()
 	}
 
 	// At this point, we know we either don't have a value at all or the
 	// value we have is too old. We need to wait for new data.
 	waiterCh := c.fetch(key, r)
 
-	// No longer our first time through
-	first = false
-
 	select {
 	case <-waiterCh:
 		// Our fetch returned, retry the get from the cache.
-		info.MustRevalidate = false
-		goto RETRY_GET
+		r.Info.MustRevalidate = false
+		return c.getAfterFetch(ctx, r)
 
-	case <-timeoutCh:
+	case <-ctx.Done():
 		// Timeout on the cache read, just return whatever we have.
 		return entry.Value, ResultMeta{Index: entry.Index}, nil
 	}
@@ -406,6 +388,58 @@ RETRY_GET:
 
 func makeEntryKey(t, dc, token, key string) string {
 	return fmt.Sprintf("%s/%s/%s/%s", t, dc, token, key)
+}
+
+func (c *Cache) getAfterFetch(ctx context.Context, r request) (interface{}, ResultMeta, error) {
+	info := r.Info
+	key := makeEntryKey(r.TypeEntry.Name, info.Datacenter, info.Token, info.Key)
+
+	c.entriesLock.RLock()
+	entry := c.entries[key]
+	c.entriesLock.RUnlock()
+	entryValid := isEntryValid(r.TypeEntry, info, entry)
+
+	if entryValid {
+		meta := ResultMeta{
+			Age:   r.TypeEntry.EntryAge(entry),
+			Index: entry.Index,
+		}
+
+		// Touch the expiration and fix the heap.
+		c.entriesLock.Lock()
+		entry.Expiry.Update(r.TypeEntry.Opts.LastGetTTL)
+		c.entriesExpiryHeap.Fix(entry.Expiry)
+		c.entriesLock.Unlock()
+
+		// We purposely do not return an error here since the cache only works with
+		// fetching values that either have a value or have an error, but not both.
+		// The Error may be non-nil in the entry in the case that an error has
+		// occurred _since_ the last good value, but we still want to return the
+		// good value to clients that are not requesting a specific version. The
+		// effect of this is that blocking clients will all see an error immediately
+		// without waiting a whole timeout to see it, but clients that just look up
+		// cache with an older index than the last valid result will still see the
+		// result and not the error here. I.e. the error is not "cached" without a
+		// new fetch attempt occurring, but the last good value can still be fetched
+		// from cache.
+		return entry.Value, meta, nil
+	}
+
+	if entry.Error != nil {
+		return entry.Value, ResultMeta{Index: entry.Index}, entry.Error
+	}
+
+	// TODO: is this possible, or do the conditions above handle this?
+	// TODO: if not, is exceeding the stack depth limit a concern here with this recursion
+	select {
+	case <-c.fetch(key, r):
+		// Our fetch returned, retry the get from the cache.
+		return c.getAfterFetch(ctx, r)
+
+	case <-ctx.Done():
+		// Timeout on the cache read, just return whatever we have.
+		return entry.Value, ResultMeta{Index: entry.Index}, nil
+	}
 }
 
 // fetch triggers a new background fetch for the given Request. If a
