@@ -324,11 +324,25 @@ RETRY_GET:
 	c.entriesLock.RLock()
 	entry := c.entries[key]
 	c.entriesLock.RUnlock()
+	entryValid := isEntryValid(r.TypeEntry, info, entry)
 
-	if isEntryValid(r.TypeEntry, info, entry) {
-		if first {
-			metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, "hit"}, 1)
+	if first {
+		// We increment two different counters for cache misses. One if the miss
+		// was because we didn't have the data at all, and the other when the
+		// miss was due to an index not being available yet.
+		var metricKey string
+		switch {
+		case entryValid:
+			metricKey = "hit"
+		case info.MinIndex == 0:
+			metricKey = "miss_new"
+		default:
+			metricKey = "miss_block"
 		}
+		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, metricKey}, 1)
+	}
+
+	if entryValid {
 		meta := ResultMeta{
 			Hit:   first,
 			Age:   r.TypeEntry.EntryAge(entry),
@@ -365,17 +379,6 @@ RETRY_GET:
 	// https://github.com/hashicorp/consul/issues/4480.
 	if !first && entry.Error != nil {
 		return entry.Value, ResultMeta{Index: entry.Index}, entry.Error
-	}
-
-	if first {
-		// We increment two different counters for cache misses depending on
-		// whether we're missing because we didn't have the data at all,
-		// or if we're missing because we're blocking on a set index.
-		missKey := "miss_block"
-		if info.MinIndex == 0 {
-			missKey = "miss_new"
-		}
-		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, missKey}, 1)
 	}
 
 	if info.Timeout > 0 && timeoutCh == nil {
