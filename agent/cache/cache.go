@@ -245,17 +245,12 @@ func newRequest(tEntry typeEntry, r Request) request {
 	}
 }
 
-// getEntryLocked retrieves a cache entry and checks if it is ready to be
-// returned given the other parameters. It reads from entries and the caller
-// has to issue a read lock if necessary.
-func (c *Cache) getEntryLocked(
-	tEntry typeEntry,
-	key string,
-	info RequestInfo,
-) (entryExists bool, entryValid bool, entry cacheEntry) {
-	entry, ok := c.entries[key]
+// isEntryValid returns true if the cacheEntry meets the requirements defined
+// by the RequestInfo. Returns false if the entry is marked invalid, out-of-date,
+// or must be re-validated.
+func isEntryValid(tEntry typeEntry, info RequestInfo, entry cacheEntry) bool {
 	if !entry.Valid {
-		return ok, false, entry
+		return false
 	}
 
 	// Check index is not specified or lower than value, or the type doesn't
@@ -263,22 +258,22 @@ func (c *Cache) getEntryLocked(
 	if tEntry.Type.SupportsBlocking() && info.MinIndex > 0 && info.MinIndex >= entry.Index {
 		// MinIndex was given and matches or is higher than current value so we
 		// ignore the cache and fallthrough to blocking on a new value below.
-		return true, false, entry
+		return false
 	}
 
 	// Check MaxAge is not exceeded if this is not a background refreshing type
 	// and MaxAge was specified.
 	if !tEntry.Opts.Refresh && info.MaxAge > 0 && entryExceedsMaxAge(info.MaxAge, entry) {
-		return true, false, entry
+		return false
 	}
 
 	// Check if re-validate is requested. If so the first time round the
 	// loop is not a hit but subsequent ones should be treated normally.
 	if !tEntry.Opts.Refresh && info.MustRevalidate {
-		return true, false, entry
+		return false
 	}
 
-	return true, true, entry
+	return true
 }
 
 func entryExceedsMaxAge(maxAge time.Duration, entry cacheEntry) bool {
@@ -308,12 +303,11 @@ func (c *Cache) getWithIndex(r request) (interface{}, ResultMeta, error) {
 	var timeoutCh <-chan time.Time
 
 RETRY_GET:
-	// Get the current value
 	c.entriesLock.RLock()
-	_, entryValid, entry := c.getEntryLocked(r.TypeEntry, key, info)
+	entry := c.entries[key]
 	c.entriesLock.RUnlock()
 
-	if entryValid {
+	if isEntryValid(r.TypeEntry, info, entry) {
 		meta := ResultMeta{Index: entry.Index}
 		if first {
 			metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, "hit"}, 1)
@@ -418,11 +412,11 @@ func (c *Cache) fetch(key string, r request) <-chan struct{} {
 	// We acquire a write lock because we may have to set Fetching to true.
 	c.entriesLock.Lock()
 	defer c.entriesLock.Unlock()
-	ok, entryValid, entry := c.getEntryLocked(r.TypeEntry, key, r.Info)
+	entry, ok := c.entries[key]
 
 	// This handles the case where a fetch succeeded after checking for its existence in
 	// getWithIndex. This ensures that we don't miss updates.
-	if entryValid {
+	if isEntryValid(r.TypeEntry, r.Info, entry) {
 		ch := make(chan struct{})
 		close(ch)
 		return ch
