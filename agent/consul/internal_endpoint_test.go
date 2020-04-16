@@ -930,6 +930,7 @@ func TestInternal_GatewayServices_BothGateways(t *testing.T) {
 				Service:     structs.NewServiceID("db", nil),
 				Gateway:     structs.NewServiceID("ingress", nil),
 				GatewayKind: structs.ServiceKindIngressGateway,
+				Protocol:    "tcp",
 				Port:        8888,
 			},
 		}

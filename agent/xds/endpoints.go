@@ -235,16 +235,18 @@ func (s *Server) endpointsFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsh
 
 func (s *Server) endpointsFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	var resources []proto.Message
-	for _, u := range cfgSnap.IngressGateway.Upstreams {
-		id := u.Identifier()
+	for _, upstreams := range cfgSnap.IngressGateway.Upstreams {
+		for _, u := range upstreams {
+			id := u.Identifier()
 
-		es := s.endpointsFromDiscoveryChain(
-			cfgSnap.IngressGateway.DiscoveryChain[id],
-			cfgSnap.Datacenter,
-			cfgSnap.IngressGateway.WatchedUpstreamEndpoints[id],
-			cfgSnap.IngressGateway.WatchedGatewayEndpoints[id],
-		)
-		resources = append(resources, es...)
+			es := s.endpointsFromDiscoveryChain(
+				cfgSnap.IngressGateway.DiscoveryChain[id],
+				cfgSnap.Datacenter,
+				cfgSnap.IngressGateway.WatchedUpstreamEndpoints[id],
+				cfgSnap.IngressGateway.WatchedGatewayEndpoints[id],
+			)
+			resources = append(resources, es...)
+		}
 	}
 	return resources, nil
 }

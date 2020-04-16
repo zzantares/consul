@@ -298,6 +298,34 @@ func TestListenersFromSnapshot(t *testing.T) {
 			create: proxycfg.TestConfigSnapshotIngress_SplitterWithResolverRedirectMultiDC,
 			setup:  nil,
 		},
+		{
+			name:   "ingress-http-multiple-services",
+			create: proxycfg.TestConfigSnapshotIngress_HTTPMultipleServices,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				snap.IngressGateway.Upstreams = map[proxycfg.IngressListenerKey]structs.Upstreams{
+					proxycfg.IngressListenerKey{Protocol: "http", Port: 8080}: structs.Upstreams{
+						{
+							DestinationName: "foo",
+							LocalBindPort:   8080,
+						},
+						{
+							DestinationName: "bar",
+							LocalBindPort:   8080,
+						},
+					},
+					proxycfg.IngressListenerKey{Protocol: "http", Port: 443}: structs.Upstreams{
+						{
+							DestinationName: "baz",
+							LocalBindPort:   443,
+						},
+						{
+							DestinationName: "qux",
+							LocalBindPort:   443,
+						},
+					},
+				}
+			},
+		},
 	}
 
 	for _, tt := range tests {

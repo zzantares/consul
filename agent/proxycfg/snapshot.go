@@ -2,6 +2,7 @@ package proxycfg
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/mitchellh/copystructure"
@@ -137,7 +138,7 @@ type configSnapshotIngressGateway struct {
 	// Upstreams is a list of upstreams this ingress gateway should serve traffic
 	// to. This is constructed from the ingress-gateway config entry, and uses
 	// the GatewayServices RPC to retrieve them.
-	Upstreams []structs.Upstream
+	Upstreams map[IngressListenerKey]structs.Upstreams
 
 	// WatchedDiscoveryChains is a map of upstream.Identifier() -> CancelFunc's
 	// in order to cancel any watches when the ingress gateway configuration is
@@ -155,6 +156,15 @@ func (c *configSnapshotIngressGateway) IsEmpty() bool {
 		len(c.WatchedDiscoveryChains) == 0 &&
 		len(c.WatchedUpstreams) == 0 &&
 		len(c.WatchedUpstreamEndpoints) == 0
+}
+
+type IngressListenerKey struct {
+	Protocol string
+	Port     int
+}
+
+func (k *IngressListenerKey) RouteName() string {
+	return fmt.Sprintf("%s_%d", k.Protocol, k.Port)
 }
 
 // ConfigSnapshot captures all the resulting config needed for a proxy instance.
