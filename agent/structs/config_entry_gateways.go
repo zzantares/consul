@@ -101,6 +101,7 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 	validProtocols := map[string]bool{
 		"http": true,
 		"tcp":  true,
+		"grpc": true,
 	}
 	declaredPorts := make(map[int]bool)
 
@@ -111,12 +112,12 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 		declaredPorts[listener.Port] = true
 
 		if _, ok := validProtocols[listener.Protocol]; !ok {
-			return fmt.Errorf("Protocol must be either 'http' or 'tcp', '%s' is an unsupported protocol.", listener.Protocol)
+			return fmt.Errorf("Protocol must be one of [http, tcp, grpc] - '%s' is an unsupported protocol.", listener.Protocol)
 		}
 
 		for _, s := range listener.Services {
-			if s.Name == WildcardSpecifier && listener.Protocol != "http" {
-				return fmt.Errorf("Wildcard service name is only valid for protocol = 'http' (listener on port %d)", listener.Port)
+			if s.Name == WildcardSpecifier && listener.Protocol == "tcp" {
+				return fmt.Errorf("Wildcard service name is only valid for protocols [http, grpc] (listener on port %d)", listener.Port)
 			}
 			if s.Name == "" {
 				return fmt.Errorf("Service name cannot be blank (listener on port %d)", listener.Port)
@@ -131,8 +132,8 @@ func (e *IngressGatewayConfigEntry) Validate() error {
 		}
 
 		// Validate that http features aren't being used with tcp or another non-supported protocol.
-		if listener.Protocol != "http" && len(listener.Services) > 1 {
-			return fmt.Errorf("Multiple services per listener are only supported for protocol = 'http' (listener on port %d)",
+		if listener.Protocol == "tcp" && len(listener.Services) > 1 {
+			return fmt.Errorf("Multiple services per listener are only supported for protocols [http, grpc] (listener on port %d)",
 				listener.Port)
 		}
 	}

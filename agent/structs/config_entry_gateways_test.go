@@ -250,7 +250,7 @@ func TestIngressConfigEntry_Validate(t *testing.T) {
 					},
 				},
 			},
-			expectErr: "Protocol must be either 'http' or 'tcp', 'asdf' is an unsupported protocol.",
+			expectErr: "'asdf' is an unsupported protocol.",
 		},
 	}
 
