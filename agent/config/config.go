@@ -416,7 +416,7 @@ type ServiceProxy struct {
 
 	// Config is the arbitrary configuration data provided with the proxy
 	// registration.
-	Config map[string]interface{} `json:"config,omitempty" hcl:"config" mapstructure:"config"`
+	Config decode.MapOrJSONString `json:"config,omitempty" hcl:"config" mapstructure:"config"`
 
 	// Upstreams describes any upstream dependencies the proxy instance should
 	// setup.
@@ -673,7 +673,7 @@ type ConfigEntries struct {
 	// already. The type is map not structs.ConfigEntry for decoding reasons - we
 	// need to figure out the right concrete type before we can decode it
 	// unabiguously.
-	Bootstrap []map[string]interface{} `json:"bootstrap,omitempty" hcl:"bootstrap" mapstructure:"bootstrap"`
+	Bootstrap []decode.MapOrJSONString `json:"bootstrap,omitempty" hcl:"bootstrap" mapstructure:"bootstrap"`
 }
 
 // Audit allows us to enable and define destinations for auditing

@@ -5,6 +5,7 @@ into structures using mapstructure.
 package decode
 
 import (
+	"encoding/json"
 	"reflect"
 	"strings"
 )
@@ -128,6 +129,27 @@ func HookWeakDecodeFromSlice(from, to reflect.Type, data interface{}) (interface
 		default:
 			return data, nil
 		}
+	default:
+		return data, nil
+	}
+}
+
+// MapOrJSONString map be used in place of a map[string]interface{} to allow
+// the value to come from a JSON encoded string, or an inline map.
+type MapOrJSONString map[string]interface{}
+
+var typeOfFromMapOrJSONString = reflect.TypeOf(MapOrJSONString{})
+
+func HookMapOrJSONString(_, to reflect.Type, data interface{}) (interface{}, error) {
+	if !to.Implements(typeOfFromMapOrJSONString) && !reflect.PtrTo(to).Implements(typeOfFromMapOrJSONString) {
+		return data, nil
+	}
+
+	switch d := data.(type) {
+	case string:
+		result := map[string]interface{}{}
+		err := json.Unmarshal([]byte(d), &result)
+		return result, err
 	default:
 		return data, nil
 	}
