@@ -219,8 +219,8 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 			resources: s.clustersFromSnapshot,
 			stream:    stream,
 			allowEmptyFn: func(cfgSnap *proxycfg.ConfigSnapshot) bool {
-				// Mesh gateways are allowed to inform CDS of no clusters.
-				return cfgSnap.Kind == structs.ServiceKindMeshGateway
+				// Mesh and Terminating gateways are allowed to inform CDS of no clusters.
+				return cfgSnap.Kind == structs.ServiceKindMeshGateway || cfgSnap.Kind == structs.ServiceKindTerminatingGateway
 			},
 		},
 		RouteType: {
@@ -263,10 +263,9 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 				return status.Errorf(codes.PermissionDenied, "permission denied")
 			}
 		case structs.ServiceKindMeshGateway:
-			cfgSnap.ProxyID.EnterpriseMeta.FillAuthzContext(&authzContext)
-			if rule != nil && rule.ServiceWrite(cfgSnap.Service, &authzContext) != acl.Allow {
-				return status.Errorf(codes.PermissionDenied, "permission denied")
-			}
+			fallthrough
+		case structs.ServiceKindTerminatingGateway:
+			fallthrough
 		case structs.ServiceKindIngressGateway:
 			cfgSnap.ProxyID.EnterpriseMeta.FillAuthzContext(&authzContext)
 			if rule != nil && rule.ServiceWrite(cfgSnap.Service, &authzContext) != acl.Allow {

@@ -58,11 +58,68 @@ func (c *configSnapshotConnectProxy) IsEmpty() bool {
 		len(c.PreparedQueryEndpoints) == 0
 }
 
+type configSnapshotTerminatingGateway struct {
+	// WatchedServices is a map of service id to a cancel function. This cancel
+	// function is tied to the watch of linked service instances for the given
+	// id. If the linked services watch would indicate the removal of
+	// a service altogether we then cancel watching that service for its endpoints.
+	WatchedServices map[structs.ServiceID]context.CancelFunc
+
+	// WatchedIntentions is a map of service id to a cancel function.
+	// This cancel function is tied to the watch of intentions for linked services.
+	// As with WatchedServices, intention watches will be cancelled when services
+	// are no longer linked to the gateway.
+	WatchedIntentions map[structs.ServiceID]context.CancelFunc
+
+	// WatchedLeaves is a map of ServiceID to a cancel function.
+	// This cancel function is tied to the watch of leaf certs for linked services.
+	// As with WatchedServices, leaf watches will be cancelled when services
+	// are no longer linked to the gateway.
+	WatchedLeaves map[structs.ServiceID]context.CancelFunc
+
+	// ServiceLeaves is a map of ServiceID to a leaf cert.
+	// Terminating gateways will present different certificates depending
+	// on the service that the caller is trying to reach.
+	ServiceLeaves map[structs.ServiceID]*structs.IssuedCert
+
+	// WatchedResolvers is a map of ServiceID to a cancel function.
+	// This cancel function is tied to the watch of resolvers for linked services.
+	// As with WatchedServices, resolver watches will be cancelled when services
+	// are no longer linked to the gateway.
+	WatchedResolvers map[structs.ServiceID]context.CancelFunc
+
+	// ServiceResolvers is a map of service id to an associated
+	// service-resolver config entry for that service.
+	ServiceResolvers map[structs.ServiceID]*structs.ServiceResolverConfigEntry
+
+	// ServiceGroups is a map of service id to the service instances of that
+	// service in the local datacenter.
+	ServiceGroups map[structs.ServiceID]structs.CheckServiceNodes
+
+	// GatewayServices is a map of service id to the config entry association
+	// between the gateway and a service. TLS configuration stored here is
+	// used for TLS origination from the gateway to the linked service.
+	GatewayServices map[structs.ServiceID]structs.GatewayService
+}
+
+func (c *configSnapshotTerminatingGateway) IsEmpty() bool {
+	if c == nil {
+		return true
+	}
+	return len(c.ServiceLeaves) == 0 &&
+		len(c.WatchedLeaves) == 0 &&
+		len(c.WatchedIntentions) == 0 &&
+		len(c.ServiceGroups) == 0 &&
+		len(c.WatchedServices) == 0 &&
+		len(c.ServiceResolvers) == 0 &&
+		len(c.GatewayServices) == 0
+}
+
 type configSnapshotMeshGateway struct {
 	// WatchedServices is a map of service id to a cancel function. This cancel
 	// function is tied to the watch of connect enabled services for the given
 	// id. If the main datacenter services watch would indicate the removal of
-	// a service all together we then cancel watching that service for its
+	// a service altogether we then cancel watching that service for its
 	// connect endpoints.
 	WatchedServices map[structs.ServiceID]context.CancelFunc
 
@@ -187,6 +244,9 @@ type ConfigSnapshot struct {
 	// connect-proxy specific
 	ConnectProxy configSnapshotConnectProxy
 
+	// terminating-gateway specific
+	TerminatingGateway configSnapshotTerminatingGateway
+
 	// mesh-gateway specific
 	MeshGateway configSnapshotMeshGateway
 
@@ -201,6 +261,8 @@ func (s *ConfigSnapshot) Valid() bool {
 	switch s.Kind {
 	case structs.ServiceKindConnectProxy:
 		return s.Roots != nil && s.ConnectProxy.Leaf != nil
+	case structs.ServiceKindTerminatingGateway:
+		return s.Roots != nil
 	case structs.ServiceKindMeshGateway:
 		if s.ServiceMeta[structs.MetaWANFederationKey] == "1" {
 			if len(s.MeshGateway.ConsulServers) == 0 {
@@ -231,6 +293,10 @@ func (s *ConfigSnapshot) Clone() (*ConfigSnapshot, error) {
 	case structs.ServiceKindConnectProxy:
 		snap.ConnectProxy.WatchedUpstreams = nil
 		snap.ConnectProxy.WatchedGateways = nil
+	case structs.ServiceKindTerminatingGateway:
+		snap.TerminatingGateway.WatchedServices = nil
+		snap.TerminatingGateway.WatchedIntentions = nil
+		snap.TerminatingGateway.WatchedLeaves = nil
 	case structs.ServiceKindMeshGateway:
 		snap.MeshGateway.WatchedDatacenters = nil
 		snap.MeshGateway.WatchedServices = nil
