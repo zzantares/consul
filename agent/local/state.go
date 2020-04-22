@@ -318,7 +318,6 @@ func (l *State) removeServiceLocked(id structs.ServiceID) error {
 		close(s.WatchCh)
 		s.WatchCh = nil
 	}
-	s.increment()
 	l.TriggerSyncChanges()
 	l.broadcastUpdateLocked()
 
@@ -394,7 +393,6 @@ func (l *State) setServiceStateLocked(s *ServiceState) {
 		close(old.WatchCh)
 	}
 
-	l.services[structs.NewServiceID(s.Service.ID, nil)].increment()
 	l.TriggerSyncChanges()
 	l.broadcastUpdateLocked()
 }
@@ -606,7 +604,6 @@ func (l *State) UpdateCheck(id structs.CheckID, status, output string) {
 					return
 				}
 				c.InSync = false
-				c.increment()
 				l.TriggerSyncChanges()
 			})
 		}
@@ -620,7 +617,6 @@ func (l *State) UpdateCheck(id structs.CheckID, status, output string) {
 	c.Check.Status = status
 	c.Check.Output = output
 	c.InSync = false
-	c.increment()
 	l.TriggerSyncChanges()
 }
 
@@ -702,7 +698,6 @@ func (l *State) setCheckStateLocked(c *CheckState) {
 	// If this is a check for an aliased service, then notify the waiters.
 	l.notifyIfAliased(c.Check.CompoundServiceID())
 
-	c.increment()
 	l.TriggerSyncChanges()
 }
 
@@ -1039,48 +1034,50 @@ func (l *State) SyncFull() error {
 // SyncChanges pushes checks, services and node info data which has been
 // marked out of sync or deleted to the server.
 func (l *State) SyncChanges() error {
-	l.Lock()
-
 	const (
 		deleted = iota
 		notInSync
 	)
 
 	var services = make(map[structs.ServiceID]int)
-	for id, s := range l.services {
-		switch {
-		case s.Deleted:
-			services[id] = deleted
-		case !s.InSync:
-			services[id] = notInSync
-		default:
-			l.logger.Printf("[DEBUG] agent: Service %q in sync", id)
+	var checks = make(map[structs.CheckID]int)
+
+	l.Lock()
+	{
+		for id, s := range l.services {
+			switch {
+			case s.Deleted:
+				services[id] = deleted
+				s.increment()
+
+			case !s.InSync:
+				services[id] = notInSync
+				s.increment()
+
+			default:
+				l.logger.Printf("[DEBUG] agent: Service %q in sync", id)
+			}
+		}
+
+		for id, c := range l.checks {
+			switch {
+			case c.Deleted:
+				checks[id] = deleted
+
+				if c.DeferCheck != nil {
+					c.DeferCheck.Stop()
+				}
+				c.increment()
+
+			case !c.InSync:
+				checks[id] = notInSync
+				c.increment()
+
+			default:
+				l.logger.Printf("[DEBUG] agent: Check %q in sync", id)
+			}
 		}
 	}
-
-	type checkContainer struct {
-		state      int
-		deferCheck *time.Timer
-	}
-
-	var checks = make(map[structs.CheckID]checkContainer)
-
-	for id, c := range l.checks {
-		switch {
-		case c.Deleted:
-			checks[id] = checkContainer{
-				state: deleted,
-			}
-		case !c.InSync:
-			checks[id] = checkContainer{
-				state:      notInSync,
-				deferCheck: c.DeferCheck,
-			}
-		default:
-			l.logger.Printf("[DEBUG] agent: Check %q in sync", id)
-		}
-	}
-
 	l.Unlock()
 
 	// We will do node-level info syncing at the end, since it will get
@@ -1090,38 +1087,30 @@ func (l *State) SyncChanges() error {
 	// Sync the services
 	// (logging happens in the helper methods)
 	for id, state := range services {
-		var err error
 		switch state {
 		case deleted:
-			err = l.deleteService(id)
+			if err := l.deleteService(id); err != nil {
+				return err
+			}
 		case notInSync:
-			err = l.syncService(id)
-		default:
-			l.logger.Printf("[DEBUG] agent: Service %q in sync", id.String())
-		}
-		if err != nil {
-			return err
+			if err := l.syncService(id); err != nil {
+				return err
+			}
 		}
 	}
 
 	// Sync the checks
 	// (logging happens in the helper methods)
-	for id, c := range checks {
-		var err error
-		switch c.state {
+	for id, state := range checks {
+		switch state {
 		case deleted:
-			err = l.deleteCheck(id)
-		case notInSync:
-			if c.deferCheck != nil {
-				c.deferCheck.Stop()
-				c.deferCheck = nil
+			if err := l.deleteCheck(id); err != nil {
+				return err
 			}
-			err = l.syncCheck(id)
-		default:
-			l.logger.Printf("[DEBUG] agent: Check %q in sync", id.String())
-		}
-		if err != nil {
-			return err
+		case notInSync:
+			if err := l.syncCheck(id); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -1135,83 +1124,95 @@ func (l *State) SyncChanges() error {
 }
 
 // deleteService is used to delete a service from the server
-func (l *State) deleteService(key structs.ServiceID) error {
-	if key.ID == "" {
+func (l *State) deleteService(serviceID structs.ServiceID) error {
+	if serviceID.ID == "" {
 		return fmt.Errorf("ServiceID missing")
 	}
 
 	req := structs.DeregisterRequest{
 		Datacenter:     l.config.Datacenter,
 		Node:           l.config.NodeName,
-		ServiceID:      key.ID,
-		EnterpriseMeta: key.EnterpriseMeta,
-		WriteRequest:   structs.WriteRequest{Token: l.serviceToken(key)},
+		ServiceID:      serviceID.ID,
+		EnterpriseMeta: serviceID.EnterpriseMeta,
+		WriteRequest:   structs.WriteRequest{Token: l.serviceToken(serviceID)},
 	}
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
+
 	l.Lock()
 	defer l.Unlock()
+
 	switch {
 	case err == nil || strings.Contains(err.Error(), "Unknown service"):
-		if service, ok := l.services[key]; ok && service.Deleted {
-			delete(l.services, key)
-			// service deregister also deletes associated checks
-			for _, c := range l.checks {
-				if c.Deleted && c.Check != nil && c.Check.ServiceID == key.ID {
-					l.pruneCheck(c.Check.CompoundCheckID())
+		if service, ok := l.services[serviceID]; ok && service.Deleted {
+			delete(l.services, serviceID)
+
+			// Service deregister also deletes associated checks
+			for id, c := range l.checks {
+				if c.Deleted && c.Check != nil {
+					if sid := c.Check.CompoundServiceID(); sid.Matches(&serviceID) {
+						if c.DeferCheck != nil {
+							c.DeferCheck.Stop()
+						}
+						delete(l.checks, id)
+					}
 				}
 			}
-			l.logger.Printf("[INFO] agent: Deregistered service %q", key.ID)
+			l.logger.Printf("[INFO] agent: Deregistered service %q", serviceID.ID)
 		}
 		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the service to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution
-		l.services[key].InSync = true
-		l.logger.Printf("[WARN] agent: Service %q deregistration blocked by ACLs", key)
+		l.services[serviceID].InSync = true
+		l.logger.Printf("[WARN] agent: Service %q deregistration blocked by ACLs", serviceID.String())
 		metrics.IncrCounter([]string{"acl", "blocked", "service", "deregistration"}, 1)
 		return nil
 
 	default:
-		l.logger.Printf("[WARN] agent: Deregistering service %q failed. %s", key, err)
+		l.logger.Printf("[WARN] agent: Deregistering service %q failed. %s", serviceID.String(), err)
 		return err
 	}
 }
 
 // deleteCheck is used to delete a check from the server
-func (l *State) deleteCheck(key structs.CheckID) error {
-	if key.ID == "" {
+func (l *State) deleteCheck(checkID structs.CheckID) error {
+	if checkID.ID == "" {
 		return fmt.Errorf("CheckID missing")
 	}
 
 	req := structs.DeregisterRequest{
 		Datacenter:     l.config.Datacenter,
 		Node:           l.config.NodeName,
-		CheckID:        key.ID,
-		EnterpriseMeta: key.EnterpriseMeta,
-		WriteRequest:   structs.WriteRequest{Token: l.checkToken(key)},
+		CheckID:        checkID.ID,
+		EnterpriseMeta: checkID.EnterpriseMeta,
+		WriteRequest:   structs.WriteRequest{Token: l.checkToken(checkID)},
 	}
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
+
 	l.Lock()
 	defer l.Unlock()
+
 	switch {
 	case err == nil || strings.Contains(err.Error(), "Unknown check"):
-		l.pruneCheck(key)
-		l.logger.Printf("[INFO] agent: Deregistered check %q", key.String())
+		if c, ok := l.checks[checkID]; ok && c.Deleted {
+			delete(l.checks, checkID)
+		}
+		l.logger.Printf("[INFO] agent: Deregistered check %q", checkID.String())
 		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the check to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution
-		l.checks[key].InSync = true
-		l.logger.Printf("[WARN] agent: Check %q deregistration blocked by ACLs", key.String())
+		l.checks[checkID].InSync = true
+		l.logger.Printf("[WARN] agent: Check %q deregistration blocked by ACLs", checkID.String())
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "deregistration"}, 1)
 		return nil
 
 	default:
-		l.logger.Printf("[WARN] agent: Deregistering check %q failed. %s", key.String(), err)
+		l.logger.Printf("[WARN] agent: Deregistering check %q failed. %s", checkID.String(), err)
 		return err
 	}
 }
@@ -1277,7 +1278,9 @@ func (l *State) syncService(key structs.ServiceID) error {
 	switch {
 	case err == nil:
 		if s, ok := l.services[key]; ok {
-			if s.version != currentVersion { return nil }
+			if s.version != currentVersion {
+				return nil
+			}
 			s.InSync = true
 			// Given how the register API works, this info is also updated
 			// every time we sync a service.
@@ -1312,11 +1315,17 @@ func (l *State) syncService(key structs.ServiceID) error {
 // syncCheck is used to sync a check to the server
 func (l *State) syncCheck(key structs.CheckID) error {
 	l.Lock()
+
 	if l.checks[key] == nil {
 		return nil
 	}
 	var currentVersion = l.checks[key].version
 	c := *l.checks[key]
+
+	if c.DeferCheck != nil {
+		c.DeferCheck.Stop()
+	}
+
 	l.Unlock()
 
 	req := structs.RegisterRequest{
