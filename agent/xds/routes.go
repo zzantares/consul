@@ -49,7 +49,7 @@ func routesFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.M
 		if chain == nil || chain.IsDefault() {
 			// TODO(rb): make this do the old school stuff too
 		} else {
-			virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, "*")
+			virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, []string{"*"})
 			if err != nil {
 				return nil, err
 			}
@@ -92,15 +92,22 @@ func routesFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto
 			upstreamID := u.Identifier()
 			chain := cfgSnap.IngressGateway.DiscoveryChain[upstreamID]
 			if chain != nil {
-				domain := fmt.Sprintf("%s.*", chain.ServiceName)
+				var domains []string
+				// If a user has specified hosts, do not add the default
+				// "<service-name>.*" prefix
+				if len(u.IngressHosts) > 0 {
+					domains = u.IngressHosts
+				} else {
+					domains = []string{fmt.Sprintf("%s.*", chain.ServiceName)}
+				}
 				// Don't require a service prefix on the domain if there is only 1
 				// upstream. This makes it a smoother experience when only having a
 				// single service associated to a listener, which is probably a common
 				// case when demoing/testing
 				if len(upstreams) == 1 {
-					domain = "*"
+					domains = []string{"*"}
 				}
-				virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, domain)
+				virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, domains)
 				if err != nil {
 					return nil, err
 				}
@@ -117,7 +124,7 @@ func routesFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto
 func makeUpstreamRouteForDiscoveryChain(
 	routeName string,
 	chain *structs.CompiledDiscoveryChain,
-	serviceDomain string,
+	serviceDomains []string,
 ) (*envoyroute.VirtualHost, error) {
 	var routes []envoyroute.Route
 
@@ -223,7 +230,7 @@ func makeUpstreamRouteForDiscoveryChain(
 
 	host := &envoyroute.VirtualHost{
 		Name:    routeName,
-		Domains: []string{serviceDomain},
+		Domains: serviceDomains,
 		Routes:  routes,
 	}
 
