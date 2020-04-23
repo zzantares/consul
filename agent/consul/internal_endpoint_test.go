@@ -958,6 +958,133 @@ func TestInternal_GatewayServices_BothGateways(t *testing.T) {
 	assert.Contains(t, err.Error(), `service "api" is not a configured terminating-gateway or ingress-gateway`)
 }
 
+func TestInternal_GatewayServices_IngressProtocolFiltering(t *testing.T) {
+	t.Parallel()
+
+	dir1, s1 := testServer(t)
+	defer os.RemoveAll(dir1)
+	defer s1.Shutdown()
+
+	codec := rpcClient(t, s1)
+	defer codec.Close()
+
+	testrpc.WaitForTestAgent(t, s1.RPC, "dc1")
+	{
+		var out struct{}
+
+		// Register a service "api"
+		args := structs.TestRegisterRequest(t)
+		args.Service.Service = "api"
+		args.Check = &structs.HealthCheck{
+			Name:      "api",
+			Status:    api.HealthPassing,
+			ServiceID: args.Service.Service,
+		}
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "Catalog.Register", &args, &out))
+
+		// Register a service "db"
+		args = structs.TestRegisterRequest(t)
+		args.Service.Service = "db"
+		args.Check = &structs.HealthCheck{
+			Name:      "db",
+			Status:    api.HealthPassing,
+			ServiceID: args.Service.Service,
+		}
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "Catalog.Register", &args, &out))
+
+		// Register an ingress gateway
+		args = &structs.RegisterRequest{
+			Datacenter: "dc1",
+			Node:       "foo",
+			Address:    "127.0.0.2",
+			Service: &structs.NodeService{
+				Kind:    structs.ServiceKindIngressGateway,
+				Service: "ingress",
+				Port:    444,
+			},
+			Check: &structs.HealthCheck{
+				Name:      "ingress",
+				Status:    api.HealthPassing,
+				ServiceID: "ingress",
+			},
+		}
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "Catalog.Register", &args, &out))
+
+		entryArgs := &structs.ConfigEntryRequest{
+			Op:         structs.ConfigEntryUpsert,
+			Datacenter: "dc1",
+			Entry: &structs.IngressGatewayConfigEntry{
+				Kind: "ingress-gateway",
+				Name: "ingress",
+				Listeners: []structs.IngressListener{
+					{
+						Port:     8888,
+						Protocol: "http",
+						Services: []structs.IngressService{
+							{Name: "*"},
+						},
+					},
+				},
+			},
+		}
+
+		var entryResp bool
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "ConfigEntry.Apply", &entryArgs, &entryResp))
+
+		// Set up global proxy defaults to set the default protocol to "http"
+		entryArgs = &structs.ConfigEntryRequest{
+			Op:         structs.ConfigEntryUpsert,
+			Datacenter: "dc1",
+			Entry: &structs.ProxyConfigEntry{
+				Kind: "proxy-defaults",
+				Name: structs.ProxyConfigGlobal,
+				Config: map[string]interface{}{
+					"protocol": "http",
+				},
+			},
+		}
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "ConfigEntry.Apply", &entryArgs, &entryResp))
+
+		// Set the protocol for the "db" service to "tcp"
+		entryArgs = &structs.ConfigEntryRequest{
+			Op:         structs.ConfigEntryUpsert,
+			Datacenter: "dc1",
+			Entry: &structs.ServiceConfigEntry{
+				Kind:     "service-defaults",
+				Name:     "db",
+				Protocol: "tcp",
+			},
+		}
+		assert.Nil(t, msgpackrpc.CallWithCodec(codec, "ConfigEntry.Apply", &entryArgs, &entryResp))
+	}
+
+	retry.Run(t, func(r *retry.R) {
+		req := structs.ServiceSpecificRequest{
+			Datacenter:  "dc1",
+			ServiceName: "ingress",
+		}
+		var resp structs.IndexedGatewayServices
+		assert.Nil(r, msgpackrpc.CallWithCodec(codec, "Internal.GatewayServices", &req, &resp))
+		assert.Len(r, resp.Services, 1)
+
+		expect := structs.GatewayServices{
+			{
+				Service:     structs.NewServiceID("api", nil),
+				Gateway:     structs.NewServiceID("ingress", nil),
+				GatewayKind: structs.ServiceKindIngressGateway,
+				Port:        8888,
+				Protocol:    "http",
+			},
+		}
+
+		// Ignore raft index for equality
+		for _, s := range resp.Services {
+			s.RaftIndex = structs.RaftIndex{}
+		}
+		assert.Equal(r, expect, resp.Services)
+	})
+}
+
 func TestInternal_GatewayServices_ACLFiltering(t *testing.T) {
 	t.Parallel()
 

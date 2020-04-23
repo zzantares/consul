@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/hashicorp/consul/acl"
+	"github.com/hashicorp/consul/agent/consul/discoverychain"
 	"github.com/hashicorp/consul/agent/consul/state"
 	"github.com/hashicorp/consul/agent/structs"
 	bexpr "github.com/hashicorp/go-bexpr"
@@ -320,7 +321,7 @@ func (m *Internal) GatewayServices(args *structs.ServiceSpecificRequest, reply *
 		&args.QueryOptions,
 		&reply.QueryMeta,
 		func(ws memdb.WatchSet, state *state.Store) error {
-			var index uint64
+			var maxIdx uint64
 			var services structs.GatewayServices
 
 			supportedGateways := []string{structs.IngressGateway, structs.TerminatingGateway}
@@ -340,16 +341,79 @@ func (m *Internal) GatewayServices(args *structs.ServiceSpecificRequest, reply *
 				return fmt.Errorf("service %q is not a configured terminating-gateway or ingress-gateway", args.ServiceName)
 			}
 
-			index, services, err = state.GatewayServices(ws, args.ServiceName, &args.EnterpriseMeta)
+			maxIdx, services, err = state.GatewayServices(ws, args.ServiceName, &args.EnterpriseMeta)
 			if err != nil {
 				return err
+			}
+
+			// Filter out services added by wildcards with mismatched protocols.
+			idx, services, err := filterGatewayServices(ws, args, state, services, args.Datacenter)
+			if err != nil {
+				return err
+			}
+			if idx > maxIdx {
+				maxIdx = idx
 			}
 
 			if err := m.srv.filterACL(args.Token, &services); err != nil {
 				return err
 			}
 
-			reply.Index, reply.Services = index, services
+			reply.Index, reply.Services = maxIdx, services
 			return nil
 		})
+}
+
+// filterGatewayServices filters out any GatewayService entries added from a wildcard with a protocol
+// that doesn't match the one configured in their discovery chain.
+func filterGatewayServices(ws memdb.WatchSet,
+	args *structs.ServiceSpecificRequest,
+	state *state.Store,
+	services structs.GatewayServices,
+	datacenter string,
+) (uint64, structs.GatewayServices, error) {
+	// Get the global proxy defaults (for default protocol)
+	maxIdx, proxyConfig, err := state.ConfigEntry(ws, structs.ProxyDefaults, structs.ProxyConfigGlobal, &args.EnterpriseMeta)
+	if err != nil {
+		return 0, nil, err
+	}
+
+	// TODO(ingress): only check service entries added from wildcards during this filtering
+	// Check the wildcard entry's protocol against the discovery chain protocol for the service.
+	var filteredServices structs.GatewayServices
+	for _, s := range services {
+		idx, serviceDefaults, err := state.ConfigEntry(ws, structs.ServiceDefaults, s.Service.ID, &s.Service.EnterpriseMeta)
+		if err != nil {
+			return 0, nil, err
+		}
+		if idx > maxIdx {
+			maxIdx = idx
+		}
+
+		entries := structs.NewDiscoveryChainConfigEntries()
+		if proxyConfig != nil {
+			entries.AddEntries(proxyConfig)
+		}
+		if serviceDefaults != nil {
+			entries.AddEntries(serviceDefaults)
+		}
+		req := discoverychain.CompileRequest{
+			ServiceName:          s.Service.ID,
+			EvaluateInNamespace:  s.Service.NamespaceOrDefault(),
+			EvaluateInDatacenter: datacenter,
+			// Use a dummy trust domain since that won't affect the protocol here.
+			EvaluateInTrustDomain: "b6fc9da3-03d4-4b5a-9134-c045e9b20152.consul",
+			UseInDatacenter:       datacenter,
+			Entries:               entries,
+		}
+		chain, err := discoverychain.Compile(req)
+		if err != nil {
+			return 0, nil, err
+		}
+		if s.Protocol == chain.Protocol || s.GatewayKind != structs.ServiceKindIngressGateway {
+			filteredServices = append(filteredServices, s)
+		}
+	}
+
+	return maxIdx, filteredServices, nil
 }
