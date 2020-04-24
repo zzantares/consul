@@ -91,28 +91,31 @@ func routesFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto
 		for _, u := range upstreams {
 			upstreamID := u.Identifier()
 			chain := cfgSnap.IngressGateway.DiscoveryChain[upstreamID]
-			if chain != nil {
-				var domains []string
-				// If a user has specified hosts, do not add the default
-				// "<service-name>.*" prefix
-				if len(u.IngressHosts) > 0 {
-					domains = u.IngressHosts
-				} else {
-					domains = []string{fmt.Sprintf("%s.*", chain.ServiceName)}
-				}
+			if chain == nil {
+				continue
+			}
+
+			var domains []string
+			switch {
+			case len(upstreams) == 1:
 				// Don't require a service prefix on the domain if there is only 1
 				// upstream. This makes it a smoother experience when only having a
 				// single service associated to a listener, which is probably a common
 				// case when demoing/testing
-				if len(upstreams) == 1 {
-					domains = []string{"*"}
-				}
-				virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, domains)
-				if err != nil {
-					return nil, err
-				}
-				upstreamRoute.VirtualHosts = append(upstreamRoute.VirtualHosts, *virtualHost)
+				domains = []string{"*"}
+			case len(u.IngressHosts) > 0:
+				// If a user has specified hosts, do not add the default
+				// "<service-name>.*" prefix
+				domains = u.IngressHosts
+			default:
+				domains = []string{fmt.Sprintf("%s.*", chain.ServiceName)}
 			}
+
+			virtualHost, err := makeUpstreamRouteForDiscoveryChain(upstreamID, chain, domains)
+			if err != nil {
+				return nil, err
+			}
+			upstreamRoute.VirtualHosts = append(upstreamRoute.VirtualHosts, *virtualHost)
 		}
 
 		result = append(result, upstreamRoute)
