@@ -1069,11 +1069,12 @@ func TestInternal_GatewayServices_IngressProtocolFiltering(t *testing.T) {
 
 		expect := structs.GatewayServices{
 			{
-				Service:     structs.NewServiceID("api", nil),
-				Gateway:     structs.NewServiceID("ingress", nil),
-				GatewayKind: structs.ServiceKindIngressGateway,
-				Port:        8888,
-				Protocol:    "http",
+				Service:      structs.NewServiceID("api", nil),
+				Gateway:      structs.NewServiceID("ingress", nil),
+				GatewayKind:  structs.ServiceKindIngressGateway,
+				Port:         8888,
+				Protocol:     "http",
+				FromWildcard: true,
 			},
 		}
 

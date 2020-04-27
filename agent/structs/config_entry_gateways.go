@@ -323,7 +323,7 @@ type GatewayService struct {
 	GatewayKind  ServiceKind
 	Port         int
 	Protocol     string
-	Hosts       []string
+	Hosts        []string
 	CAFile       string
 	CertFile     string
 	KeyFile      string
@@ -350,13 +350,13 @@ func (g *GatewayService) IsSame(o *GatewayService) bool {
 
 func (g *GatewayService) Clone() *GatewayService {
 	return &GatewayService{
-		Gateway:      g.Gateway,
-		Service:      g.Service,
-		GatewayKind:  g.GatewayKind,
-		Port:         g.Port,
-		Protocol:     g.Protocol,
+		Gateway:     g.Gateway,
+		Service:     g.Service,
+		GatewayKind: g.GatewayKind,
+		Port:        g.Port,
+		Protocol:    g.Protocol,
 		// See https://github.com/go101/go101/wiki/How-to-efficiently-clone-a-slice%3F
-		Hosts:     append(g.Hosts[:0:0], g.Hosts...),
+		Hosts:        append(g.Hosts[:0:0], g.Hosts...),
 		CAFile:       g.CAFile,
 		CertFile:     g.CertFile,
 		KeyFile:      g.KeyFile,
