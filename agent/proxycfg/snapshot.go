@@ -112,6 +112,7 @@ func (c *configSnapshotTerminatingGateway) IsEmpty() bool {
 		len(c.ServiceGroups) == 0 &&
 		len(c.WatchedServices) == 0 &&
 		len(c.ServiceResolvers) == 0 &&
+		len(c.WatchedResolvers) == 0 &&
 		len(c.GatewayServices) == 0
 }
 

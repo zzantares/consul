@@ -2042,7 +2042,6 @@ func (s *Store) checkServiceNodesTxn(tx *memdb.Txn, ws memdb.WatchSet, serviceNa
 	// Gateways are tracked in a separate table, and we append them to the result set.
 	// We append rather than replace since it allows users to migrate a service
 	// to the mesh with a mix of sidecars and gateways until all its instances have a sidecar.
-	var gatewayNodesCh <-chan struct{}
 	var idx uint64
 	if connect {
 		// Look up gateway nodes associated with the service
@@ -2115,11 +2114,6 @@ func (s *Store) checkServiceNodesTxn(tx *memdb.Txn, ws memdb.WatchSet, serviceNa
 		fallbackWS = ws
 		// We also need to watch the iterator from earlier too.
 		fallbackWS.Add(iter.WatchCh())
-
-		// This channel will be nil if there are no known associations between the service and a gateway
-		if gatewayNodesCh != nil {
-			fallbackWS.Add(gatewayNodesCh)
-		}
 	} else if connect {
 		// If this is a connect query then there is a subtlety to watch out for.
 		// In addition to watching the proxy service indexes for changes above, we
@@ -2702,10 +2696,22 @@ func (s *Store) serviceGatewayNodes(tx *memdb.Txn, ws memdb.WatchSet, service st
 		if err != nil {
 			return 0, nil, nil, fmt.Errorf("failed service lookup: %s", err)
 		}
+
+		var exists bool
 		for svc := gwServices.Next(); svc != nil; svc = gwServices.Next() {
 			sn := svc.(*structs.ServiceNode)
 			ret = append(ret, sn)
+
+			// Tracking existence to know whether we should check extinction index for service
+			exists = true
 		}
+
+		// This prevents the index from sliding back in case all instances of the service are deregistered
+		svcIdx := s.maxIndexForService(tx, mapping.Gateway.ID, exists, false, &mapping.Service.EnterpriseMeta)
+		if maxIdx < svcIdx {
+			maxIdx = svcIdx
+		}
+
 		watchChans = append(watchChans, gwServices.WatchCh())
 	}
 	return maxIdx, ret, watchChans, nil

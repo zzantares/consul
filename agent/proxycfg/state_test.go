@@ -888,6 +888,8 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 						require.False(t, snap.Valid(), "gateway without root is not valid")
 						require.True(t, snap.ConnectProxy.IsEmpty())
+						require.True(t, snap.MeshGateway.IsEmpty())
+						require.True(t, snap.IngressGateway.IsEmpty())
 					},
 				},
 				verificationStage{
@@ -897,15 +899,10 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 						require.True(t, snap.Valid(), "gateway without services is valid")
 						require.True(t, snap.ConnectProxy.IsEmpty())
+						require.True(t, snap.MeshGateway.IsEmpty())
+						require.True(t, snap.IngressGateway.IsEmpty())
+						require.True(t, snap.TerminatingGateway.IsEmpty())
 						require.Equal(t, indexedRoots, snap.Roots)
-						require.Empty(t, snap.TerminatingGateway.WatchedServices)
-						require.Empty(t, snap.TerminatingGateway.ServiceGroups)
-						require.Empty(t, snap.TerminatingGateway.WatchedLeaves)
-						require.Empty(t, snap.TerminatingGateway.ServiceLeaves)
-						require.Empty(t, snap.TerminatingGateway.WatchedResolvers)
-						require.Empty(t, snap.TerminatingGateway.ServiceResolvers)
-						require.Empty(t, snap.TerminatingGateway.WatchedIntentions)
-						require.Empty(t, snap.TerminatingGateway.GatewayServices)
 					},
 				},
 			},
@@ -1102,7 +1099,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 
 						require.True(t, snap.Valid(), "gateway with service list is valid")
 
-						// All three watches should have been cancelled for db
+						// All the watches should have been cancelled for db
 						require.Len(t, snap.TerminatingGateway.WatchedServices, 1)
 						require.Contains(t, snap.TerminatingGateway.WatchedServices, billing)
 
