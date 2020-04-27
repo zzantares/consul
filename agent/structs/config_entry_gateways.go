@@ -350,30 +350,18 @@ func (g *GatewayService) IsSame(o *GatewayService) bool {
 
 func (g *GatewayService) Clone() *GatewayService {
 	return &GatewayService{
-<<<<<<< HEAD
 		Gateway:      g.Gateway,
 		Service:      g.Service,
 		GatewayKind:  g.GatewayKind,
 		Port:         g.Port,
 		Protocol:     g.Protocol,
+		// See https://github.com/go101/go101/wiki/How-to-efficiently-clone-a-slice%3F
+		Hosts:     append(g.Hosts[:0:0], g.Hosts...),
 		CAFile:       g.CAFile,
 		CertFile:     g.CertFile,
 		KeyFile:      g.KeyFile,
 		SNI:          g.SNI,
 		FromWildcard: g.FromWildcard,
 		RaftIndex:    g.RaftIndex,
-=======
-		Gateway:     g.Gateway,
-		Service:     g.Service,
-		GatewayKind: g.GatewayKind,
-		Port:        g.Port,
-		Protocol:    g.Protocol,
-		// See https://github.com/go101/go101/wiki/How-to-efficiently-clone-a-slice%3F
-		Hosts:     append(g.Hosts[:0:0], g.Hosts...),
-		CAFile:    g.CAFile,
-		CertFile:  g.CertFile,
-		KeyFile:   g.KeyFile,
-		RaftIndex: g.RaftIndex,
->>>>>>> 92ee2cf03... Allow Hosts field to be set on an ingress config entry
 	}
 }
