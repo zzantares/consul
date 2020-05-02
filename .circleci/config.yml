@@ -110,6 +110,7 @@ jobs:
             echo "Running $(echo $PACKAGE_NAMES | wc -w) packages"
             echo $PACKAGE_NAMES
             gotestsum --format=short-verbose \
+              --jsonfile jsonfile.log \
               --junitfile $TEST_RESULTS_DIR/gotestsum-report.xml -- \
               -tags="$GOTAGS" -p 2 \
               -cover -coverprofile=coverage.txt \
@@ -119,6 +120,8 @@ jobs:
           path: *TEST_RESULTS_DIR
       - store_artifacts:
           path: *TEST_RESULTS_DIR
+      - store_artifacts:
+          path: jsonfile.log
       - run: &codecov_upload
           name: codecov upload
           when: always
@@ -591,102 +594,3 @@ workflows:
       - go-test-api:
           requires: [dev-build]
       - go-test-sdk: *filter-ignore-non-go-branches
-
-  build-distros:
-    jobs:
-      - check-vendor: *filter-ignore-non-go-branches
-      - build-386: &require-check-vendor
-          requires:
-            - check-vendor
-      - build-amd64: *require-check-vendor
-      - build-arm: *require-check-vendor
-      # every commit on ui-staging and master will have a rebuilt UI
-      - frontend-cache:
-          filters:
-            branches:
-              only:
-                - master
-                - ui-staging
-      - ember-build-prod:
-          requires:
-            - frontend-cache
-      - build-static-assets:
-          requires:
-            - ember-build-prod
-      - dev-build:
-          requires:
-            - build-static-assets
-      - dev-upload-s3:
-          requires:
-            - dev-build
-      - dev-upload-docker:
-          requires:
-            - dev-build
-          context: consul-ci
-  test-integrations:
-    jobs:
-      - dev-build: *filter-ignore-non-go-branches
-      - dev-upload-s3: &dev-upload
-          requires:
-            - dev-build
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only push dev builds from non forks
-                - master # all master dev uploads will include a UI rebuild in build-distros
-                - ui-staging # all ui-staging dev uploads will include a UI rebuild in build-distros
-      - dev-upload-docker:
-          <<: *dev-upload
-          context: consul-ci
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.11.2:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.12.2:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.13.1:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.14.1:
-          requires:
-            - dev-build
-
-  website:
-    jobs:
-      - build-website-docker-image:
-          context: website-docker-image
-          filters:
-            branches:
-              only:
-                - master
-  frontend:
-    jobs:
-      - frontend-cache:
-          filters:
-            branches:
-              ignore:
-                - stable-website
-                - /^docs\/.*/
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test-oss:
-          requires:
-            - ember-build
-      - ember-test-ent:
-          requires:
-            - ember-build
-  cherry-pick:
-    jobs:
-      - cherry-picker:
-          context: team-consul
-          filters:
-            branches:
-              only:
-                - master
