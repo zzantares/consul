@@ -8,6 +8,7 @@ import (
 
 // SerfDefaultConfig returns a Consul-flavored Serf default configuration,
 // suitable as a basis for a LAN, WAN, segment, or area.
+// TODO: move to config package
 func SerfDefaultConfig() *serf.Config {
 	base := serf.DefaultConfig()
 
@@ -27,6 +28,7 @@ func SerfDefaultConfig() *serf.Config {
 	return base
 }
 
+// TODO: unexport
 func GetSerfTags(serf *serf.Serf) map[string]string {
 	tags := make(map[string]string)
 	for tag, value := range serf.LocalMember().Tags {
@@ -36,6 +38,7 @@ func GetSerfTags(serf *serf.Serf) map[string]string {
 	return tags
 }
 
+// TODO: move to caller, agent/acl_*
 func UpdateSerfTag(serf *serf.Serf, tag, value string) {
 	tags := GetSerfTags(serf)
 	tags[tag] = value

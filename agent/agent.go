@@ -124,24 +124,49 @@ func ConfigSourceFromName(name string) (configSource, bool) {
 	return s, ok
 }
 
+type Membership interface {
+	GetLANCoordinate() (lib.CoordinateSet, error)
+	LANMembers() []serf.Member
+	LocalMember() serf.Member
+	JoinLAN(addrs []string) (n int, err error)
+	Leave() error
+	RemoveFailedNode(node string, prune bool) error
+
+	// TODO: remove LANMembersAllSegments, use LANSegmentMembers
+	LANMembersAllSegments() ([]serf.Member, error)
+	LANSegmentMembers(segment string) ([]serf.Member, error)
+
+	// Shutdown() error
+}
+
+type Authenticator interface {
+	ResolveTokenAndDefaultMeta(secretID string, entMeta *structs.EnterpriseMeta, authzContext *acl.AuthorizerContext) (acl.Authorizer, error)
+	ResolveIdentityFromToken(secretID string) (bool, structs.ACLIdentity, error)
+	ACLsEnabled() bool
+	UseLegacyACLs() bool
+}
+
+type Snapshoter interface {
+	SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io.Writer, replyFn structs.SnapshotReplyFn) error
+}
+
 // delegate defines the interface shared by both
 // consul.Client and consul.Server.
 type delegate interface {
-	GetLANCoordinate() (lib.CoordinateSet, error)
-	Leave() error
-	LANMembers() []serf.Member
-	LANMembersAllSegments() ([]serf.Member, error)
-	LANSegmentMembers(segment string) ([]serf.Member, error)
-	LocalMember() serf.Member
-	JoinLAN(addrs []string) (n int, err error)
-	RemoveFailedNode(node string, prune bool) error
+	// LAN membership
+	Membership
+
+	// ACL token authentication
+	Authenticator
+
+	Snapshoter
+
+	// TODO: delete
 	ResolveToken(secretID string) (acl.Authorizer, error)
-	ResolveTokenAndDefaultMeta(secretID string, entMeta *structs.EnterpriseMeta, authzContext *acl.AuthorizerContext) (acl.Authorizer, error)
-	ResolveIdentityFromToken(secretID string) (bool, structs.ACLIdentity, error)
+
 	RPC(method string, args interface{}, reply interface{}) error
-	ACLsEnabled() bool
-	UseLegacyACLs() bool
-	SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io.Writer, replyFn structs.SnapshotReplyFn) error
+
+	// TODO: most likely needs to be part of multiple interfaces
 	Shutdown() error
 	Stats() map[string]map[string]string
 	ReloadConfig(config *consul.Config) error
