@@ -374,7 +374,7 @@ func (c *cmd) run(args []string) int {
 			c.logger.Info("Gracefully shutting down agent...")
 			gracefulCh := make(chan struct{})
 			go func() {
-				if err := agent.Leave(); err != nil {
+				if err := agent.delegate.Leave(); err != nil {
 					c.logger.Error("Error on leave", "error", err)
 					return
 				}

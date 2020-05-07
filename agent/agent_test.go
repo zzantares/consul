@@ -147,7 +147,7 @@ func TestAgent_StartStop(t *testing.T) {
 	a := NewTestAgent(t, "")
 	defer a.Shutdown()
 
-	if err := a.Leave(); err != nil {
+	if err := a.delegate.Leave(); err != nil {
 		t.Fatalf("err: %v", err)
 	}
 	if err := a.Shutdown(); err != nil {
@@ -3137,7 +3137,7 @@ func TestAgent_GetCoordinate(t *testing.T) {
 		// sure that the agent chooses the correct Serf instance,
 		// depending on how it's configured as a client or a server.
 		// If it chooses the wrong one, this will crash.
-		if _, err := a.GetLANCoordinate(); err != nil {
+		if _, err := a.delegate.GetLANCoordinate(); err != nil {
 			t.Fatalf("err: %s", err)
 		}
 	}

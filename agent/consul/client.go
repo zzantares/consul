@@ -264,10 +264,10 @@ func (c *Client) LANMembersAllSegments() ([]serf.Member, error) {
 // LANSegmentMembers only returns our own segment's members, because clients
 // can't be in multiple segments.
 func (c *Client) LANSegmentMembers(segment string) ([]serf.Member, error) {
-	if segment == c.config.Segment {
+	switch segment {
+	case c.config.Segment, "":
 		return c.LANMembers(), nil
 	}
-
 	return nil, fmt.Errorf("segment %q not found", segment)
 }
 

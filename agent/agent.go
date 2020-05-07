@@ -131,11 +131,7 @@ type Membership interface {
 	JoinLAN(addrs []string) (n int, err error)
 	Leave() error
 	RemoveFailedNode(node string, prune bool) error
-
-	// TODO: remove LANMembersAllSegments, use LANSegmentMembers
-	LANMembersAllSegments() ([]serf.Member, error)
 	LANSegmentMembers(segment string) ([]serf.Member, error)
-
 	// Shutdown() error
 }
 
@@ -1746,11 +1742,6 @@ func (a *Agent) RPC(method string, args interface{}, reply interface{}) error {
 	return a.delegate.RPC(method, args, reply)
 }
 
-// Leave is used to prepare the agent for a graceful shutdown
-func (a *Agent) Leave() error {
-	return a.delegate.Leave()
-}
-
 // ShutdownAgent is used to hard stop the agent. Should be preceded by
 // Leave to do it gracefully. Should be followed by ShutdownEndpoints to
 // terminate the HTTP and DNS servers as well.
@@ -1976,11 +1967,6 @@ func (a *Agent) ForceLeave(node string, prune bool) (err error) {
 	return err
 }
 
-// LocalMember is used to return the local node
-func (a *Agent) LocalMember() serf.Member {
-	return a.delegate.LocalMember()
-}
-
 // LANMembers is used to retrieve the LAN members
 func (a *Agent) LANMembers() []serf.Member {
 	return a.delegate.LANMembers()
@@ -1997,7 +1983,7 @@ func (a *Agent) WANMembers() []serf.Member {
 // IsMember is used to check if a node with the given nodeName
 // is a member
 func (a *Agent) IsMember(nodeName string) bool {
-	for _, m := range a.LANMembers() {
+	for _, m := range a.delegate.LANMembers() {
 		if m.Name == nodeName {
 			return true
 		}
@@ -2062,12 +2048,6 @@ func (a *Agent) SyncPausedCh() <-chan struct{} {
 	return a.syncCh
 }
 
-// GetLANCoordinate returns the coordinates of this node in the local pools
-// (assumes coordinates are enabled, so check that before calling).
-func (a *Agent) GetLANCoordinate() (lib.CoordinateSet, error) {
-	return a.delegate.GetLANCoordinate()
-}
-
 // sendCoordinate is a long-running loop that periodically sends our coordinate
 // to the server. Closing the agent's shutdownChannel will cause this to exit.
 func (a *Agent) sendCoordinate() {
@@ -2091,7 +2071,7 @@ OUTER:
 				continue
 			}
 
-			cs, err := a.GetLANCoordinate()
+			cs, err := a.delegate.GetLANCoordinate()
 			if err != nil {
 				a.logger.Error("Failed to get coordinate", "error", err)
 				continue

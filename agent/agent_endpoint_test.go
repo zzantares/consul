@@ -1230,7 +1230,7 @@ func TestAgent_Self(t *testing.T) {
 		t.Fatalf("incorrect port: %v", obj)
 	}
 
-	cs, err := a.GetLANCoordinate()
+	cs, err := a.delegate.GetLANCoordinate()
 	if err != nil {
 		t.Fatalf("err: %v", err)
 	}

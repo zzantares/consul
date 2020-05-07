@@ -55,7 +55,7 @@ func (s *HTTPServer) AgentSelf(resp http.ResponseWriter, req *http.Request) (int
 	var cs lib.CoordinateSet
 	if !s.agent.config.DisableCoordinates {
 		var err error
-		if cs, err = s.agent.GetLANCoordinate(); err != nil {
+		if cs, err = s.agent.delegate.GetLANCoordinate(); err != nil {
 			return nil, err
 		}
 	}
@@ -79,7 +79,7 @@ func (s *HTTPServer) AgentSelf(resp http.ResponseWriter, req *http.Request) (int
 		Config:      config,
 		DebugConfig: s.agent.config.Sanitized(),
 		Coord:       cs[s.agent.config.SegmentName],
-		Member:      s.agent.LocalMember(),
+		Member:      s.agent.delegate.LocalMember(),
 		Stats:       s.agent.Stats(),
 		Meta:        s.agent.State.Metadata(),
 	}, nil
@@ -425,10 +425,9 @@ func (s *HTTPServer) AgentMembers(resp http.ResponseWriter, req *http.Request) (
 	} else {
 		var err error
 		if segment == api.AllSegments {
-			members, err = s.agent.delegate.LANMembersAllSegments()
-		} else {
-			members, err = s.agent.delegate.LANSegmentMembers(segment)
+			segment = ""
 		}
+		members, err = s.agent.delegate.LANSegmentMembers(segment)
 		if err != nil {
 			return nil, err
 		}
@@ -483,7 +482,7 @@ func (s *HTTPServer) AgentLeave(resp http.ResponseWriter, req *http.Request) (in
 		return nil, acl.ErrPermissionDenied
 	}
 
-	if err := s.agent.Leave(); err != nil {
+	if err := s.agent.delegate.Leave(); err != nil {
 		return nil, err
 	}
 	return nil, s.agent.ShutdownAgent()
