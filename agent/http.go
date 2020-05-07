@@ -94,35 +94,14 @@ type HTTPHandlers struct {
 	configReloaders []ConfigReloader
 	h               http.Handler
 	metricsProxyCfg atomic.Value
+	endpoints       map[string]endpoint
 }
 
-// endpoint is a Consul-specific HTTP handler that takes the usual arguments in
-// but returns a response object and error, both of which are handled in a
-// common manner by Consul's HTTP server.
-type endpoint func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
-
-// unboundEndpoint is an endpoint method on a server.
-type unboundEndpoint func(s *HTTPHandlers, resp http.ResponseWriter, req *http.Request) (interface{}, error)
-
-// endpoints is a map from URL pattern to unbound endpoint.
-var endpoints map[string]unboundEndpoint
-
-// allowedMethods is a map from endpoint prefix to supported HTTP methods.
-// An empty slice means an endpoint handles OPTIONS requests and MethodNotFound errors itself.
-var allowedMethods map[string][]string = make(map[string][]string)
-
-// registerEndpoint registers a new endpoint, which should be done at package
-// init() time.
-func registerEndpoint(pattern string, methods []string, fn unboundEndpoint) {
-	if endpoints == nil {
-		endpoints = make(map[string]unboundEndpoint)
-	}
-	if endpoints[pattern] != nil || allowedMethods[pattern] != nil {
-		panic(fmt.Errorf("Pattern %q is already registered", pattern))
-	}
-
-	endpoints[pattern] = fn
-	allowedMethods[pattern] = methods
+type endpoint struct {
+	fn func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+	// methods is a slice of supported HTTP methods.
+	// An empty slice means an endpoint handles OPTIONS requests and MethodNotFound errors itself.
+	methods []string
 }
 
 // wrappedMux hangs on to the underlying mux for unit tests.
@@ -266,13 +245,8 @@ func (s *HTTPHandlers) handler(enableDebug bool) http.Handler {
 		handleFuncMetrics(pattern, http.HandlerFunc(wrapper))
 	}
 	mux.HandleFunc("/", s.Index)
-	for pattern, fn := range endpoints {
-		thisFn := fn
-		methods := allowedMethods[pattern]
-		bound := func(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
-			return thisFn(s, resp, req)
-		}
-		handleFuncMetrics(pattern, s.wrap(bound, methods))
+	for pattern, endpoint := range s.endpoints {
+		handleFuncMetrics(pattern, s.wrap(endpoint.fn, endpoint.methods))
 	}
 
 	// Register wrapped pprof handlers
@@ -357,8 +331,13 @@ var (
 	aclEndpointRE = regexp.MustCompile("^(/v1/acl/(create|update|destroy|info|clone|list)/)([^?]+)([?]?.*)$")
 )
 
+// httpHandler is a Consul-specific HTTP handler that takes the usual arguments in
+// but returns a response object and error, both of which are handled in a
+// common manner by Consul's HTTP server.
+type httpHandler func(resp http.ResponseWriter, req *http.Request) (interface{}, error)
+
 // wrap is used to wrap functions to make them more convenient
-func (s *HTTPHandlers) wrap(handler endpoint, methods []string) http.HandlerFunc {
+func (s *HTTPHandlers) wrap(handler httpHandler, methods []string) http.HandlerFunc {
 	httpLogger := s.agent.logger.Named(logging.HTTP)
 	return func(resp http.ResponseWriter, req *http.Request) {
 		setHeaders(resp, s.agent.config.HTTPResponseHeaders)

@@ -118,10 +118,10 @@ func TestHTTPAPI_MethodNotAllowed_OSS(t *testing.T) {
 		}
 	}
 
-	for path, methods := range allowedMethods {
+	for path, ep := range getEndpoints(nil) {
 		if includePathInTest(path) {
 			for _, method := range all {
-				testMethodNotAllowed(t, method, path, methods)
+				testMethodNotAllowed(t, method, path, ep.methods)
 			}
 		}
 	}
@@ -160,9 +160,9 @@ func TestHTTPAPI_OptionMethod_OSS(t *testing.T) {
 	for path, methods := range extraTestEndpoints {
 		testOptionMethod(path, methods)
 	}
-	for path, methods := range allowedMethods {
+	for path, ep := range getEndpoints(nil) {
 		if includePathInTest(path) {
-			testOptionMethod(path, methods)
+			testOptionMethod(path, ep.methods)
 		}
 	}
 }
@@ -205,11 +205,11 @@ func TestHTTPAPI_AllowedNets_OSS(t *testing.T) {
 			testOptionMethod(path, method)
 		}
 	}
-	for path, methods := range allowedMethods {
+	for path, ep := range getEndpoints(nil) {
 		if !includePathInTest(path) {
 			continue
 		}
-		for _, method := range methods {
+		for _, method := range ep.methods {
 			if method == http.MethodGet {
 				continue
 			}

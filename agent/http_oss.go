@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/consul/agent/structs"
 )
 
+func addEnterpriseHTTPEndpoints(result map[string]endpoint, a *Agent) {}
+
 func (s *HTTPHandlers) parseEntMeta(req *http.Request, entMeta *structs.EnterpriseMeta) error {
 	if headerNS := req.Header.Get("X-Consul-Namespace"); headerNS != "" {
 		return BadRequestError{Reason: "Invalid header: \"X-Consul-Namespace\" - Namespaces are a Consul Enterprise feature"}
