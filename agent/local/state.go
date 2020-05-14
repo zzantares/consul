@@ -68,7 +68,7 @@ func (s *ServiceState) Clone() *ServiceState {
 	return s2
 }
 
-func (s *ServiceState) increment() {
+func (s *ServiceState) incrementVersion() {
 	s.version = s.version + 1
 }
 
@@ -129,7 +129,7 @@ func (c *CheckState) CriticalFor() time.Duration {
 	return time.Since(c.CriticalTime)
 }
 
-func (c *CheckState) increment() {
+func (c *CheckState) incrementVersion() {
 	c.version = c.version + 1
 }
 
@@ -535,7 +535,7 @@ func (l *State) removeCheckLocked(id structs.CheckID) error {
 	// entry around until it is actually removed.
 	c.InSync = false
 	c.Deleted = true
-	c.increment()
+	c.incrementVersion()
 	l.TriggerSyncChanges()
 
 	return nil
@@ -1048,11 +1048,11 @@ func (l *State) SyncChanges() error {
 			switch {
 			case s.Deleted:
 				services[id] = deleted
-				s.increment()
+				s.incrementVersion()
 
 			case !s.InSync:
 				services[id] = notInSync
-				s.increment()
+				s.incrementVersion()
 
 			default:
 				l.logger.Printf("[DEBUG] agent: Service %q in sync", id)
@@ -1067,11 +1067,11 @@ func (l *State) SyncChanges() error {
 				if c.DeferCheck != nil {
 					c.DeferCheck.Stop()
 				}
-				c.increment()
+				c.incrementVersion()
 
 			case !c.InSync:
 				checks[id] = notInSync
-				c.increment()
+				c.incrementVersion()
 
 			default:
 				l.logger.Printf("[DEBUG] agent: Check %q in sync", id)
@@ -1235,7 +1235,7 @@ func (l *State) syncService(key structs.ServiceID) error {
 	// otherwise we need to register them separately so they don't
 	// pick up privileges from the service token.
 	l.Lock()
-	var currentVersion = l.services[key].version
+	var startVersion = l.services[key].version
 	var checks structs.HealthChecks
 	for checkKey, c := range l.checks {
 		if c.Deleted || c.InSync {
@@ -1278,10 +1278,11 @@ func (l *State) syncService(key structs.ServiceID) error {
 	switch {
 	case err == nil:
 		if s, ok := l.services[key]; ok {
-			if s.version != currentVersion {
+			if s.version != startVersion {
 				return nil
 			}
 			s.InSync = true
+
 			// Given how the register API works, this info is also updated
 			// every time we sync a service.
 			var checkKey structs.CheckID
@@ -1319,12 +1320,14 @@ func (l *State) syncCheck(key structs.CheckID) error {
 	if l.checks[key] == nil {
 		return nil
 	}
-	var currentVersion = l.checks[key].version
-	c := *l.checks[key]
+	var startVersion = l.checks[key].version
 
+	c := l.checks[key]
 	if c.DeferCheck != nil {
 		c.DeferCheck.Stop()
+		c.DeferCheck = nil
 	}
+	checkCopy := *c
 
 	l.Unlock()
 
@@ -1335,13 +1338,13 @@ func (l *State) syncCheck(key structs.CheckID) error {
 		Address:         l.config.AdvertiseAddr,
 		TaggedAddresses: l.config.TaggedAddresses,
 		NodeMeta:        l.metadata,
-		Check:           c.Check,
-		EnterpriseMeta:  c.Check.EnterpriseMeta,
+		Check:           checkCopy.Check,
+		EnterpriseMeta:  checkCopy.Check.EnterpriseMeta,
 		WriteRequest:    structs.WriteRequest{Token: l.checkToken(key)},
 	}
 
 	var serviceKey structs.ServiceID
-	serviceKey.Init(c.Check.ServiceID, &key.EnterpriseMeta)
+	serviceKey.Init(checkCopy.Check.ServiceID, &key.EnterpriseMeta)
 
 	// Pull in the associated service if any
 	s := l.services[serviceKey]
@@ -1351,27 +1354,29 @@ func (l *State) syncCheck(key structs.CheckID) error {
 
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Register", &req, &out)
+
 	l.Lock()
 	defer l.Unlock()
+
 	switch {
 	case err == nil:
-		if c, ok := l.checks[key]; ok && c.version == currentVersion {
+		if c, ok := l.checks[key]; ok {
+			if c.version != startVersion {
+				return nil
+			}
 			c.InSync = true
+			l.logger.Printf("[INFO] agent: Synced check %q", key.String())
 		}
-		if l.checks[key].version > currentVersion {
-			l.checks[key].InSync = false
-		}
-		l.logger.Printf("[INFO] agent: Synced check %q", key.String())
 		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the check to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution
-		if c, ok := l.checks[key]; ok && c.version == currentVersion {
+		if c, ok := l.checks[key]; ok {
+			if c.version != startVersion {
+				return nil
+			}
 			c.InSync = true
-		}
-		if l.checks[key].version > currentVersion {
-			l.checks[key].InSync = false
 		}
 		l.logger.Printf("[WARN] agent: Check %q registration blocked by ACLs", key)
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "registration"}, 1)
