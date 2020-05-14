@@ -4,7 +4,7 @@ version: 2
 references:
   images:
     go: &GOLANG_IMAGE circleci/golang:1.14.1
-    middleman: &MIDDLEMAN_IMAGE hashicorp/middleman-hashicorp:0.3.40
+    website: &WEBSITE_IMAGE hashicorp/consul-website:latest
     ember: &EMBER_IMAGE circleci/node:12-browsers
 
   paths:
@@ -362,6 +362,63 @@ jobs:
       NOMAD_VERSION: master
     steps: *NOMAD_INTEGRATION_TEST_STEPS
 
+  build-website:
+    # setting the working_directory along with the checkout path allows us to not have
+    # to cd into the website/ directory for commands
+    working_directory: ~/project/website
+    docker:
+      - image: *WEBSITE_IMAGE
+    steps:
+      - checkout:
+          path: ~/project
+
+      - run: npm run static
+
+      - run:
+          name: add missing tar binary
+          command: apk update && apk add tar
+
+      # saves website build directory
+      - persist_to_workspace:
+          root: .
+          paths:
+            - out
+
+  deploy-website:
+    # setting the working_directory along with the checkout path allows us to not have
+    # to cd into the website/ directory for commands
+    working_directory: ~/project/website
+    docker:
+      - image: *WEBSITE_IMAGE
+    steps:
+      - checkout:
+          path: ~/project
+
+      - run:
+          name: add missing tar binary
+          command: apk update && apk add tar
+
+      # attach website build directory
+      - attach_workspace:
+          at: ~/project/website
+
+      - run: npm run static
+
+      - run:
+          name: website deploy
+          command: ./scripts/deploy.sh
+
+  # Link check on a temporary netlify deployed site
+  docs-link-checker:
+    docker:
+      - image: circleci/node:lts
+    steps:
+      - checkout
+      # attach website build directory
+      - attach_workspace:
+          at: ~/project/website
+      - run: ./website/scripts/link-check.sh
+
   build-website-docker-image:
     docker:
       - image: circleci/buildpack-deps
@@ -683,12 +740,28 @@ workflows:
 
   website:
     jobs:
+      - build-website
+      - docs-link-checker:
+          requires:
+            - build-website
+          filters:
+            branches:
+              ignore:
+                - /^pull\/.*$/ # only run link checker on non forks
+      - deploy-website:
+          requires:
+            - docs-link-checker
+          context: static-sites
+          filters:
+            branches:
+              only: stable-website
       - build-website-docker-image:
           context: website-docker-image
           filters:
             branches:
               only:
                 - master
+
   frontend:
     jobs:
       - frontend-cache:
