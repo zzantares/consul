@@ -365,22 +365,22 @@ jobs:
   build-website:
     # setting the working_directory along with the checkout path allows us to not have
     # to cd into the website/ directory for commands
-    working_directory: ~/project/website
     docker:
       - image: *WEBSITE_IMAGE
     steps:
-      - checkout:
-          path: ~/project
-
-      - run: npm run static
-
       - run:
-          name: add missing tar binary
-          command: apk update && apk add tar
+          name: add missing packages
+          command: apk update && apk add tar git openssh-client
+      - checkout
+
+      - run: cp -r ~/project/website/. /website/
+      - run:
+          working_directory: /website
+          command: npm run static
 
       # saves website build directory
       - persist_to_workspace:
-          root: .
+          root: /website
           paths:
             - out
 
@@ -630,89 +630,89 @@ jobs:
 
 workflows:
   version: 2
-  go-tests:
-    jobs:
-      - check-vendor: &filter-ignore-non-go-branches
-          filters:
-            branches:
-              ignore:
-                - stable-website
-                - /^docs\/.*/
-                - /^ui\/.*/
-      - lint-consul-retry: *filter-ignore-non-go-branches
-      - lint: *filter-ignore-non-go-branches
-      - test-connect-ca-providers: *filter-ignore-non-go-branches
-      - dev-build: *filter-ignore-non-go-branches
-      - go-test:
-          requires: [dev-build]
-      - go-test-api:
-          requires: [dev-build]
-      - go-test-sdk: *filter-ignore-non-go-branches
+  # go-tests:
+  #   jobs:
+  #     - check-vendor: &filter-ignore-non-go-branches
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - stable-website
+  #               - /^docs\/.*/
+  #               - /^ui\/.*/
+  #     - lint-consul-retry: *filter-ignore-non-go-branches
+  #     - lint: *filter-ignore-non-go-branches
+  #     - test-connect-ca-providers: *filter-ignore-non-go-branches
+  #     - dev-build: *filter-ignore-non-go-branches
+  #     - go-test:
+  #         requires: [dev-build]
+  #     - go-test-api:
+  #         requires: [dev-build]
+  #     - go-test-sdk: *filter-ignore-non-go-branches
 
-  build-distros:
-    jobs:
-      - check-vendor: *filter-ignore-non-go-branches
-      - build-386: &require-check-vendor
-          requires:
-            - check-vendor
-      - build-amd64: *require-check-vendor
-      - build-arm: *require-check-vendor
-      # every commit on ui-staging and master will have a rebuilt UI
-      - frontend-cache:
-          filters:
-            branches:
-              only:
-                - master
-                - ui-staging
-      - ember-build-prod:
-          requires:
-            - frontend-cache
-      - build-static-assets:
-          requires:
-            - ember-build-prod
-      - dev-build:
-          requires:
-            - build-static-assets
-      - dev-upload-s3:
-          requires:
-            - dev-build
-      - dev-upload-docker:
-          requires:
-            - dev-build
-          context: consul-ci
-  test-integrations:
-    jobs:
-      - dev-build: *filter-ignore-non-go-branches
-      - dev-upload-s3: &dev-upload
-          requires:
-            - dev-build
-          filters:
-            branches:
-              ignore:
-                - /^pull\/.*$/ # only push dev builds from non forks
-                - master # all master dev uploads will include a UI rebuild in build-distros
-                - ui-staging # all ui-staging dev uploads will include a UI rebuild in build-distros
-      - dev-upload-docker:
-          <<: *dev-upload
-          context: consul-ci
-      - nomad-integration-master:
-          requires:
-            - dev-build
-      - nomad-integration-0_8:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.11.2:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.12.2:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.13.1:
-          requires:
-            - dev-build
-      - envoy-integration-test-1.14.1:
-          requires:
-            - dev-build
+  # build-distros:
+  #   jobs:
+  #     - check-vendor: *filter-ignore-non-go-branches
+  #     - build-386: &require-check-vendor
+  #         requires:
+  #           - check-vendor
+  #     - build-amd64: *require-check-vendor
+  #     - build-arm: *require-check-vendor
+  #     # every commit on ui-staging and master will have a rebuilt UI
+  #     - frontend-cache:
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #               - ui-staging
+  #     - ember-build-prod:
+  #         requires:
+  #           - frontend-cache
+  #     - build-static-assets:
+  #         requires:
+  #           - ember-build-prod
+  #     - dev-build:
+  #         requires:
+  #           - build-static-assets
+  #     - dev-upload-s3:
+  #         requires:
+  #           - dev-build
+  #     - dev-upload-docker:
+  #         requires:
+  #           - dev-build
+  #         context: consul-ci
+  # test-integrations:
+  #   jobs:
+  #     - dev-build: *filter-ignore-non-go-branches
+  #     - dev-upload-s3: &dev-upload
+  #         requires:
+  #           - dev-build
+  #         filters:
+  #           branches:
+  #             ignore:
+  #               - /^pull\/.*$/ # only push dev builds from non forks
+  #               - master # all master dev uploads will include a UI rebuild in build-distros
+  #               - ui-staging # all ui-staging dev uploads will include a UI rebuild in build-distros
+  #     - dev-upload-docker:
+  #         <<: *dev-upload
+  #         context: consul-ci
+  #     - nomad-integration-master:
+  #         requires:
+  #           - dev-build
+  #     - nomad-integration-0_8:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.11.2:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.12.2:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.13.1:
+  #         requires:
+  #           - dev-build
+  #     - envoy-integration-test-1.14.1:
+  #         requires:
+  #           - dev-build
 
   website:
     jobs:
@@ -730,33 +730,32 @@ workflows:
             branches:
               only:
                 - master
-
-  frontend:
-    jobs:
-      - frontend-cache:
-          filters:
-            branches:
-              only:
-                - master
-                - ui-staging
-                - /^ui\/.*/
-      - ember-build:
-          requires:
-            - frontend-cache
-      - ember-test-oss:
-          requires:
-            - ember-build
-      - ember-test-ent:
-          requires:
-            - ember-build
-      - ember-coverage:
-          requires:
-            - ember-build
-  cherry-pick:
-    jobs:
-      - cherry-picker:
-          context: team-consul
-          filters:
-            branches:
-              only:
-                - master
+  # frontend:
+  #   jobs:
+  #     - frontend-cache:
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #               - ui-staging
+  #               - /^ui\/.*/
+  #     - ember-build:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-test-oss:
+  #         requires:
+  #           - ember-build
+  #     - ember-test-ent:
+  #         requires:
+  #           - ember-build
+  #     - ember-coverage:
+  #         requires:
+  #           - ember-build
+  # cherry-pick:
+  #   jobs:
+  #     - cherry-picker:
+  #         context: team-consul
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master

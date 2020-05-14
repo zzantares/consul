@@ -24,4 +24,6 @@ wget \
   --no-host-directories \
   --page-requisites \
   --spider \
+  --span-host \
+  --domains hashicorp.com,$url \
   $url
