@@ -16,7 +16,6 @@ references:
 
   environment: &ENVIRONMENT
     TEST_RESULTS_DIR: *TEST_RESULTS_DIR
-    GOTESTSUM_RELEASE: 0.4.2
     EMAIL: noreply@hashicorp.com
     GIT_AUTHOR_NAME: circleci-consul
     GIT_COMMITTER_NAME: circleci-consul
@@ -99,8 +98,10 @@ jobs:
           name: Install gotestsum
           command: |
             url=https://github.com/gotestyourself/gotestsum/releases/download
-            curl -sSL "${url}/v${GOTESTSUM_RELEASE}/gotestsum_${GOTESTSUM_RELEASE}_linux_amd64.tar.gz" | \
+            curl -sSL "${url}/v0.5.0/gotestsum_0.5.0_linux_amd64.tar.gz" | \
               sudo tar -xz --overwrite -C /usr/local/bin gotestsum
+            which gotestsum
+            gotestsum --version
       - run: go mod download
       - run:
           name: go test
@@ -110,10 +111,12 @@ jobs:
             echo "Running $(echo $PACKAGE_NAMES | wc -w) packages"
             echo $PACKAGE_NAMES
             gotestsum --format=short-verbose \
+              --rerun-fails=3 \
+              --rerun-fails-max-failures=40 \
+              --packages="$PACKAGE_NAMES" \
               --junitfile $TEST_RESULTS_DIR/gotestsum-report.xml -- \
               -tags="$GOTAGS" -p 2 \
-              -cover -coverprofile=coverage.txt \
-              $PACKAGE_NAMES
+              -cover -coverprofile=coverage.txt
 
       - store_test_results:
           path: *TEST_RESULTS_DIR
@@ -148,9 +151,11 @@ jobs:
             mkdir -p $TEST_RESULTS_DIR
             gotestsum \
               --format=short-verbose \
+              --rerun-fails \
+              --rerun-fails-max-failures=40 \
+              --packages="./..." \
               --junitfile $TEST_RESULTS_DIR/gotestsum-report.xml -- \
-              -tags="$GOTAGS" -cover -coverprofile=coverage.txt \
-              ./...
+              -tags="$GOTAGS" -cover -coverprofile=coverage.txt
 
       - store_test_results:
           path: *TEST_RESULTS_DIR
@@ -342,8 +347,10 @@ jobs:
             mkdir -p $TEST_RESULTS_DIR
             gotestsum \
               --format=short-verbose \
+              --rerun-fails \
+              --packages="./command/agent/consul" \
               --junitfile $TEST_RESULTS_DIR/results.xml -- \
-              ./command/agent/consul -run TestConsul
+              -run TestConsul
           working_directory: *NOMAD_WORKING_DIR
 
       # store test results for CircleCI
@@ -539,11 +546,15 @@ jobs:
       - setup_remote_docker
       # Build the consul-dev image from the already built binary
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev.dockerfile .
+      - run: *install_gotestsum
       - run:
           name: Envoy Integration Tests
           command: |
             mkdir -p /tmp/test-results/
-            gotestsum -- -timeout=30m -tags integration ./test/integration/connect/envoy
+            gotestsum \
+              --rerun-fails \
+              --packages="./test/integration/connect/envoy" \
+              -- -timeout=30m -tags integration
           environment:
             GOTESTSUM_JUNITFILE: /tmp/test-results/results.xml
             GOTESTSUM_FORMAT: standard-verbose
