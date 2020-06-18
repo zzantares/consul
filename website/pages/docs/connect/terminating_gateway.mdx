@@ -74,10 +74,10 @@ You must complete the following steps to configure a terminating gateway to prox
 
 1. On a host with a Consul client agent, start an Envoy proxy using the [envoy subcommand](/docs/commands/connect/envoy#terminating-gateways) and
 specifying the `terminating` gateway type:
-    ```shell
-    $ consul connect envoy -gateway=terminating -register -service us-west-gateway \
-      -address '{{ GetInterfaceIP "eth0" }}:8443'
-    ```
+  ```shell
+  $ consul connect envoy -gateway=terminating -register -service us-west-gateway \
+    -address '{{ GetInterfaceIP "eth0" }}:8443'
+  ```
 
 2. Create and apply a `terminating-gateway` [configuration entry](/docs/agent/config-entries/terminating-gateway) that defines 
 a set of services that the gateway will proxy traffic to. The config entry can be applied via the 
@@ -99,9 +99,12 @@ Connect proxy service, to define opaque configuration parameters useful for the 
 For Envoy there are some supported [gateway options](/docs/connect/proxies/envoy#gateway-options) as well as
 [escape-hatch overrides](/docs/connect/proxies/envoy#escape-hatch-overrides).
 
--> **Note:** If ACLs are enabled, the terminating gateways must be registered with a token granting `service:write`
-for the gateway's service name **and** all linked services. These privileges will authorize the gateway
-to terminate mTLS connections on behalf of the linked services.
+-> **Note:** If ACLs are enabled, terminating gateways must be registered with a token granting `node:read` on the nodes
+of all services in its configuration entry. The token must also grant `service:write` for the terminating gateway's service name **and**
+the names of all services in the terminating gateway's configuration entry. These privileges will authorize the gateway
+to terminate mTLS connections on behalf of the linked services and then route the traffic to its final destination.
+If the Consul client agent on the gateway's node is not configured to use the default gRPC port, 8502, then the gateway's token
+must also provide `agent:read` for its node's name in order to discover the agent's gRPC port. gRPC is used to expose Envoy's xDS API to Envoy proxies.
 
 Linking services to a terminating gateway is done with a `terminating-gateway`
 [configuration entry](/docs/agent/config-entries/terminating-gateway). This config entry can be applied via the 
