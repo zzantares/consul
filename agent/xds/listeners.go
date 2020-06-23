@@ -17,8 +17,11 @@ import (
 	envoyroute "github.com/envoyproxy/go-control-plane/envoy/api/v2/route"
 	extauthz "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/ext_authz/v2"
 	envoyhttp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
+	rbac "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/rbac/v2"
 	envoytcp "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/tcp_proxy/v2"
+	rbaccfg "github.com/envoyproxy/go-control-plane/envoy/config/rbac/v2"
 	envoytype "github.com/envoyproxy/go-control-plane/envoy/type"
+	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher"
 	"github.com/envoyproxy/go-control-plane/pkg/conversion"
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/golang/protobuf/jsonpb"
@@ -31,6 +34,7 @@ import (
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/logging"
 	"github.com/hashicorp/go-hclog"
+	cel "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 // listenersFromSnapshot returns the xDS API representation of the "listeners" in the snapshot.
@@ -403,14 +407,21 @@ func makeListenerFromUserConfig(configJSON string) (*envoy.Listener, error) {
 // dynamically and intentions enforced without coming up with some complicated
 // templating/merging solution.
 func injectConnectFilters(cfgSnap *proxycfg.ConfigSnapshot, token string, listener *envoy.Listener, setTLS bool) error {
-	authFilter, err := makeExtAuthFilter(token)
+	// authFilter, err := makeExtAuthFilter(token)
+	// if err != nil {
+	// 	return err
+	// }
+
+	// Make Intention RBAC filters
+	authZFilters, err := makeIntentionNetRBACFilters(cfgSnap)
 	if err != nil {
 		return err
 	}
+
 	for idx := range listener.FilterChains {
 		// Insert our authz filter before any others
 		listener.FilterChains[idx].Filters =
-			append([]*envoylistener.Filter{authFilter}, listener.FilterChains[idx].Filters...)
+			append(authZFilters, listener.FilterChains[idx].Filters...)
 
 		listener.FilterChains[idx].TlsContext = &envoyauth.DownstreamTlsContext{
 			CommonTlsContext:         makeCommonTLSContextFromLeaf(cfgSnap, cfgSnap.Leaf()),
@@ -418,6 +429,251 @@ func injectConnectFilters(cfgSnap *proxycfg.ConfigSnapshot, token string, listen
 		}
 	}
 	return nil
+}
+
+func makeDefaultNetRBACFilter(cfgSnap *proxycfg.ConfigSnapshot) (*envoylistener.Filter, error) {
+
+	defaultAction := rbaccfg.RBAC_DENY
+	if cfgSnap.IntentionDefaultAllow {
+		defaultAction = rbaccfg.RBAC_ALLOW
+	}
+
+	rbacCfg := &rbac.RBAC{
+		StatPrefix: "intentions-default",
+		Rules: &rbaccfg.RBAC{
+			Action: defaultAction,
+			Policies: map[string]*rbaccfg.Policy{
+				"default-policy": &rbaccfg.Policy{
+					Permissions: []*rbaccfg.Permission{
+						{
+							Rule: &rbaccfg.Permission_Any{
+								Any: true,
+							},
+						},
+					},
+					Principals: []*rbaccfg.Principal{
+						{
+							Identifier: &rbaccfg.Principal_Any{
+								Any: true,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
+	return makeFilter("envoy.filters.network.rbac", rbacCfg)
+}
+
+func makeIntentionNetRBACFilters(cfgSnap *proxycfg.ConfigSnapshot) ([]*envoylistener.Filter, error) {
+	if len(cfgSnap.Intentions) < 1 {
+		// No intentions, just return the default
+		f, err := makeDefaultNetRBACFilter(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
+		return []*envoylistener.Filter{f}, nil
+	}
+
+	// We need to collapse the intentions into equivalent RBAC filters. There are
+	// some subtleties here. If we only have ALLOW intentions then we can do this
+	// in a single filter with multiple principal matchers. If we have ony DENY
+	// then the same is true. If we have a mixture then we need multiple filters
+	// and possibly need complex expressions for denies since Envoy RBAC filters
+	// are all always processed in order so higher-precedence allows need to come
+	// before lower precedence denies, but then those denies need to avoid denying
+	// requests we previously allowed further up the chain which we must do in a
+	// condition.
+
+	filters := make([]*envoylistener.Filter, 0, 1)
+	principals := make([]*rbaccfg.Principal, 0, 1)
+	previously_allowed_principals := make([]string, 0, 1)
+	last_action := structs.IntentionActionAllow
+
+	// Note that these intentions are allready in precedence order - highest
+	// first.
+	for idx, i := range cfgSnap.Intentions {
+		// Before we add this intention, see if we've switched rule action.
+		if len(principals) > 0 && last_action != i.Action {
+			// Create the filter with the previous group of principals
+			// TODO: deny might need condition.
+			f, err := makeIntentionNetRBACFilter(idx, principals,
+				previously_allowed_principals, last_action == structs.IntentionActionAllow)
+			if err != nil {
+				return nil, err
+			}
+			filters = append(filters, f)
+		}
+
+		p, pRe, err := principalFromIntention(i)
+		if err != nil {
+			return nil, err
+		}
+		if p == nil {
+			continue
+		}
+		principals = append(principals, p)
+		if i.Action == structs.IntentionActionAllow {
+			previously_allowed_principals = append(previously_allowed_principals, pRe)
+		}
+		last_action = i.Action
+	}
+
+	// Add any remaining principals to the final filter
+	if len(principals) > 0 {
+		// Create the filter with the previous group of principals
+		// TODO: deny might need condition.
+		f, err := makeIntentionNetRBACFilter(len(cfgSnap.Intentions), principals,
+			previously_allowed_principals, last_action == structs.IntentionActionAllow)
+		if err != nil {
+			return nil, err
+		}
+		filters = append(filters, f)
+	}
+
+	// Default deny is implicit when using ALLOW filters but if there are no
+	// explicit allows we need to add a deny all filter at the end.
+	//  if len(filter)
+	if !cfgSnap.IntentionDefaultAllow && len(previously_allowed_principals) == 0 {
+		f, err := makeDefaultNetRBACFilter(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
+		filters = append(filters, f)
+	}
+
+	return filters, nil
+
+}
+
+func makeIntentionNetRBACFilter(idx int, principals []*rbaccfg.Principal, previously_allowed []string, allow bool) (*envoylistener.Filter, error) {
+	name := fmt.Sprintf("intention-deny")
+	action := rbaccfg.RBAC_DENY
+	if allow {
+		name = "intention-allow"
+		action = rbaccfg.RBAC_ALLOW
+	}
+
+	var cond *cel.Expr
+
+	// If this is a DENY filter explicitly bypass it for any previously allowed
+	// principal.
+	if !allow && len(previously_allowed) > 0 {
+
+		args := make([]*cel.Expr, 0, len(previously_allowed))
+
+		for _, pRe := range previously_allowed {
+			e := &cel.Expr{
+				ExprKind: &cel.Expr_CallExpr{
+					CallExpr: &cel.Expr_Call{
+						Target: &cel.Expr{
+							ExprKind: &cel.Expr_IdentExpr{
+								IdentExpr: &cel.Expr_Ident{
+									Name: "connection.uri_san_peer_certificate",
+								},
+							},
+						},
+						Function: "matches",
+						Args: []*cel.Expr{
+							&cel.Expr{
+								ExprKind: &cel.Expr_ConstExpr{
+									ConstExpr: &cel.Constant{
+										ConstantKind: &cel.Constant_StringValue{
+											StringValue: pRe,
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			}
+			args = append(args, e)
+		}
+
+		cond = &cel.Expr{
+			ExprKind: &cel.Expr_CallExpr{
+				CallExpr: &cel.Expr_Call{
+					Function: "_||_", // Logical Or operator
+					Args:     args,
+				},
+			},
+		}
+	}
+
+	rbacCfg := &rbac.RBAC{
+		StatPrefix: "intentions",
+		Rules: &rbaccfg.RBAC{
+			Action: action,
+			Policies: map[string]*rbaccfg.Policy{
+				name: &rbaccfg.Policy{
+					Permissions: []*rbaccfg.Permission{
+						{
+							Rule: &rbaccfg.Permission_Any{
+								Any: true,
+							},
+						},
+					},
+					Principals: principals,
+					Condition:  cond,
+				},
+			},
+		},
+	}
+
+	f, err := makeFilter("envoy.filters.network.rbac", rbacCfg)
+	return f, err
+}
+
+func principalFromIntention(i *structs.Intention) (*rbaccfg.Principal, string, error) {
+	if i.SourceType != "" && i.SourceType != structs.IntentionSourceConsul {
+		// TODO(mesh-federation) support external sources here.
+		return nil, "", nil
+	}
+
+	if i.SourceNS == structs.WildcardSpecifier {
+		// We only support wildcard NS with a wildcard server for now so this is
+		// effectively a match any. Note that mTLS is enforced elsewhere so the
+		// client still needs a valid trusted Connect cert of some kind.
+		p := &rbaccfg.Principal{
+			Identifier: &rbaccfg.Principal_Any{
+				Any: true,
+			},
+		}
+		return p, "", nil
+	}
+
+	// By default, exact match both NS and Name, note that we can't use an exact
+	// string match because we need to be careful about trust domains during
+	// secondary migration and we don't care about DC component for now. Copied
+	// from connect/uri.go. I'm not sure if we should export that regex string
+	// publicly and just use it here as we need to manipulate a bit and if we
+	// ever change it we'd need to verify that Envoy's Regex flavour behaved the
+	// same as Go's before changing it here anyway.
+	regexPrefix := `^spiffe://([^/]+)/ns/` // Match any domain for now
+	regexMiddle := `/dc/([^/]+)/svc/`      // Match any DC for now
+	regexSuffix := `$`                     // No extra segments!
+
+	regexSvc := i.SourceName
+	if i.SourceName == structs.WildcardSpecifier {
+		regexSvc = `([^/]+)`
+	}
+
+	regex := regexPrefix + i.SourceNS + regexMiddle + regexSvc + regexSuffix
+
+	p := &rbaccfg.Principal{
+		Identifier: &rbaccfg.Principal_Authenticated_{
+			Authenticated: &rbaccfg.Principal_Authenticated{
+				PrincipalName: &matcher.StringMatcher{
+					// TODO: when we upgrade SDK, switch to SafeRegex
+					MatchPattern: &matcher.StringMatcher_Regex{
+						Regex: regex,
+					},
+				},
+			},
+		},
+	}
+	return p, regex, nil
 }
 
 func (s *Server) makePublicListener(cfgSnap *proxycfg.ConfigSnapshot, token string) (proto.Message, error) {
@@ -472,6 +728,7 @@ func (s *Server) makePublicListener(cfgSnap *proxycfg.ConfigSnapshot, token stri
 				},
 			},
 		}
+
 	}
 
 	err = injectConnectFilters(cfgSnap, token, l, true)

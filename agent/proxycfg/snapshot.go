@@ -277,7 +277,10 @@ type ConfigSnapshot struct {
 	// ingress-gateway specific
 	IngressGateway configSnapshotIngressGateway
 
-	// Skip intentions for now as we don't push those down yet, just pre-warm them.
+	// Intentions note this is a list of lists as returned by Match RPC. So far we
+	// only use the first list as the list of matching intentions.
+	Intentions            structs.Intentions
+	IntentionDefaultAllow bool
 }
 
 // Valid returns whether or not the snapshot has all required fields filled yet.

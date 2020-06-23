@@ -70,6 +70,10 @@ type ManagerConfig struct {
 	// logger is the agent's logger to be used for logging logs.
 	Logger          hclog.Logger
 	TLSConfigurator *tlsutil.Configurator
+
+	// IntentionDefaultAllow is set by the agent so that we can pass this
+	// information to proxies that need to make intention decisoins on their own.
+	IntentionDefaultAllow bool
 }
 
 // NewManager constructs a manager from the provided agent cache.
@@ -192,6 +196,7 @@ func (m *Manager) ensureProxyServiceLocked(ns *structs.NodeService, token string
 	state.cache = m.Cache
 	state.source = m.Source
 	state.dnsConfig = m.DNSConfig
+	state.intentionDefaultAllow = m.IntentionDefaultAllow
 	if m.TLSConfigurator != nil {
 		state.serverSNIFn = m.TLSConfigurator.ServerSNI
 	}

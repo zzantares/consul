@@ -9,6 +9,9 @@ import (
 	"text/template"
 
 	envoy "github.com/envoyproxy/go-control-plane/envoy/api/v2"
+	rbaccfg "github.com/envoyproxy/go-control-plane/envoy/config/rbac/v2"
+	matcher "github.com/envoyproxy/go-control-plane/envoy/type/matcher"
+
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/sdk/testutil"
@@ -679,4 +682,82 @@ func customListenerJSON(t *testing.T, opts customListenerJSONOptions) string {
 	err := customListenerJSONTemplate.Execute(&buf, opts)
 	require.NoError(t, err)
 	return buf.String()
+}
+
+func TestPrincipalFromIntention(t *testing.T) {
+	cases := []struct {
+		Name        string
+		SourceNS    string
+		SourceName  string
+		WantMatches []string
+		WantFails   []string
+		WantAny     bool
+	}{
+		{
+			Name:        "exact match",
+			SourceNS:    "default",
+			SourceName:  "web",
+			WantMatches: []string{"spiffe://foo.consul/ns/default/dc/blah/svc/web"},
+			WantFails: []string{
+				"spiffe://foo.consul/ns/default/dc/blah/svc/wob",
+				"spiffe://foo.consul/ns/other/dc/blah/svc/web",
+			},
+			WantAny: false,
+		},
+		{
+			Name:       "whole namespace",
+			SourceNS:   "default",
+			SourceName: "*",
+			WantMatches: []string{
+				"spiffe://foo.consul/ns/default/dc/blah/svc/web",
+				"spiffe://foo.consul/ns/default/dc/bloop/svc/api",
+			},
+			WantFails: []string{
+				"spiffe://foo.consul/ns/other/dc/blah/svc/web",
+				"spiffe://foo.consul/ns/defaultish/dc/bloop/svc/api",
+			},
+			WantAny: false,
+		},
+		{
+			Name:       "wildcard",
+			SourceNS:   "*",
+			SourceName: "*",
+			WantAny:    true,
+		},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+		t.Run(tc.Name, func(t *testing.T) {
+			i := &structs.Intention{
+				ID:              "123e4567-e89b-12d3-a456-426614174000",
+				DestinationNS:   "default",
+				DestinationName: "test",
+				SourceNS:        tc.SourceNS,
+				SourceName:      tc.SourceName,
+			}
+
+			p, _, err := principalFromIntention(i)
+			require.NoError(t, err)
+			require.NotNil(t, p)
+
+			if tc.WantAny {
+				require.IsType(t, &rbaccfg.Principal_Any{}, p.Identifier)
+				require.True(t, p.Identifier.(*rbaccfg.Principal_Any).Any)
+				return
+			}
+
+			require.IsType(t, &rbaccfg.Principal_Authenticated_{}, p.Identifier)
+
+			m := p.Identifier.(*rbaccfg.Principal_Authenticated_).Authenticated.PrincipalName.MatchPattern
+			require.IsType(t, &matcher.StringMatcher_Regex{}, m)
+
+			for _, wantMatch := range tc.WantMatches {
+				require.Regexp(t, m.(*matcher.StringMatcher_Regex).Regex, wantMatch)
+			}
+			for _, wantFail := range tc.WantFails {
+				require.NotRegexp(t, m.(*matcher.StringMatcher_Regex).Regex, wantFail)
+			}
+		})
+	}
 }
