@@ -932,6 +932,11 @@ func makeHTTPFilter(
 			// sampled.
 			RandomSampling: &envoytype.Percent{Value: 0.0},
 		},
+		UpgradeConfigs: []*envoyhttp.HttpConnectionManager_UpgradeConfig{
+			&envoyhttp.HttpConnectionManager_UpgradeConfig{
+				UpgradeType: "websocket",
+			},
+		},
 	}
 
 	if useRDS {
