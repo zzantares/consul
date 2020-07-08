@@ -4,6 +4,16 @@ source .plsdo.sh
 
 banner="Consul - project tasks"
 
+
+help[godoc]="Run godoc locally to read package documentation."
+godoc() {
+    local url; url="http://localhost:6060/pkg/$(go list)/${1-}"
+    command -v xdg-open && xdg-open "$url" &
+    command -v open && open "$url" &
+    command godoc -http=:6060
+}
+
+
 help[check]="Run 'shellcheck' on all files."
 check() {
     if ! command -v shellcheck > /dev/null; then
