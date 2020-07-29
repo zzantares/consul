@@ -2,6 +2,8 @@ package local
 
 import (
 	"fmt"
+	"github.com/mitchellh/copystructure"
+	"gopkg.in/check.v1"
 	"log"
 	"reflect"
 	"strconv"
@@ -68,10 +70,6 @@ func (s *ServiceState) Clone() *ServiceState {
 	return s2
 }
 
-func (s *ServiceState) incrementVersion() {
-	s.version = s.version + 1
-}
-
 // CheckState describes the state of a health check record.
 type CheckState struct {
 	// Check is the local copy of the health check record.
@@ -101,9 +99,6 @@ type CheckState struct {
 	// Deleted is true when the health check record has been marked as
 	// deleted but has not been removed on the server yet.
 	Deleted bool
-
-	// Defines the version of the state
-	version uint64
 }
 
 // Clone returns a shallow copy of the object.
@@ -127,10 +122,6 @@ func (c *CheckState) Critical() bool {
 // state. Its value is undefined when the service is not in critical state.
 func (c *CheckState) CriticalFor() time.Duration {
 	return time.Since(c.CriticalTime)
-}
-
-func (c *CheckState) incrementVersion() {
-	c.version = c.version + 1
 }
 
 type rpc interface {
@@ -535,7 +526,6 @@ func (l *State) removeCheckLocked(id structs.CheckID) error {
 	// entry around until it is actually removed.
 	c.InSync = false
 	c.Deleted = true
-	c.incrementVersion()
 	l.TriggerSyncChanges()
 
 	return nil
@@ -1034,44 +1024,54 @@ func (l *State) SyncFull() error {
 // SyncChanges pushes checks, services and node info data which has been
 // marked out of sync or deleted to the server.
 func (l *State) SyncChanges() error {
-	const (
-		deleted = iota
-		notInSync
-	)
-
-	var services = make(map[structs.ServiceID]int)
-	var checks = make(map[structs.CheckID]int)
+	var wg sync.WaitGroup
 
 	l.Lock()
 	{
+		// TODO: Copy tagged addresses and nodemeta
+		req := structs.RegisterRequest{
+			Datacenter:      l.config.Datacenter,
+			ID:              l.config.NodeID,
+			Node:            l.config.NodeName,
+			Address:         l.config.AdvertiseAddr,
+			TaggedAddresses: l.config.TaggedAddresses,
+			NodeMeta:        l.metadata,
+		}
+
 		for id, s := range l.services {
 			switch {
 			case s.Deleted:
-				services[id] = deleted
-				s.incrementVersion()
+				wg.Add(1)
+				go l.deleteService(wg, id)
 
 			case !s.InSync:
-				services[id] = notInSync
-				s.incrementVersion()
+				wg.Add(1)
+				go l.syncService(wg, id)
 
 			default:
 				l.logger.Printf("[DEBUG] agent: Service %q in sync", id)
 			}
 		}
 
-		for id, c := range l.checks {
+		for id := range l.checks {
+			c := l.checks[id]
+
 			switch {
 			case c.Deleted:
-				checks[id] = deleted
-
-				if c.DeferCheck != nil {
-					c.DeferCheck.Stop()
-				}
-				c.incrementVersion()
+				wg.Add(1)
+				go l.deleteCheck(wg, id)
 
 			case !c.InSync:
-				checks[id] = notInSync
-				c.incrementVersion()
+				wg.Add(1)
+
+				// Pull in the associated service if any
+				serviceKey := structs.NewServiceID(c.Check.ServiceID, &c.Check.EnterpriseMeta)
+				s := l.services[serviceKey]
+				if s != nil && !s.Deleted {
+					copy := s.Service
+				}
+
+				go l.syncCheck(wg, c, req)
 
 			default:
 				l.logger.Printf("[DEBUG] agent: Check %q in sync", id)
@@ -1080,39 +1080,7 @@ func (l *State) SyncChanges() error {
 	}
 	l.Unlock()
 
-	// We will do node-level info syncing at the end, since it will get
-	// updated by a service or check sync anyway, given how the register
-	// API works.
-
-	// Sync the services
-	// (logging happens in the helper methods)
-	for id, state := range services {
-		switch state {
-		case deleted:
-			if err := l.deleteService(id); err != nil {
-				return err
-			}
-		case notInSync:
-			if err := l.syncService(id); err != nil {
-				return err
-			}
-		}
-	}
-
-	// Sync the checks
-	// (logging happens in the helper methods)
-	for id, state := range checks {
-		switch state {
-		case deleted:
-			if err := l.deleteCheck(id); err != nil {
-				return err
-			}
-		case notInSync:
-			if err := l.syncCheck(id); err != nil {
-				return err
-			}
-		}
-	}
+	wg.Wait()
 
 	// Now sync the node level info if we need to, and didn't do any of
 	// the other sync operations.
@@ -1124,10 +1092,8 @@ func (l *State) SyncChanges() error {
 }
 
 // deleteService is used to delete a service from the server
-func (l *State) deleteService(serviceID structs.ServiceID) error {
-	if serviceID.ID == "" {
-		return fmt.Errorf("ServiceID missing")
-	}
+func (l *State) deleteService(wg sync.WaitGroup, serviceID structs.ServiceID) {
+	defer wg.Done()
 
 	req := structs.DeregisterRequest{
 		Datacenter:     l.config.Datacenter,
@@ -1160,7 +1126,6 @@ func (l *State) deleteService(serviceID structs.ServiceID) error {
 			}
 			l.logger.Printf("[INFO] agent: Deregistered service %q", serviceID.ID)
 		}
-		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the service to be in sync to prevent excessive retrying before next full sync
@@ -1168,19 +1133,15 @@ func (l *State) deleteService(serviceID structs.ServiceID) error {
 		l.services[serviceID].InSync = true
 		l.logger.Printf("[WARN] agent: Service %q deregistration blocked by ACLs", serviceID.String())
 		metrics.IncrCounter([]string{"acl", "blocked", "service", "deregistration"}, 1)
-		return nil
 
 	default:
 		l.logger.Printf("[WARN] agent: Deregistering service %q failed. %s", serviceID.String(), err)
-		return err
 	}
 }
 
 // deleteCheck is used to delete a check from the server
-func (l *State) deleteCheck(checkID structs.CheckID) error {
-	if checkID.ID == "" {
-		return fmt.Errorf("CheckID missing")
-	}
+func (l *State) deleteCheck(wg sync.WaitGroup, checkID structs.CheckID) {
+	defer wg.Done()
 
 	req := structs.DeregisterRequest{
 		Datacenter:     l.config.Datacenter,
@@ -1201,7 +1162,6 @@ func (l *State) deleteCheck(checkID structs.CheckID) error {
 			delete(l.checks, checkID)
 		}
 		l.logger.Printf("[INFO] agent: Deregistered check %q", checkID.String())
-		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the check to be in sync to prevent excessive retrying before next full sync
@@ -1209,11 +1169,9 @@ func (l *State) deleteCheck(checkID structs.CheckID) error {
 		l.checks[checkID].InSync = true
 		l.logger.Printf("[WARN] agent: Check %q deregistration blocked by ACLs", checkID.String())
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "deregistration"}, 1)
-		return nil
 
 	default:
 		l.logger.Printf("[WARN] agent: Deregistering check %q failed. %s", checkID.String(), err)
-		return err
 	}
 }
 
@@ -1227,7 +1185,9 @@ func (l *State) pruneCheck(id structs.CheckID) {
 }
 
 // syncService is used to sync a service to the server
-func (l *State) syncService(key structs.ServiceID) error {
+func (l *State) syncService(wg sync.WaitGroup, key structs.ServiceID) {
+	defer wg.Done()
+
 	// If the service has associated checks that are out of sync,
 	// piggyback them on the service sync so they are part of the
 	// same transaction and are registered atomically. We only let
@@ -1235,7 +1195,6 @@ func (l *State) syncService(key structs.ServiceID) error {
 	// otherwise we need to register them separately so they don't
 	// pick up privileges from the service token.
 	l.Lock()
-	var startVersion = l.services[key].version
 	var checks structs.HealthChecks
 	for checkKey, c := range l.checks {
 		if c.Deleted || c.InSync {
@@ -1278,9 +1237,6 @@ func (l *State) syncService(key structs.ServiceID) error {
 	switch {
 	case err == nil:
 		if s, ok := l.services[key]; ok {
-			if s.version != startVersion {
-				return nil
-			}
 			s.InSync = true
 
 			// Given how the register API works, this info is also updated
@@ -1292,7 +1248,6 @@ func (l *State) syncService(key structs.ServiceID) error {
 			}
 			l.logger.Printf("[INFO] agent: Synced service %q", key.String())
 		}
-		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the service and the checks to be in sync to prevent excessive retrying before next full sync
@@ -1305,52 +1260,23 @@ func (l *State) syncService(key structs.ServiceID) error {
 		}
 		l.logger.Printf("[WARN] agent: Service %q registration blocked by ACLs", key.String())
 		metrics.IncrCounter([]string{"acl", "blocked", "service", "registration"}, 1)
-		return nil
 
 	default:
 		l.logger.Printf("[WARN] agent: Syncing service %q failed. %s", key.String(), err)
-		return err
 	}
 }
 
 // syncCheck is used to sync a check to the server
-func (l *State) syncCheck(key structs.CheckID) error {
-	l.Lock()
+func (l *State) syncCheck(wg sync.WaitGroup, check *CheckState, req structs.RegisterRequest) {
+	defer wg.Done()
 
-	if l.checks[key] == nil {
-		return nil
-	}
-	var startVersion = l.checks[key].version
-
-	c := l.checks[key]
-	if c.DeferCheck != nil {
-		c.DeferCheck.Stop()
-		c.DeferCheck = nil
-	}
-	checkCopy := *c
-
-	l.Unlock()
-
-	req := structs.RegisterRequest{
-		Datacenter:      l.config.Datacenter,
-		ID:              l.config.NodeID,
-		Node:            l.config.NodeName,
-		Address:         l.config.AdvertiseAddr,
-		TaggedAddresses: l.config.TaggedAddresses,
-		NodeMeta:        l.metadata,
-		Check:           checkCopy.Check,
-		EnterpriseMeta:  checkCopy.Check.EnterpriseMeta,
-		WriteRequest:    structs.WriteRequest{Token: l.checkToken(key)},
+	if check.DeferCheck != nil {
+		check.DeferCheck.Stop()
+		check.DeferCheck = nil
 	}
 
-	var serviceKey structs.ServiceID
-	serviceKey.Init(checkCopy.Check.ServiceID, &key.EnterpriseMeta)
-
-	// Pull in the associated service if any
-	s := l.services[serviceKey]
-	if s != nil && !s.Deleted {
-		req.Service = s.Service
-	}
+	req.Check = check.Check
+	req.EnterpriseMeta = check.Check.EnterpriseMeta
 
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Register", &req, &out)
@@ -1361,30 +1287,21 @@ func (l *State) syncCheck(key structs.CheckID) error {
 	switch {
 	case err == nil:
 		if c, ok := l.checks[key]; ok {
-			if c.version != startVersion {
-				return nil
-			}
 			c.InSync = true
 			l.logger.Printf("[INFO] agent: Synced check %q", key.String())
 		}
-		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the check to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution
 		if c, ok := l.checks[key]; ok {
-			if c.version != startVersion {
-				return nil
-			}
 			c.InSync = true
 		}
 		l.logger.Printf("[WARN] agent: Check %q registration blocked by ACLs", key)
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "registration"}, 1)
-		return nil
 
 	default:
 		l.logger.Printf("[WARN] agent: Syncing check %q failed. %s", key, err)
-		return err
 	}
 }
 

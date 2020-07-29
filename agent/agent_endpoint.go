@@ -486,13 +486,9 @@ func (s *HTTPServer) AgentForceLeave(resp http.ResponseWriter, req *http.Request
 	return nil, s.agent.ForceLeave(addr, prune)
 }
 
-// syncChanges is a helper function which wraps a blocking call to sync
-// services and checks to the server. If the operation fails, we only
-// only warn because the write did succeed and anti-entropy will sync later.
+// syncChanges is a helper function which wraps a non-blocking call to sync services and checks to the server.
 func (s *HTTPServer) syncChanges() {
-	if err := s.agent.State.SyncChanges(); err != nil {
-		s.agent.logger.Printf("[ERR] agent: failed to sync changes: %v", err)
-	}
+	s.agent.State.TriggerSyncChanges()
 }
 
 func (s *HTTPServer) AgentRegisterCheck(resp http.ResponseWriter, req *http.Request) (interface{}, error) {
