@@ -148,10 +148,6 @@ type State struct {
 	// Config is the agent config
 	config Config
 
-	// nodeInfoInSync tracks whether the server has our correct top-level
-	// node information in sync
-	nodeInfoInSync bool
-
 	// Services tracks the local services
 	services map[structs.ServiceID]*ServiceState
 
@@ -893,11 +889,12 @@ func (l *State) updateSyncState() error {
 	l.Lock()
 	defer l.Unlock()
 
-	// Check if node info needs syncing
+	// Sync node info if needed
 	if svcNode == nil || svcNode.ID != l.config.NodeID ||
 		!reflect.DeepEqual(svcNode.TaggedAddresses, l.config.TaggedAddresses) ||
 		!reflect.DeepEqual(svcNode.Meta, l.metadata) {
-		l.nodeInfoInSync = false
+
+		l.syncNodeInfo()
 	}
 
 	// Check which services need syncing
@@ -1031,19 +1028,6 @@ func (l *State) SyncFull() error {
 func (l *State) SyncChanges() error {
 	l.Lock()
 	defer l.Unlock()
-
-	// Sync the node level info if we need to.
-	if l.nodeInfoInSync {
-		l.logger.Debug("Node info in sync")
-	} else {
-		if err := l.syncNodeInfo(); err != nil {
-			return err
-		}
-	}
-
-	// We will do node-level info syncing at the end, since it will get
-	// updated by a service or check sync anyway, given how the register
-	// API works.
 
 	// Sync the services
 	// (logging happens in the helper methods)
@@ -1218,7 +1202,6 @@ func (l *State) syncService(key structs.ServiceID) error {
 		Service:         l.services[key].Service,
 		EnterpriseMeta:  key.EnterpriseMeta,
 		WriteRequest:    structs.WriteRequest{Token: st},
-		SkipNodeUpdate:  l.nodeInfoInSync,
 	}
 
 	// Backwards-compatibility for Consul < 0.5
@@ -1233,9 +1216,6 @@ func (l *State) syncService(key structs.ServiceID) error {
 	switch {
 	case err == nil:
 		l.services[key].InSync = true
-		// Given how the register API works, this info is also updated
-		// every time we sync a service.
-		l.nodeInfoInSync = true
 		for _, check := range checks {
 			checkKey := structs.NewCheckID(check.CheckID, &check.EnterpriseMeta)
 			l.checks[checkKey].InSync = true
@@ -1279,7 +1259,6 @@ func (l *State) syncCheck(key structs.CheckID) error {
 		Check:           c.Check,
 		EnterpriseMeta:  c.Check.EnterpriseMeta,
 		WriteRequest:    structs.WriteRequest{Token: ct},
-		SkipNodeUpdate:  l.nodeInfoInSync,
 	}
 
 	serviceKey := structs.NewServiceID(c.Check.ServiceID, &key.EnterpriseMeta)
@@ -1295,9 +1274,6 @@ func (l *State) syncCheck(key structs.CheckID) error {
 	switch {
 	case err == nil:
 		l.checks[key].InSync = true
-		// Given how the register API works, this info is also updated
-		// every time we sync a check.
-		l.nodeInfoInSync = true
 		l.logger.Info("Synced check", "check", key.String())
 		return nil
 
@@ -1319,7 +1295,7 @@ func (l *State) syncCheck(key structs.CheckID) error {
 	}
 }
 
-func (l *State) syncNodeInfo() error {
+func (l *State) syncNodeInfo() {
 	at := l.tokens.AgentToken()
 	req := structs.RegisterRequest{
 		Datacenter:      l.config.Datacenter,
@@ -1334,22 +1310,17 @@ func (l *State) syncNodeInfo() error {
 	err := l.Delegate.RPC("Catalog.Register", &req, &out)
 	switch {
 	case err == nil:
-		l.nodeInfoInSync = true
 		l.logger.Info("Synced node info")
-		return nil
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// todo(fs): mark the node info to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution
-		l.nodeInfoInSync = true
 		accessorID := l.aclAccessorID(at)
 		l.logger.Warn("Node info update blocked by ACLs", "node", l.config.NodeID, "accessorID", accessorID)
 		metrics.IncrCounter([]string{"acl", "blocked", "node", "registration"}, 1)
-		return nil
 
 	default:
 		l.logger.Warn("Syncing node info failed.", "error", err)
-		return err
 	}
 }
 
