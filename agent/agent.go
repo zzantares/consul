@@ -231,6 +231,9 @@ type Agent struct {
 	// checkDockers maps the check ID to an associated Docker Exec based check
 	checkDockers map[structs.CheckID]*checks.CheckDocker
 
+	// checkK8s maps the check ID to an associated Docker Exec based check
+	checkK8s map[structs.CheckID]*checks.CheckK8s
+
 	// checkAliases maps the check ID to an associated Alias checks
 	checkAliases map[structs.CheckID]*checks.CheckAlias
 
@@ -430,6 +433,7 @@ func New(options ...AgentOption) (*Agent, error) {
 		checkTCPs:       make(map[structs.CheckID]*checks.CheckTCP),
 		checkGRPCs:      make(map[structs.CheckID]*checks.CheckGRPC),
 		checkDockers:    make(map[structs.CheckID]*checks.CheckDocker),
+		checkK8s:        make(map[structs.CheckID]*checks.CheckK8s),
 		checkAliases:    make(map[structs.CheckID]*checks.CheckAlias),
 		eventCh:         make(chan serf.UserEvent, 1024),
 		eventBuf:        make([]*UserEvent, 256),
@@ -1898,6 +1902,9 @@ func (a *Agent) ShutdownAgent() error {
 	for _, chk := range a.checkDockers {
 		chk.Stop()
 	}
+	for _, chk := range a.checkK8s {
+		chk.Stop()
+	}
 	for _, chk := range a.checkAliases {
 		chk.Stop()
 	}
@@ -3224,6 +3231,34 @@ func (a *Agent) addCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 			dockerCheck.Start()
 			a.checkDockers[cid] = dockerCheck
 
+		case chkType.IsK8s():
+			if existing, ok := a.checkK8s[cid]; ok {
+				existing.Stop()
+				delete(a.checkK8s, cid)
+			}
+			if chkType.Interval < checks.MinInterval {
+				a.logger.Warn("check has interval below minimum",
+					"check", cid.String(),
+					"minimum_interval", checks.MinInterval,
+				)
+				chkType.Interval = checks.MinInterval
+			}
+			k8sCheck := &checks.CheckK8s{
+				// TODO: Figure out how to get the Pod ID since this runs before the Pod starts
+				CheckID:   cid,
+				ServiceID: sid,
+				Interval:  chkType.Interval,
+				PodName:   chkType.PodName,
+				//HostIP:        os.Getenv("HOST_IP"),
+				Logger:        a.logger,
+				StatusHandler: statusHandler,
+			}
+			if prev := a.checkK8s[cid]; prev != nil {
+				prev.Stop()
+			}
+			k8sCheck.Start()
+			a.checkK8s[cid] = k8sCheck
+
 		case chkType.IsMonitor():
 			if existing, ok := a.checkMonitors[cid]; ok {
 				existing.Stop()
@@ -3454,6 +3489,10 @@ func (a *Agent) cancelCheckMonitors(checkID structs.CheckID) {
 	if check, ok := a.checkDockers[checkID]; ok {
 		check.Stop()
 		delete(a.checkDockers, checkID)
+	}
+	if check, ok := a.checkK8s[checkID]; ok {
+		check.Stop()
+		delete(a.checkK8s, checkID)
 	}
 }
 

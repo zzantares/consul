@@ -58,6 +58,9 @@ type CheckType struct {
 	// longer than this duration.
 	DeregisterCriticalServiceAfter time.Duration
 	OutputMaxSize                  int
+
+	// K8s stuff
+	PodName string
 }
 
 func (t *CheckType) UnmarshalJSON(data []byte) (err error) {
@@ -75,6 +78,7 @@ func (t *CheckType) UnmarshalJSON(data []byte) (err error) {
 		ScriptArgsSnake                     []string    `json:"script_args"`
 		DeregisterCriticalServiceAfterSnake interface{} `json:"deregister_critical_service_after"`
 		DockerContainerIDSnake              string      `json:"docker_container_id"`
+		PodNameSnake                        string      `json:"k8s_pod_name"`
 		TLSSkipVerifySnake                  bool        `json:"tls_skip_verify"`
 
 		// These are going to be ignored but since we are disallowing unknown fields
@@ -100,6 +104,9 @@ func (t *CheckType) UnmarshalJSON(data []byte) (err error) {
 	}
 	if t.DockerContainerID == "" {
 		t.DockerContainerID = aux.DockerContainerIDSnake
+	}
+	if t.PodName == "" {
+		t.PodName = aux.PodNameSnake
 	}
 	if aux.TLSSkipVerifySnake {
 		t.TLSSkipVerify = aux.TLSSkipVerifySnake
@@ -213,6 +220,11 @@ func (c *CheckType) IsTCP() bool {
 // IsDocker returns true when checking a docker container.
 func (c *CheckType) IsDocker() bool {
 	return c.IsScript() && c.DockerContainerID != "" && c.Interval > 0
+}
+
+// IsK8s returns true when making a k8s pod health status check.
+func (c *CheckType) IsK8s() bool {
+	return c.PodName != "" && c.Interval > 0
 }
 
 // IsGRPC checks if this is a GRPC type

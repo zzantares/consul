@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +14,10 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	v1 "k8s.io/api/core/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/go-hclog"
@@ -712,6 +717,108 @@ func (c *CheckDocker) doCheck() (string, *circbuf.Buffer, error) {
 		)
 		return api.HealthCritical, buf, nil
 	}
+}
+
+// CheckK8s is used to periodically check the health of a k8s instance
+// Supports failures_before_critical and success_before_passing.
+type CheckK8s struct {
+	CheckID   structs.CheckID
+	ServiceID structs.ServiceID
+	PodName   string
+	//HostIP        string
+	Interval      time.Duration
+	Logger        hclog.Logger
+	KubeClient    kubernetes.Interface
+	StatusHandler *StatusHandler
+
+	stop chan struct{}
+}
+
+// Kubernetes cluster client
+func (c *CheckK8s) configureKubeClient() {
+	// this as the fallback since this makes network connections and
+	// is much slower to fail.
+	config, err := rest.InClusterConfig()
+	if err != nil {
+		c.Logger.Error("error retrieving Kubernetes auth: %s", err)
+		//os.Exit(1)
+	}
+	c.KubeClient, err = kubernetes.NewForConfig(config)
+	if err != nil {
+		c.Logger.Error("error initializing Kubernetes client: %s", err)
+		//os.Exit(1)
+	}
+}
+
+func (c *CheckK8s) Start() {
+	if c.stop != nil {
+		panic("Kubernetes check already started")
+	}
+
+	if c.Logger == nil {
+		c.Logger = hclog.New(&hclog.LoggerOptions{Output: ioutil.Discard})
+	}
+
+	c.stop = make(chan struct{})
+	go c.run()
+}
+
+func (c *CheckK8s) Stop() {
+	if c.stop == nil {
+		panic("Stop called before start")
+	}
+	close(c.stop)
+}
+
+func (c *CheckK8s) run() {
+	c.configureKubeClient()
+	firstWait := lib.RandomStagger(c.Interval)
+	next := time.After(firstWait)
+	for {
+		select {
+		case <-next:
+			c.check()
+			next = time.After(c.Interval)
+		case <-c.stop:
+			return
+		}
+	}
+}
+
+func (c *CheckK8s) check() {
+	var out, status string
+	var pod *v1.Pod
+	status = api.HealthPassing
+	// Don't know the Pod ID because this is in an init container
+	/*
+		podlist, err := c.KubeClient.CoreV1().Pods(v1.NamespaceAll).List(meta_v1.ListOptions{LabelSelector: c.ServiceID.String()})
+		if err != nil {
+			// pod doesnt exist
+		}
+		for _, y := range podlist.Items {
+			if y.Status.HostIP == c.HostIP {
+				pod = y
+				break
+			}
+		}*/
+	pod, err := c.KubeClient.CoreV1().Pods(v1.NamespaceAll).Get(c.PodName, metav1.GetOptions{})
+	if err != nil {
+		// pod doesnt exist
+	}
+	for _, y := range pod.Status.Conditions {
+		if y.Type == "Ready" && y.Status != v1.ConditionTrue {
+			// unhealthy
+			out = fmt.Sprint("Pod health state is unhealthy %v:%v", y.Reason, y.Message)
+			status = api.HealthCritical
+			break
+		} else if y.Type == "Ready" && y.Status == v1.ConditionTrue {
+			// healthy
+			out = fmt.Sprint("Pod health state is healthy %v:%v", y.Reason, y.Message)
+			status = api.HealthPassing
+			break
+		}
+	}
+	c.StatusHandler.updateCheck(c.CheckID, status, out)
 }
 
 // CheckGRPC is used to periodically send request to a gRPC server
