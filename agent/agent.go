@@ -3288,7 +3288,7 @@ func (a *Agent) addCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 		// Notify channel that watches for service state changes
 		// This is a non-blocking send to avoid synchronizing on a large number of check updates
 		s := a.State.ServiceState(sid)
-		if s != nil && !s.Deleted {
+		if s != nil && !s.PendingDeletion {
 			select {
 			case s.WatchCh <- struct{}{}:
 			default:
@@ -3337,7 +3337,7 @@ func (a *Agent) removeCheckLocked(checkID structs.CheckID, persist bool) error {
 	}
 
 	s := a.State.ServiceState(svcID)
-	if s != nil && !s.Deleted {
+	if s != nil && !s.PendingDeletion {
 		select {
 		case s.WatchCh <- struct{}{}:
 		default:

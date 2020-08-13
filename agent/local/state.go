@@ -47,8 +47,12 @@ type ServiceState struct {
 	// is in sync with the remote state on the server.
 	InSync bool
 
-	// Deleted is true when the service record has been marked as deleted
+	// PendingDeletion is true when the service record has been marked as deleted
 	// but has not been removed on the server yet.
+	PendingDeletion bool
+
+	// Deleted is true when the service record has been successfully deleted from
+	// the catalog
 	Deleted bool
 
 	// WatchCh is closed when the service state changes. Suitable for use in a
@@ -71,7 +75,7 @@ type CheckState struct {
 	// Check is the local copy of the health check record.
 	//
 	// Must Clone() the overall CheckState before mutating this. After mutation
-	// reinstall into the checks map. If Deleted is true, this field can be nil.
+	// reinstall into the checks map. If PendingDeletion is true, this field can be nil.
 	Check *structs.HealthCheck
 
 	// Token is the ACL record to update or delete the health check
@@ -92,7 +96,7 @@ type CheckState struct {
 	// record is in sync with the remote state on the server.
 	InSync bool
 
-	// Deleted is true when the health check record has been marked as
+	// PendingDeletion is true when the health check record has been marked as
 	// deleted but has not been removed on the server yet.
 	Deleted bool
 }
@@ -289,7 +293,7 @@ func (l *State) RemoveServiceWithChecks(serviceID structs.ServiceID, checkIDs []
 
 func (l *State) removeServiceLocked(id structs.ServiceID) error {
 	s := l.services[id]
-	if s == nil || s.Deleted {
+	if s == nil || s.PendingDeletion {
 		return fmt.Errorf("Service %q does not exist", id)
 	}
 
@@ -297,7 +301,7 @@ func (l *State) removeServiceLocked(id structs.ServiceID) error {
 	// Therefore, we mark the service as deleted and keep the
 	// entry around until it is actually removed.
 	s.InSync = false
-	s.Deleted = true
+	s.PendingDeletion = true
 	if s.WatchCh != nil {
 		close(s.WatchCh)
 		s.WatchCh = nil
@@ -315,7 +319,7 @@ func (l *State) Service(id structs.ServiceID) *structs.NodeService {
 	defer l.RUnlock()
 
 	s := l.services[id]
-	if s == nil || s.Deleted {
+	if s == nil || s.PendingDeletion {
 		return nil
 	}
 	return s.Service
@@ -329,7 +333,7 @@ func (l *State) Services(entMeta *structs.EnterpriseMeta) map[structs.ServiceID]
 
 	m := make(map[structs.ServiceID]*structs.NodeService)
 	for id, s := range l.services {
-		if s.Deleted {
+		if s.PendingDeletion {
 			continue
 		}
 
@@ -350,7 +354,7 @@ func (l *State) ServiceState(id structs.ServiceID) *ServiceState {
 	defer l.RUnlock()
 
 	s := l.services[id]
-	if s == nil || s.Deleted {
+	if s == nil || s.PendingDeletion {
 		return nil
 	}
 	return s.Clone()
@@ -390,7 +394,7 @@ func (l *State) ServiceStates(entMeta *structs.EnterpriseMeta) map[structs.Servi
 
 	m := make(map[structs.ServiceID]*ServiceState)
 	for id, s := range l.services {
-		if s.Deleted {
+		if s.PendingDeletion {
 			continue
 		}
 		if !entMeta.Matches(&id.EnterpriseMeta) {
@@ -811,7 +815,7 @@ func (l *State) Stats() map[string]string {
 
 	services := 0
 	for _, s := range l.services {
-		if s.Deleted {
+		if s.PendingDeletion {
 			continue
 		}
 		services++
@@ -922,12 +926,12 @@ func (l *State) updateSyncState() error {
 
 			// Mark a remote service that does not exist locally as deleted so
 			// that it will be removed on the server later.
-			l.services[id] = &ServiceState{Deleted: true}
+			l.services[id] = &ServiceState{PendingDeletion: true}
 			continue
 		}
 
 		// If the service is already scheduled for removal skip it
-		if ls.Deleted {
+		if ls.PendingDeletion {
 			continue
 		}
 
@@ -1057,20 +1061,31 @@ func nodeInfoFromConfigLocked(conf Config, metadata map[string]string) (nodeInfo
 	}, nil
 }
 
+type serviceInfo struct {
+	id     structs.ServiceID
+	state  *ServiceState
+	token  string
+	checks []*CheckState
+}
+
+type checkInfo struct {
+	id      structs.CheckID
+	state   *CheckState
+	token   string
+	service *ServiceState
+}
+
 // SyncChanges pushes checks, services and node info data which has been
 // marked out of sync or deleted to the server.
 func (l *State) SyncChanges() error {
-	// WaitGroup MUST wait AFTER the lock unlocks otherwise the catalog [de]registrations are done while holding lock
-	// We do this to enable local state updates when there is network latency
 	var wg sync.WaitGroup
-	defer wg.Wait()
 
 	// No modifications are done in this goroutine, so we only grab an RLock
 	l.RLock()
-	defer l.RUnlock()
 
 	node, err := nodeInfoFromConfigLocked(l.config, l.metadata)
 	if err != nil {
+		l.RUnlock()
 		return err
 	}
 
@@ -1080,9 +1095,36 @@ func (l *State) SyncChanges() error {
 		svcToken := l.serviceToken(id)
 
 		switch {
-		case svc.Deleted:
+		case svc.PendingDeletion:
+			// If the service has associated checks that are out of sync,
+			// piggyback them on the service sync so they are part of the
+			// same transaction and are registered atomically. We only let
+			// checks ride on service registrations with the same token,
+			// otherwise we need to register them separately so they don't
+			// pick up privileges from the service token.
+			var checks []*CheckState
+			for checkKey, c := range l.checks {
+				if c.Deleted || c.InSync {
+					continue
+				}
+				sid := c.Check.CompoundServiceID()
+				if !id.Matches(&sid) {
+					continue
+				}
+				if svcToken != l.checkToken(checkKey) {
+					continue
+				}
+				checks = append(checks, c)
+			}
+			svcInfo := serviceInfo{
+				id:     id,
+				state:  svc,
+				token:  svcToken,
+				checks: checks,
+			}
+
 			wg.Add(1)
-			go l.deleteService(wg, node, svcToken, id, svc)
+			go l.deleteService(wg, node, svcInfo)
 
 		case !svc.InSync:
 			// If the service has associated checks that are out of sync,
@@ -1105,14 +1147,31 @@ func (l *State) SyncChanges() error {
 				}
 				checks = append(checks, c)
 			}
+			svcInfo := serviceInfo{
+				id:     id,
+				state:  svc,
+				token:  svcToken,
+				checks: checks,
+			}
 
 			wg.Add(1)
-			go l.syncService(wg, node, svcToken, id, svc, checks)
+			go l.syncService(wg, node, svcInfo)
 
 		default:
 			l.logger.Debug("Service in sync", "service", id.String())
 		}
 	}
+
+	// WaitGroup MUST wait AFTER the lock unlocks otherwise the catalog [de]registrations are done while holding lock
+	// We do this to enable local state updates when there is network latency
+	// This initial wait is done because checks are synced with services.
+	// If the wait was after the loop below then it is possible that we would send two updates to sync a check.
+	// Once with a service and once on its own.
+	l.RUnlock()
+	wg.Wait()
+
+	// Lock again to update catalog based on checks in state
+	l.RLock()
 
 	// Sync the checks (logging happens in the helper methods)
 	for id, c := range l.checks {
@@ -1120,19 +1179,49 @@ func (l *State) SyncChanges() error {
 
 		switch {
 		case c.Deleted:
+			chkInfo := checkInfo{
+				id:    id,
+				state: c,
+				token: chkToken,
+			}
+
 			wg.Add(1)
-			go l.deleteCheck(wg, node, chkToken, id, c)
+			go l.deleteCheck(wg, node, chkInfo)
 
 		case !c.InSync:
 			// Pull in the associated service if any
 			sid := structs.NewServiceID(c.Check.ServiceID, &c.Check.EnterpriseMeta)
 			svc := l.services[sid]
+			chkInfo := checkInfo{
+				id:      id,
+				state:   c,
+				token:   chkToken,
+				service: svc,
+			}
 
 			wg.Add(1)
-			go l.syncCheck(wg, node, chkToken, id, c, svc)
+			go l.syncCheck(wg, node, chkInfo)
 
 		default:
 			l.logger.Debug("Check in sync", "check", id.String())
+		}
+	}
+
+	l.RUnlock()
+	wg.Wait()
+
+	l.Lock()
+	defer l.Unlock()
+
+	// Clean up all checks and services that were successfully removed from the catalog
+	for id, c := range l.checks {
+		if c.Deleted {
+			delete(l.checks, id)
+		}
+	}
+	for id, svc := range l.services {
+		if svc.Deleted {
+			delete(l.services, id)
 		}
 	}
 
@@ -1140,110 +1229,88 @@ func (l *State) SyncChanges() error {
 }
 
 // deleteService is used to delete a service from the server
-func (l *State) deleteService(wg sync.WaitGroup, node nodeInfo, svcToken string, key structs.ServiceID, svc *ServiceState) {
+func (l *State) deleteService(wg sync.WaitGroup, node nodeInfo, svc serviceInfo) {
 	defer wg.Done()
 
 	req := structs.DeregisterRequest{
 		Datacenter:     node.datacenter,
 		Node:           node.node,
-		ServiceID:      key.ID,
-		EnterpriseMeta: key.EnterpriseMeta,
-		WriteRequest:   structs.WriteRequest{Token: svcToken},
+		ServiceID:      svc.id.ID,
+		EnterpriseMeta: svc.id.EnterpriseMeta,
+		WriteRequest:   structs.WriteRequest{Token: svc.token},
 	}
 
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
 	switch {
 	case err == nil || strings.Contains(err.Error(), "Unknown service"):
-		l.Lock()
-		defer l.Unlock()
-
-		// Avoid deleting an updated service registration
-		if existing := l.services[key]; existing == svc {
-			delete(l.services, key)
-
-			// Service deregister also deregisters associated checks, so delete them locally
-			// TODO: Should this list of checks be passed in like in syncService?
-			for _, c := range l.checks {
-				if c.Deleted && c.Check != nil {
-					sid := c.Check.CompoundServiceID()
-					if sid.Matches(&key) {
-						cid := c.Check.CompoundCheckID()
-						if c := l.checks[cid]; c != nil {
-							if c.DeferCheck != nil {
-								c.DeferCheck.Stop()
-							}
-							delete(l.checks, cid)
-						}
-					}
-				}
+		svc.state.Deleted = true
+		for _, c := range svc.checks {
+			if c.DeferCheck != nil {
+				c.DeferCheck.Stop()
 			}
-			l.logger.Info("Deregistered service", "service", key.ID)
+			c.Deleted = true
 		}
+
+		l.logger.Info("Deregistered service", "service", svc.id.ID)
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// Mark the service and the checks to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution than marking these in sync
-		svc.InSync = true
-		accessorID := l.aclAccessorID(svcToken)
+		svc.state.InSync = true
+		accessorID := l.aclAccessorID(svc.token)
 
-		l.logger.Warn("Service deregistration blocked by ACLs", "service", key.String(), "accessorID", accessorID)
+		l.logger.Warn("Service deregistration blocked by ACLs", "service", svc.id.String(), "accessorID", accessorID)
 		metrics.IncrCounter([]string{"acl", "blocked", "service", "deregistration"}, 1)
 
 	default:
 		// TODO: How do we feel about these error handling in these changes? We no longer return an error but rather
 		//       print that we failed to sync changes here
 		l.logger.Warn("failed to sync changes: Deregistering service failed.",
-			"service", key.String(),
+			"service", svc.id.String(),
 			"error", err,
 		)
 	}
 }
 
 // deleteCheck is used to delete a check from the server
-func (l *State) deleteCheck(wg sync.WaitGroup, node nodeInfo, chkToken string, key structs.CheckID, chk *CheckState) {
+func (l *State) deleteCheck(wg sync.WaitGroup, node nodeInfo, chk checkInfo) {
 	defer wg.Done()
 
 	// We can stop the update deferral timer since we are updating the check now
-	if chk.DeferCheck != nil {
-		chk.DeferCheck.Stop()
-		chk.DeferCheck = nil
+	if chk.state.DeferCheck != nil {
+		chk.state.DeferCheck.Stop()
+		chk.state.DeferCheck = nil
 	}
 
 	req := structs.DeregisterRequest{
-		Datacenter:     l.config.Datacenter,
-		Node:           l.config.NodeName,
-		CheckID:        key.ID,
-		EnterpriseMeta: key.EnterpriseMeta,
-		WriteRequest:   structs.WriteRequest{Token: chkToken},
+		Datacenter:     node.datacenter,
+		Node:           node.node,
+		CheckID:        chk.id.ID,
+		EnterpriseMeta: chk.id.EnterpriseMeta,
+		WriteRequest:   structs.WriteRequest{Token: chk.token},
 	}
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Deregister", &req, &out)
 	switch {
 	case err == nil || strings.Contains(err.Error(), "Unknown check"):
-		l.Lock()
-		defer l.Unlock()
-
-		// Avoid deleting an updated check registration
-		if existing := l.checks[key]; existing == chk {
-			delete(l.checks, key)
-		}
-		l.logger.Info("Deregistered check", "check", key.String())
+		chk.state.Deleted = true
+		l.logger.Info("Deregistered check", "check", chk.id.String())
 		return
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// Mark the service and the checks to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution than marking these in sync
-		chk.InSync = true
-		accessorID := l.aclAccessorID(chkToken)
+		chk.state.InSync = true
+		accessorID := l.aclAccessorID(chk.token)
 
-		l.logger.Warn("Check deregistration blocked by ACLs", "check", key.String(), "accessorID", accessorID)
+		l.logger.Warn("Check deregistration blocked by ACLs", "check", chk.id.String(), "accessorID", accessorID)
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "deregistration"}, 1)
 		return
 
 	default:
 		l.logger.Warn("failed to sync changes: Deregistering check failed.",
-			"check", key.String(),
+			"check", chk.id.String(),
 			"error", err,
 		)
 		return
@@ -1251,68 +1318,7 @@ func (l *State) deleteCheck(wg sync.WaitGroup, node nodeInfo, chkToken string, k
 }
 
 // syncService is used to sync a service to the server
-func (l *State) syncService(
-	wg sync.WaitGroup, node nodeInfo, svcToken string, key structs.ServiceID, svc *ServiceState, checkStates []*CheckState) {
-	defer wg.Done()
-
-	req := structs.RegisterRequest{
-		Datacenter:      l.config.Datacenter,
-		ID:              l.config.NodeID,
-		Node:            l.config.NodeName,
-		Address:         l.config.AdvertiseAddr,
-		TaggedAddresses: l.config.TaggedAddresses,
-		NodeMeta:        l.metadata,
-		Service:         svc.Service,
-		EnterpriseMeta:  key.EnterpriseMeta,
-		WriteRequest:    structs.WriteRequest{Token: svcToken},
-	}
-
-	if len(checkStates) == 1 {
-		// Backwards-compatibility for Consul < 0.5
-		req.Check = checkStates[0].Check
-	} else {
-		var checks structs.HealthChecks
-		for _, c := range checkStates {
-			checks = append(checks, c.Check)
-		}
-		req.Checks = checks
-	}
-
-	var out struct{}
-	err := l.Delegate.RPC("Catalog.Register", &req, &out)
-	switch {
-	case err == nil:
-		svc.InSync = true
-		for _, c := range checkStates {
-			c.InSync = true
-		}
-		l.logger.Info("Synced service", "service", key.String())
-		return
-
-	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
-		// Mark the service and the checks to be in sync to prevent excessive retrying before next full sync
-		// todo(fs): some backoff strategy might be a better solution than marking these in sync
-		svc.InSync = true
-		for _, c := range checkStates {
-			c.InSync = true
-		}
-
-		accessorID := l.aclAccessorID(svcToken)
-		l.logger.Warn("Service registration blocked by ACLs", "service", key.String(), "accessorID", accessorID)
-		metrics.IncrCounter([]string{"acl", "blocked", "service", "registration"}, 1)
-		return
-
-	default:
-		l.logger.Warn("failed to sync changes: Syncing service failed.",
-			"service", key.String(),
-			"error", err,
-		)
-		return
-	}
-}
-
-// syncCheck is used to sync a check to the server
-func (l *State) syncCheck(wg sync.WaitGroup, node nodeInfo, chkToken string, key structs.CheckID, chk *CheckState, svc *ServiceState) {
+func (l *State) syncService(wg sync.WaitGroup, node nodeInfo, svc serviceInfo) {
 	defer wg.Done()
 
 	req := structs.RegisterRequest{
@@ -1322,35 +1328,95 @@ func (l *State) syncCheck(wg sync.WaitGroup, node nodeInfo, chkToken string, key
 		Address:         node.address,
 		TaggedAddresses: node.taggedAddresses,
 		NodeMeta:        node.metadata,
-		Check:           chk.Check,
-		EnterpriseMeta:  chk.Check.EnterpriseMeta,
-		WriteRequest:    structs.WriteRequest{Token: chkToken},
+		Service:         svc.state.Service,
+		EnterpriseMeta:  svc.id.EnterpriseMeta,
+		WriteRequest:    structs.WriteRequest{Token: svc.token},
 	}
-	if svc != nil && !svc.Deleted {
-		req.Service = svc.Service
+
+	if len(svc.checks) == 1 {
+		// Backwards-compatibility for Consul < 0.5
+		req.Check = svc.checks[0].Check
+	} else {
+		var checks structs.HealthChecks
+		for _, c := range svc.checks {
+			checks = append(checks, c.Check)
+		}
+		req.Checks = checks
 	}
 
 	var out struct{}
 	err := l.Delegate.RPC("Catalog.Register", &req, &out)
 	switch {
 	case err == nil:
-		chk.InSync = true
-		l.logger.Info("Synced check", "check", key.String())
+		svc.state.InSync = true
+		for _, c := range svc.checks {
+			c.InSync = true
+		}
+		l.logger.Info("Synced service", "service", svc.id.String())
 		return
 
 	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
 		// Mark the service and the checks to be in sync to prevent excessive retrying before next full sync
 		// todo(fs): some backoff strategy might be a better solution than marking these in sync
-		chk.InSync = true
-		accessorID := l.aclAccessorID(chkToken)
+		svc.state.InSync = true
+		for _, c := range svc.checks {
+			c.InSync = true
+		}
 
-		l.logger.Warn("Check registration blocked by ACLs", "check", key.String(), "accessorID", accessorID)
+		accessorID := l.aclAccessorID(svc.token)
+		l.logger.Warn("Service registration blocked by ACLs", "service", svc.id.String(), "accessorID", accessorID)
+		metrics.IncrCounter([]string{"acl", "blocked", "service", "registration"}, 1)
+		return
+
+	default:
+		l.logger.Warn("failed to sync changes: Syncing service failed.",
+			"service", svc.id.String(),
+			"error", err,
+		)
+		return
+	}
+}
+
+// syncCheck is used to sync a check to the server
+func (l *State) syncCheck(wg sync.WaitGroup, node nodeInfo, chk checkInfo) {
+	defer wg.Done()
+
+	req := structs.RegisterRequest{
+		Datacenter:      node.datacenter,
+		ID:              node.id,
+		Node:            node.node,
+		Address:         node.address,
+		TaggedAddresses: node.taggedAddresses,
+		NodeMeta:        node.metadata,
+		Check:           chk.state.Check,
+		EnterpriseMeta:  chk.state.Check.EnterpriseMeta,
+		WriteRequest:    structs.WriteRequest{Token: chk.token},
+	}
+	if chk.service != nil && !chk.service.PendingDeletion {
+		req.Service = chk.service.Service
+	}
+
+	var out struct{}
+	err := l.Delegate.RPC("Catalog.Register", &req, &out)
+	switch {
+	case err == nil:
+		chk.state.InSync = true
+		l.logger.Info("Synced check", "check", chk.id.String())
+		return
+
+	case acl.IsErrPermissionDenied(err), acl.IsErrNotFound(err):
+		// Mark the service and the checks to be in sync to prevent excessive retrying before next full sync
+		// todo(fs): some backoff strategy might be a better solution than marking these in sync
+		chk.state.InSync = true
+		accessorID := l.aclAccessorID(chk.token)
+
+		l.logger.Warn("Check registration blocked by ACLs", "check", chk.id.String(), "accessorID", accessorID)
 		metrics.IncrCounter([]string{"acl", "blocked", "check", "registration"}, 1)
 		return
 
 	default:
 		l.logger.Warn("failed to sync changes: Syncing check failed.",
-			"check", key.String(),
+			"check", chk.id.String(),
 			"error", err,
 		)
 		return
