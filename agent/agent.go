@@ -407,28 +407,12 @@ func (a *Agent) Start(ctx context.Context) error {
 	a.stateLock.Lock()
 	defer a.stateLock.Unlock()
 
-	// This needs to be done early on as it will potentially alter the configuration
-	// and then how other bits are brought up
-	c, err := a.autoConf.InitialConfiguration(ctx)
-	if err != nil {
-		return err
-	}
-
-	// copy over the existing node id, this cannot be
-	// changed while running anyways but this prevents
-	// breaking some existing behavior. then overwrite
-	// the configuration
-	c.NodeID = a.config.NodeID
-	a.config = c
-
-	if err := a.tlsConfigurator.Update(a.config.ToTLSUtilConfig()); err != nil {
-		return fmt.Errorf("Failed to load TLS configurations after applying auto-config settings: %w", err)
-	}
-
 	// TODO: move to newBaseDeps
 	// TODO: handle error
 	a.loadTokens(a.config)
 	a.loadEnterpriseTokens(a.config)
+
+	c := a.config
 
 	// create the local state
 	a.State = local.NewState(LocalConfig(c), a.logger, a.tokens)

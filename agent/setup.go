@@ -166,3 +166,29 @@ func (a *deferredAutoConfig) autoConfigPersist(resp *structs.SignedResponse) err
 	}
 	return a.autoConf.RecordUpdatedCerts(resp)
 }
+
+func Initialize(ctx context.Context, bd BaseDeps) (BaseDeps, error) {
+	bd, err := applyAutoConfig(ctx, bd)
+	if err != nil {
+		return bd, err
+	}
+
+	// TODO: more here
+	return bd, err
+}
+
+func applyAutoConfig(ctx context.Context, bd BaseDeps) (BaseDeps, error) {
+	cfg, err := bd.AutoConfig.InitialConfiguration(ctx)
+	if err != nil {
+		return bd, err
+	}
+
+	// Preserve the existing node id. It cannot be changed by auto-config
+	cfg.NodeID = bd.RuntimeConfig.NodeID
+	bd.RuntimeConfig = cfg
+
+	if err := bd.TLSConfigurator.Update(cfg.ToTLSUtilConfig()); err != nil {
+		return bd, fmt.Errorf("Failed to load TLS configurations after applying auto-config settings: %w", err)
+	}
+	return bd, nil
+}
