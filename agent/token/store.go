@@ -1,6 +1,7 @@
 package token
 
 import (
+	"path/filepath"
 	"sync"
 
 	"crypto/subtle"
@@ -40,6 +41,8 @@ type Notifier struct {
 // plumbed around and used to get tokens at runtime, don't save the resulting
 // tokens.
 type Store struct {
+	persistence *fileStore
+
 	// l synchronizes access to the token store.
 	l sync.RWMutex
 
@@ -158,7 +161,7 @@ func (t *Store) sendNotificationLocked(kinds ...TokenKind) {
 // Returns true if it was changed.
 func (t *Store) UpdateUserToken(token string, source TokenSource) bool {
 	t.l.Lock()
-	changed := (t.userToken != token || t.userTokenSource != source)
+	changed := t.userToken != token || t.userTokenSource != source
 	t.userToken = token
 	t.userTokenSource = source
 	if changed {
@@ -172,7 +175,7 @@ func (t *Store) UpdateUserToken(token string, source TokenSource) bool {
 // Returns true if it was changed.
 func (t *Store) UpdateAgentToken(token string, source TokenSource) bool {
 	t.l.Lock()
-	changed := (t.agentToken != token || t.agentTokenSource != source)
+	changed := t.agentToken != token || t.agentTokenSource != source
 	t.agentToken = token
 	t.agentTokenSource = source
 	if changed {
@@ -186,7 +189,7 @@ func (t *Store) UpdateAgentToken(token string, source TokenSource) bool {
 // Returns true if it was changed.
 func (t *Store) UpdateAgentMasterToken(token string, source TokenSource) bool {
 	t.l.Lock()
-	changed := (t.agentMasterToken != token || t.agentMasterTokenSource != source)
+	changed := t.agentMasterToken != token || t.agentMasterTokenSource != source
 	t.agentMasterToken = token
 	t.agentMasterTokenSource = source
 	if changed {
@@ -200,7 +203,7 @@ func (t *Store) UpdateAgentMasterToken(token string, source TokenSource) bool {
 // Returns true if it was changed.
 func (t *Store) UpdateReplicationToken(token string, source TokenSource) bool {
 	t.l.Lock()
-	changed := (t.replicationToken != token || t.replicationTokenSource != source)
+	changed := t.replicationToken != token || t.replicationTokenSource != source
 	t.replicationToken = token
 	t.replicationTokenSource = source
 	if changed {
@@ -286,4 +289,47 @@ func (t *Store) IsAgentMasterToken(token string) bool {
 	defer t.l.RUnlock()
 
 	return (token != "") && (subtle.ConstantTimeCompare([]byte(token), []byte(t.agentMasterToken)) == 1)
+}
+
+type Logger interface {
+	Warn(msg string, args ...interface{})
+}
+
+type Config struct {
+	EnablePersistence   bool
+	DataDir             string
+	ACLDefaultToken     string
+	ACLAgentToken       string
+	ACLAgentMasterToken string
+	ACLReplicationToken string
+}
+
+const tokensPath = "acl-tokens.json"
+
+// TODO: godoc
+func (t *Store) Load(cfg Config, logger Logger) error {
+	if !cfg.EnablePersistence {
+		t.persistence = nil
+		loadTokens(t, cfg, persistedTokens{}, logger)
+		return nil
+	}
+
+	t.persistence = &fileStore{
+		filename: filepath.Join(cfg.DataDir, tokensPath),
+		logger:   logger,
+	}
+	return t.persistence.load(t, cfg)
+}
+
+// WithPersistenceLock executes f while hold a lock. If f returns a nil error,
+// the tokens in Store will be persisted to the tokens file. Otherwise no
+// tokens will be persisted, and the error from f will be returned.
+//
+// The lock is held so that the writes are persisted before some other thread
+// can change the value.
+func (t *Store) WithPersistenceLock(f func() error) error {
+	if t.persistence == nil {
+		return f()
+	}
+	return t.persistence.withPersistenceLock(t, f)
 }
