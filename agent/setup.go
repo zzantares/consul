@@ -173,6 +173,8 @@ func Initialize(ctx context.Context, bd BaseDeps) (BaseDeps, error) {
 		return bd, err
 	}
 
+	//a.loadTokens(a.config)
+
 	// TODO: more here
 	return bd, err
 }

@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/consul/agent/config"
 	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/structs"
+	"github.com/hashicorp/consul/agent/token"
 	"github.com/hashicorp/consul/api"
 )
 
@@ -24,7 +25,7 @@ func (a *Agent) initEnterprise(consulCfg *consul.Config) error {
 }
 
 // loadEnterpriseTokens is a noop stub for the func defined agent_ent.go
-func (a *Agent) loadEnterpriseTokens(conf *config.RuntimeConfig) {
+func loadEnterpriseTokens(_ *token.Store, _ *config.RuntimeConfig) {
 }
 
 // reloadEnterprise is a noop stub for the func defined agent_ent.go
