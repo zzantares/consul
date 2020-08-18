@@ -22,19 +22,28 @@ export default [
           'eureka',
           'istio',
           'proxies',
-          'custom'
+          'custom',
         ],
       },
     ],
   },
 
-  { category: 'install', content: [
-    {title: 'Consul Agent', href: '/docs/agent'}, 
-  'concepts', 'ports', 'bootstrapping', 'cloud-auto-join', 'performance', {title: 'Kubernetes', href: '/docs/k8s'} ] },
+  {
+    category: 'install',
+    content: [
+      { title: 'Consul Agent', href: '/docs/agent' },
+      'concepts',
+      'ports',
+      'bootstrapping',
+      'cloud-auto-join',
+      'performance',
+      { title: 'Kubernetes', href: '/docs/k8s' },
+    ],
+  },
   {
     category: 'discovery',
     name: 'Service Discovery',
-    content: ['services', 'dns','checks'],
+    content: ['services', 'dns', 'checks'],
   },
 
   {
@@ -55,18 +64,20 @@ export default [
       'observability',
       {
         category: 'l7-traffic',
-        content: ['discovery-chain']
+        content: ['discovery-chain'],
       },
       'connectivity-tasks',
       {
         category: 'gateways',
-        content: [ 
+        content: [
           {
             category: 'mesh-gateway',
             content: ['wan-federation-via-mesh-gateways'],
-           },
+          },
 
-           'ingress-gateway', 'terminating-gateway'],
+          'ingress-gateway',
+          'terminating-gateway',
+        ],
       },
       'nomad',
       { title: 'Kubernetes', href: '/docs/k8s/connect' },
@@ -75,7 +86,7 @@ export default [
         category: 'ca',
         content: ['consul', 'vault', 'aws'],
       },
-      'dev'
+      'dev',
     ],
   },
   {
@@ -134,19 +145,24 @@ export default [
       {
         category: 'connect',
         name: 'Connect Service Mesh',
-        content: ['overview', 'ingress-gateways', 'terminating-gateways', 'connect-ca-provider'],
+        content: [
+          'overview',
+          'ingress-gateways',
+          'terminating-gateways',
+          'connect-ca-provider',
+        ],
       },
       'service-sync',
       'dns',
       'ambassador',
       'upgrade',
-      'uninstall'
+      'uninstall',
     ],
   },
   {
     category: 'dynamic-app-config',
     name: 'Dynamic App Configuration',
-    content: ['kv', 'sessions', 'watches']
+    content: ['kv', 'sessions', 'watches'],
   },
   {
     category: 'agent',
@@ -172,17 +188,17 @@ export default [
     content: [
       {
         category: 'acl',
-      content: [
-        'acl-system',
-        'acl-rules',
-        'acl-legacy',
-        'acl-migrate-tokens',
-        { category: 'auth-methods', content: ['kubernetes', 'jwt', 'oidc'] },
-      ],
-    },
-    'encryption',
-    ]
-  }, 
+        content: [
+          'acl-system',
+          'acl-rules',
+          'acl-legacy',
+          'acl-migrate-tokens',
+          { category: 'auth-methods', content: ['kubernetes', 'jwt', 'oidc'] },
+        ],
+      },
+      'encryption',
+    ],
+  },
   {
     category: 'enterprise',
     content: [
@@ -190,7 +206,10 @@ export default [
       'backups',
       'upgrades',
       'read-scale',
-      {title: 'Single sign-on - OIDC', href: '/docs/security/acl/auth-methods/oidc'},
+      {
+        title: 'Single sign-on - OIDC',
+        href: '/docs/security/acl/auth-methods/oidc',
+      },
       'redundancy',
       'federation',
       'namespaces',
@@ -200,14 +219,8 @@ export default [
   },
   {
     category: 'architecture',
-    content: [
-      'anti-entropy',
-      'consensus',
-      'gossip',
-      'jepsen',
-      'coordinates',
-    ]
-  }, 
+    content: ['anti-entropy', 'consensus', 'gossip', 'jepsen', 'coordinates'],
+  },
   'partnerships',
   'download-tools',
   {
@@ -219,5 +232,4 @@ export default [
     name: 'Troubleshoot',
     content: ['common-errors', 'faq'],
   },
-
 ]
