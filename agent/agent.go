@@ -68,9 +68,6 @@ const (
 	checksDir     = "checks"
 	checkStateDir = "checks/state"
 
-	// Name of the file tokens will be persisted within
-	tokensPath = "acl-tokens.json"
-
 	// Default reasons for node/service maintenance mode
 	defaultNodeMaintReason = "Maintenance mode is enabled for this node, " +
 		"but no reason was provided. This is a default message."
@@ -275,7 +272,7 @@ type Agent struct {
 	// tokens holds ACL tokens initially from the configuration, but can
 	// be updated at runtime, so should always be used instead of going to
 	// the configuration directly.
-	tokens *token.Store
+	tokens *token.PersistedStore
 
 	// proxyConfig is the manager for proxy service (Kind = connect-proxy)
 	// configuration state. This ensures all state needed by a proxy registration
@@ -294,11 +291,6 @@ type Agent struct {
 	// tlsConfigurator is the central instance to provide a *tls.Config
 	// based on the current consul configuration.
 	tlsConfigurator *tlsutil.Configurator
-
-	// persistedTokensLock is used to synchronize access to the persisted token
-	// store within the data directory. This will prevent loading while writing as
-	// well as multiple concurrent writes.
-	persistedTokensLock sync.RWMutex
 
 	// httpConnLimiter is used to limit connections to the HTTP server by client
 	// IP.
@@ -3593,6 +3585,7 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 	// to ensure the correct tokens are available for attaching to
 	// the checks and service registrations.
 	a.loadTokens(newCfg)
+	loadEnterpriseTokens(a.tokens.Store, newCfg)
 
 	if err := a.tlsConfigurator.Update(newCfg.ToTLSUtilConfig()); err != nil {
 		return fmt.Errorf("Failed reloading tls configuration: %s", err)

@@ -1,4 +1,4 @@
-package agent
+package token
 
 import (
 	"io/ioutil"
