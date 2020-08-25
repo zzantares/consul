@@ -112,22 +112,22 @@ func TestStore_RegularTokens(t *testing.T) {
 
 			require.Equal(t, tt.effective.user, s.UserToken())
 			require.Equal(t, tt.effective.agent, s.AgentToken())
-			require.Equal(t, tt.effective.master, s.AgentMasterToken())
+			require.Equal(t, tt.effective.master, s.agentMasterToken)
 			require.Equal(t, tt.effective.repl, s.ReplicationToken())
 
-			tok, src := s.UserTokenAndSource()
+			tok, src := s.userTokenAndSource()
 			require.Equal(t, tt.raw.user, tok)
 			require.Equal(t, tt.raw.userSource, src)
 
-			tok, src = s.AgentTokenAndSource()
+			tok, src = s.agentTokenAndSource()
 			require.Equal(t, tt.raw.agent, tok)
 			require.Equal(t, tt.raw.agentSource, src)
 
-			tok, src = s.AgentMasterTokenAndSource()
+			tok, src = s.agentMasterTokenAndSource()
 			require.Equal(t, tt.raw.master, tok)
 			require.Equal(t, tt.raw.masterSource, src)
 
-			tok, src = s.ReplicationTokenAndSource()
+			tok, src = s.replicationTokenAndSource()
 			require.Equal(t, tt.raw.repl, tok)
 			require.Equal(t, tt.raw.replSource, src)
 		})

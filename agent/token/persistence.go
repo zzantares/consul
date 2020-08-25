@@ -160,19 +160,19 @@ func (p *fileStore) withPersistenceLock(s *Store, f func() error) error {
 
 func (p *fileStore) saveToFile(s *Store) error {
 	tokens := persistedTokens{}
-	if tok, source := s.UserTokenAndSource(); tok != "" && source == TokenSourceAPI {
+	if tok, source := s.userTokenAndSource(); tok != "" && source == TokenSourceAPI {
 		tokens.Default = tok
 	}
 
-	if tok, source := s.AgentTokenAndSource(); tok != "" && source == TokenSourceAPI {
+	if tok, source := s.agentTokenAndSource(); tok != "" && source == TokenSourceAPI {
 		tokens.Agent = tok
 	}
 
-	if tok, source := s.AgentMasterTokenAndSource(); tok != "" && source == TokenSourceAPI {
+	if tok, source := s.agentMasterTokenAndSource(); tok != "" && source == TokenSourceAPI {
 		tokens.AgentMaster = tok
 	}
 
-	if tok, source := s.ReplicationTokenAndSource(); tok != "" && source == TokenSourceAPI {
+	if tok, source := s.replicationTokenAndSource(); tok != "" && source == TokenSourceAPI {
 		tokens.Replication = tok
 	}
 

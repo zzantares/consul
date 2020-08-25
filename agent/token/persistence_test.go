@@ -26,7 +26,7 @@ func TestStore_Load(t *testing.T) {
 		}
 		require.NoError(t, store.Load(cfg, logger))
 		require.Equal(t, "alfa", store.AgentToken())
-		require.Equal(t, "bravo", store.AgentMasterToken())
+		require.Equal(t, "bravo", store.agentMasterToken)
 		require.Equal(t, "charlie", store.UserToken())
 		require.Equal(t, "delta", store.ReplicationToken())
 	})
@@ -43,7 +43,7 @@ func TestStore_Load(t *testing.T) {
 		require.NoError(t, store.Load(cfg, logger))
 		require.Equal(t, "echo", store.UserToken())
 		require.Equal(t, "foxtrot", store.AgentToken())
-		require.Equal(t, "golf", store.AgentMasterToken())
+		require.Equal(t, "golf", store.agentMasterToken)
 		require.Equal(t, "hotel", store.ReplicationToken())
 	})
 
@@ -69,14 +69,14 @@ func TestStore_Load(t *testing.T) {
 		// no updates since token persistence is not enabled
 		require.Equal(t, "echo", store.UserToken())
 		require.Equal(t, "foxtrot", store.AgentToken())
-		require.Equal(t, "golf", store.AgentMasterToken())
+		require.Equal(t, "golf", store.agentMasterToken)
 		require.Equal(t, "hotel", store.ReplicationToken())
 
 		cfg.EnablePersistence = true
 		require.NoError(t, store.Load(cfg, logger))
 
 		require.Equal(t, "india", store.AgentToken())
-		require.Equal(t, "juliett", store.AgentMasterToken())
+		require.Equal(t, "juliett", store.agentMasterToken)
 		require.Equal(t, "kilo", store.UserToken())
 		require.Equal(t, "lima", store.ReplicationToken())
 
@@ -105,7 +105,7 @@ func TestStore_Load(t *testing.T) {
 		require.NoError(t, store.Load(cfg, logger))
 
 		require.Equal(t, "mike", store.AgentToken())
-		require.Equal(t, "november", store.AgentMasterToken())
+		require.Equal(t, "november", store.agentMasterToken)
 		require.Equal(t, "oscar", store.UserToken())
 		require.Equal(t, "papa", store.ReplicationToken())
 	})
@@ -129,7 +129,7 @@ func TestStore_Load(t *testing.T) {
 		require.NoError(t, store.Load(cfg, logger))
 
 		require.Equal(t, "uniform", store.AgentToken())
-		require.Equal(t, "victor", store.AgentMasterToken())
+		require.Equal(t, "victor", store.agentMasterToken)
 		require.Equal(t, "whiskey", store.UserToken())
 		require.Equal(t, "zulu", store.ReplicationToken())
 	})
@@ -151,7 +151,7 @@ func TestStore_Load(t *testing.T) {
 
 		require.Equal(t, "one", store.UserToken())
 		require.Equal(t, "two", store.AgentToken())
-		require.Equal(t, "three", store.AgentMasterToken())
+		require.Equal(t, "three", store.agentMasterToken)
 		require.Equal(t, "four", store.ReplicationToken())
 	})
 
@@ -172,7 +172,7 @@ func TestStore_Load(t *testing.T) {
 
 		require.Equal(t, "alfa", store.UserToken())
 		require.Equal(t, "bravo", store.AgentToken())
-		require.Equal(t, "charlie", store.AgentMasterToken())
+		require.Equal(t, "charlie", store.agentMasterToken)
 		require.Equal(t, "foxtrot", store.ReplicationToken())
 	})
 }

@@ -4927,24 +4927,8 @@ func TestAgent_Token(t *testing.T) {
 			require.Equal(t, tt.code, resp.Code)
 			require.Equal(t, tt.effective.user, a.tokens.UserToken())
 			require.Equal(t, tt.effective.agent, a.tokens.AgentToken())
-			require.Equal(t, tt.effective.master, a.tokens.AgentMasterToken())
+			require.True(t, tt.effective.master == "" || a.tokens.IsAgentMasterToken(tt.effective.master))
 			require.Equal(t, tt.effective.repl, a.tokens.ReplicationToken())
-
-			tok, src := a.tokens.UserTokenAndSource()
-			require.Equal(t, tt.raw.user, tok)
-			require.Equal(t, tt.raw.userSource, src)
-
-			tok, src = a.tokens.AgentTokenAndSource()
-			require.Equal(t, tt.raw.agent, tok)
-			require.Equal(t, tt.raw.agentSource, src)
-
-			tok, src = a.tokens.AgentMasterTokenAndSource()
-			require.Equal(t, tt.raw.master, tok)
-			require.Equal(t, tt.raw.masterSource, src)
-
-			tok, src = a.tokens.ReplicationTokenAndSource()
-			require.Equal(t, tt.raw.repl, tok)
-			require.Equal(t, tt.raw.replSource, src)
 		})
 	}
 

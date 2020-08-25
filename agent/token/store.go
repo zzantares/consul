@@ -239,13 +239,6 @@ func (t *Store) AgentToken() string {
 	return t.userToken
 }
 
-func (t *Store) AgentMasterToken() string {
-	t.l.RLock()
-	defer t.l.RUnlock()
-
-	return t.agentMasterToken
-}
-
 // ReplicationToken returns the replication token.
 func (t *Store) ReplicationToken() string {
 	t.l.RLock()
@@ -255,7 +248,7 @@ func (t *Store) ReplicationToken() string {
 }
 
 // UserToken returns the best token to use for user operations.
-func (t *Store) UserTokenAndSource() (string, TokenSource) {
+func (t *Store) userTokenAndSource() (string, TokenSource) {
 	t.l.RLock()
 	defer t.l.RUnlock()
 
@@ -263,14 +256,14 @@ func (t *Store) UserTokenAndSource() (string, TokenSource) {
 }
 
 // AgentToken returns the best token to use for internal agent operations.
-func (t *Store) AgentTokenAndSource() (string, TokenSource) {
+func (t *Store) agentTokenAndSource() (string, TokenSource) {
 	t.l.RLock()
 	defer t.l.RUnlock()
 
 	return t.agentToken, t.agentTokenSource
 }
 
-func (t *Store) AgentMasterTokenAndSource() (string, TokenSource) {
+func (t *Store) agentMasterTokenAndSource() (string, TokenSource) {
 	t.l.RLock()
 	defer t.l.RUnlock()
 
@@ -278,7 +271,7 @@ func (t *Store) AgentMasterTokenAndSource() (string, TokenSource) {
 }
 
 // ReplicationToken returns the replication token.
-func (t *Store) ReplicationTokenAndSource() (string, TokenSource) {
+func (t *Store) replicationTokenAndSource() (string, TokenSource) {
 	t.l.RLock()
 	defer t.l.RUnlock()
 
