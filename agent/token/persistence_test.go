@@ -176,3 +176,38 @@ func TestStore_Load(t *testing.T) {
 		require.Equal(t, "foxtrot", store.ReplicationToken())
 	})
 }
+
+func TestStore_WithPersistenceLock(t *testing.T) {
+	dataDir := testutil.TempDir(t, "datadir")
+	store := new(Store)
+	cfg := Config{
+		EnablePersistence:   true,
+		DataDir:             dataDir,
+		ACLDefaultToken:     "default-token",
+		ACLAgentToken:       "agent-token",
+		ACLAgentMasterToken: "master-token",
+		ACLReplicationToken: "replication-token",
+	}
+	err := store.Load(cfg, hclog.New(nil))
+	require.NoError(t, err)
+
+	f := func() error {
+		updated := store.UpdateUserToken("the-new-token", TokenSourceAPI)
+		require.True(t, updated)
+
+		updated = store.UpdateAgentMasterToken("the-new-master-token", TokenSourceAPI)
+		require.True(t, updated)
+		return nil
+	}
+
+	err = store.WithPersistenceLock(f)
+	require.NoError(t, err)
+
+	tokens, err := readPersistedFromFile(filepath.Join(dataDir, tokensPath))
+	require.NoError(t, err)
+	expected := persistedTokens{
+		Default:     "the-new-token",
+		AgentMaster: "the-new-master-token",
+	}
+	require.Equal(t, expected, tokens)
+}

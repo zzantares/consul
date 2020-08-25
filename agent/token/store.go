@@ -1,7 +1,6 @@
 package token
 
 import (
-	"path/filepath"
 	"sync"
 
 	"crypto/subtle"
@@ -41,8 +40,6 @@ type Notifier struct {
 // plumbed around and used to get tokens at runtime, don't save the resulting
 // tokens.
 type Store struct {
-	persistence *fileStore
-
 	// l synchronizes access to the token store.
 	l sync.RWMutex
 
@@ -79,6 +76,12 @@ type Store struct {
 
 	watchers     map[int]watcher
 	watcherIndex int
+
+	persistence *fileStore
+	// persistenceLock is used to synchronize access to the persisted token store
+	// within the data directory. This will prevent loading while writing as well as
+	// multiple concurrent writes.
+	persistenceLock sync.RWMutex
 
 	// enterpriseTokens contains tokens only used in consul-enterprise
 	enterpriseTokens
@@ -289,54 +292,4 @@ func (t *Store) IsAgentMasterToken(token string) bool {
 	defer t.l.RUnlock()
 
 	return (token != "") && (subtle.ConstantTimeCompare([]byte(token), []byte(t.agentMasterToken)) == 1)
-}
-
-// Logger used by Store.Load to report warnings.
-type Logger interface {
-	Warn(msg string, args ...interface{})
-}
-
-// Config used by Store.Load, which includes tokens and settings for persistence.
-type Config struct {
-	EnablePersistence   bool
-	DataDir             string
-	ACLDefaultToken     string
-	ACLAgentToken       string
-	ACLAgentMasterToken string
-	ACLReplicationToken string
-}
-
-const tokensPath = "acl-tokens.json"
-
-// Load tokens from Config and optionally from a persisted file in the cfg.DataDir.
-// If a token exists in both the persisted file and in the Config a warning will
-// be logged and the persisted token will be used.
-//
-// Failures to load the persisted file will result in loading tokens from the
-// config before returning the error.
-func (t *Store) Load(cfg Config, logger Logger) error {
-	if !cfg.EnablePersistence {
-		t.persistence = nil
-		loadTokens(t, cfg, persistedTokens{}, logger)
-		return nil
-	}
-
-	t.persistence = &fileStore{
-		filename: filepath.Join(cfg.DataDir, tokensPath),
-		logger:   logger,
-	}
-	return t.persistence.load(t, cfg)
-}
-
-// WithPersistenceLock executes f while hold a lock. If f returns a nil error,
-// the tokens in Store will be persisted to the tokens file. Otherwise no
-// tokens will be persisted, and the error from f will be returned.
-//
-// The lock is held so that the writes are persisted before some other thread
-// can change the value.
-func (t *Store) WithPersistenceLock(f func() error) error {
-	if t.persistence == nil {
-		return f()
-	}
-	return t.persistence.withPersistenceLock(t, f)
 }

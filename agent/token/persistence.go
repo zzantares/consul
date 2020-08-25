@@ -5,10 +5,66 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"sync"
+	"path/filepath"
 
 	"github.com/hashicorp/consul/lib/file"
 )
+
+// Logger used by Store.Load to report warnings.
+type Logger interface {
+	Warn(msg string, args ...interface{})
+}
+
+// Config used by Store.Load, which includes tokens and settings for persistence.
+type Config struct {
+	EnablePersistence   bool
+	DataDir             string
+	ACLDefaultToken     string
+	ACLAgentToken       string
+	ACLAgentMasterToken string
+	ACLReplicationToken string
+}
+
+const tokensPath = "acl-tokens.json"
+
+// Load tokens from Config and optionally from a persisted file in the cfg.DataDir.
+// If a token exists in both the persisted file and in the Config a warning will
+// be logged and the persisted token will be used.
+//
+// Failures to load the persisted file will result in loading tokens from the
+// config before returning the error.
+func (t *Store) Load(cfg Config, logger Logger) error {
+	t.persistenceLock.RLock()
+	if !cfg.EnablePersistence {
+		t.persistence = nil
+		t.persistenceLock.RUnlock()
+		loadTokens(t, cfg, persistedTokens{}, logger)
+		return nil
+	}
+
+	defer t.persistenceLock.RUnlock()
+	t.persistence = &fileStore{
+		filename: filepath.Join(cfg.DataDir, tokensPath),
+		logger:   logger,
+	}
+	return t.persistence.load(t, cfg)
+}
+
+// WithPersistenceLock executes f while hold a lock. If f returns a nil error,
+// the tokens in Store will be persisted to the tokens file. Otherwise no
+// tokens will be persisted, and the error from f will be returned.
+//
+// The lock is held so that the writes are persisted before some other thread
+// can change the value.
+func (t *Store) WithPersistenceLock(f func() error) error {
+	t.persistenceLock.Lock()
+	if t.persistence == nil {
+		t.persistenceLock.Unlock()
+		return f()
+	}
+	defer t.persistenceLock.Unlock()
+	return t.persistence.withPersistenceLock(t, f)
+}
 
 type persistedTokens struct {
 	Replication string `json:"replication,omitempty"`
@@ -20,15 +76,9 @@ type persistedTokens struct {
 type fileStore struct {
 	filename string
 	logger   Logger
-	// lock is used to synchronize access to the persisted token store within
-	// the data directory. This will prevent loading while writing as well as
-	// multiple concurrent writes.
-	lock sync.RWMutex
 }
 
 func (p *fileStore) load(s *Store, cfg Config) error {
-	p.lock.RLock()
-	defer p.lock.RUnlock()
 	tokens, err := readPersistedFromFile(p.filename)
 	if err != nil {
 		p.logger.Warn("unable to load persisted tokens", "error", err)
@@ -101,8 +151,6 @@ func readPersistedFromFile(filename string) (persistedTokens, error) {
 }
 
 func (p *fileStore) withPersistenceLock(s *Store, f func() error) error {
-	p.lock.Lock()
-	defer p.lock.Unlock()
 	if err := f(); err != nil {
 		return err
 	}
@@ -110,7 +158,6 @@ func (p *fileStore) withPersistenceLock(s *Store, f func() error) error {
 	return p.saveToFile(s)
 }
 
-// TODO: test case
 func (p *fileStore) saveToFile(s *Store) error {
 	tokens := persistedTokens{}
 	if tok, source := s.UserTokenAndSource(); tok != "" && source == TokenSourceAPI {
