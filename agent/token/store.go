@@ -291,10 +291,12 @@ func (t *Store) IsAgentMasterToken(token string) bool {
 	return (token != "") && (subtle.ConstantTimeCompare([]byte(token), []byte(t.agentMasterToken)) == 1)
 }
 
+// Logger used by Store.Load to report warnings.
 type Logger interface {
 	Warn(msg string, args ...interface{})
 }
 
+// Config used by Store.Load, which includes tokens and settings for persistence.
 type Config struct {
 	EnablePersistence   bool
 	DataDir             string
@@ -306,7 +308,12 @@ type Config struct {
 
 const tokensPath = "acl-tokens.json"
 
-// TODO: godoc
+// Load tokens from Config and optionally from a persisted file in the cfg.DataDir.
+// If a token exists in both the persisted file and in the Config a warning will
+// be logged and the persisted token will be used.
+//
+// Failures to load the persisted file will result in loading tokens from the
+// config before returning the error.
 func (t *Store) Load(cfg Config, logger Logger) error {
 	if !cfg.EnablePersistence {
 		t.persistence = nil

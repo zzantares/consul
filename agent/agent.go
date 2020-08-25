@@ -413,6 +413,9 @@ func (a *Agent) Start(ctx context.Context) error {
 		return fmt.Errorf("Failed to load TLS configurations after applying auto-config settings: %w", err)
 	}
 
+	// TODO: why do we ignore failure to load persisted tokens?
+	_ = a.tokens.Load(c.ACLTokens, a.logger)
+
 	// create the local state
 	a.State = local.NewState(LocalConfig(c), a.logger, a.tokens)
 

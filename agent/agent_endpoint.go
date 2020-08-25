@@ -1239,7 +1239,6 @@ func (s *HTTPServer) AgentToken(resp http.ResponseWriter, req *http.Request) (in
 			s.agent.tokens.UpdateReplicationToken(args.Token, token_store.TokenSourceAPI)
 
 		default:
-			// TODO: test case
 			return NotFoundError{Reason: fmt.Sprintf("Token %q is unknown", target)}
 		}
 

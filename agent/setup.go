@@ -80,8 +80,6 @@ func NewBaseDeps(configLoader ConfigLoader, logOut io.Writer) (BaseDeps, error) 
 
 	d.RuntimeConfig = cfg
 	d.Tokens = new(token.Store)
-	// TODO: why do we ignore failure to load persisted tokens?
-	_ = d.Tokens.Load(cfg.ACLTokens, d.Logger)
 
 	// cache-types are not registered yet, but they won't be used until the components are started.
 	d.Cache = cache.New(cfg.Cache)
