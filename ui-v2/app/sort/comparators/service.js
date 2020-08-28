@@ -1,35 +1,21 @@
 export default () => key => {
   if (key.startsWith('Status:')) {
-    return function(serviceA, serviceB) {
-      const [, dir] = key.split(':');
-      let a, b;
-      if (dir === 'asc') {
-        b = serviceA;
-        a = serviceB;
-      } else {
-        a = serviceA;
-        b = serviceB;
-      }
-      switch (true) {
-        case a.MeshChecksCritical > b.MeshChecksCritical:
-          return 1;
-        case a.MeshChecksCritical < b.MeshChecksCritical:
-          return -1;
-        default:
-          switch (true) {
-            case a.MeshChecksWarning > b.MeshChecksWarning:
-              return 1;
-            case a.MeshChecksWarning < b.MeshChecksWarning:
-              return -1;
-            default:
-              switch (true) {
-                case a.MeshChecksPassing < b.MeshChecksPassing:
-                  return 1;
-                case a.MeshChecksPassing > b.MeshChecksPassing:
-                  return -1;
-              }
-          }
-          return 0;
+    const [, dir] = key.split(':');
+    const props = [
+      'PercentageMeshChecksPassing',
+      'PercentageMeshChecksWarning',
+      'PercentageMeshChecksCritical',
+    ];
+    if (dir === 'asc') {
+      props.reverse();
+    }
+    return function(a, b) {
+      for (let i in props) {
+        let prop = props[i];
+        if (a[prop] === b[prop]) {
+          continue;
+        }
+        return a[prop] > b[prop] ? -1 : 1;
       }
     };
   }

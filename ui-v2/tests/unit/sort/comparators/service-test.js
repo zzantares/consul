@@ -8,49 +8,38 @@ module('Unit | Sort | Comparator | service', function() {
     const actual = comparator(expected);
     assert.equal(actual, expected);
   });
-  test('items are sorted by a fake Status which uses MeshChecks{Passing,Warning,Critical}', function(assert) {
+  test('items are sorted by a fake Status which uses PercentageMeshChecks{Passing,Warning,Critical}', function(assert) {
     const items = [
       {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 1,
+        PercentageMeshChecksPassing: 100,
+        PercentageMeshChecksWarning: 0,
+        PercentageMeshChecksCritical: 0,
       },
       {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 2,
+        PercentageMeshChecksPassing: 50,
+        PercentageMeshChecksWarning: 20,
+        PercentageMeshChecksCritical: 30,
       },
       {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 3,
+        PercentageMeshChecksPassing: 50,
+        PercentageMeshChecksWarning: 40,
+        PercentageMeshChecksCritical: 10,
+      },
+      {
+        PercentageMeshChecksPassing: 20,
+        PercentageMeshChecksWarning: 10,
+        PercentageMeshChecksCritical: 70,
       },
     ];
-    const comp = comparator('Status:asc');
+    const comp = comparator('Status:desc');
     assert.equal(typeof comp, 'function');
 
-    const expected = [
-      {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 3,
-      },
-      {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 2,
-      },
-      {
-        MeshChecksPassing: 1,
-        MeshChecksWarning: 1,
-        MeshChecksCritical: 1,
-      },
-    ];
     let actual = items.sort(comp);
-    assert.deepEqual(actual, expected);
+    assert.deepEqual(actual, items);
 
+    const expected = [...items];
     expected.reverse();
-    actual = items.sort(comparator('Status:desc'));
+    actual = items.sort(comparator('Status:asc'));
     assert.deepEqual(actual, expected);
   });
 });

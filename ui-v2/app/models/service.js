@@ -51,6 +51,20 @@ export default Model.extend({
         return 'empty';
     }
   }),
+  MeshChecks: computed(
+    'ChecksCritical',
+    'ChecksWarning',
+    'ChecksPassing',
+    'Proxy.{ChecksPassing,ChecksWarning,ChecksCritical}',
+    function() {
+      const props = ['ChecksCritical', 'ChecksWarning', 'ChecksPassing'];
+      let proxyCount = 0;
+      if (typeof this.Proxy !== 'undefined') {
+        proxyCount = props.reduce((prev, prop) => prev + this.Proxy[prop], 0);
+      }
+      return props.reduce((prev, prop) => prev + this[prop], proxyCount);
+    }
+  ),
   MeshChecksPassing: computed('ChecksPassing', 'Proxy.ChecksPassing', function() {
     let proxyCount = 0;
     if (typeof this.Proxy !== 'undefined') {
@@ -72,11 +86,19 @@ export default Model.extend({
     }
     return this.ChecksCritical + proxyCount;
   }),
+  PercentageMeshChecksPassing: computed('Checks', 'MeshChecksPassing', function() {
+    return (this.MeshChecksPassing / this.MeshChecks) * 100;
+  }),
+  PercentageMeshChecksWarning: computed('Checks', 'MeshChecksWarning', function() {
+    return (this.MeshChecksWarning / this.MeshChecks) * 100;
+  }),
+  PercentageMeshChecksCritical: computed('Checks', 'MeshChecksCritical', function() {
+    return (this.MeshChecksCritical / this.MeshChecks) * 100;
+  }),
   /**/
   passing: computed('ChecksPassing', 'Checks', function() {
     let num = 0;
-    // TODO: use typeof
-    if (get(this, 'ChecksPassing') !== undefined) {
+    if (typeof get(this, 'ChecksPassing') !== 'undefined') {
       num = get(this, 'ChecksPassing');
     } else {
       num = get(get(this, 'Checks').filterBy('Status', 'passing'), 'length');
