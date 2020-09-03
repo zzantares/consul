@@ -3,6 +3,8 @@
 source .plsdo.sh
 
 banner="Consul - project tasks"
+_plsdo_help_task_name_width=22
+
 
 
 help[godoc]="Run godoc locally to read package documentation."
@@ -80,12 +82,13 @@ _go_build_ldflags() {
     echo "-X ${import}.GitCommit=${commit}${dirty} -X ${import}.GitDescribe=${desc}"
 }
 
+help[binary-all]="Build the consul binary for all platforms."
 binary-all() {
     # TODO: use parallel
     GOOS=linux  GOARCH=amd64 binary
     GOOS=darwin GOARCH=amd64 binary
 }
 
-cross() { binary-all; }
+source ./.do-ent
 
 _plsdo_run "$@"
