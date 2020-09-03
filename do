@@ -6,7 +6,6 @@ banner="Consul - project tasks"
 _plsdo_help_task_name_width=22
 
 
-
 help[godoc]="Run godoc locally to read package documentation."
 godoc() {
     local url; url="http://localhost:6060/pkg/$(go list)/${1-}"
@@ -16,15 +15,15 @@ godoc() {
 }
 
 
-help[check]="Run 'shellcheck' on all files."
-check() {
+help[lint-shellcheck]="Run 'shellcheck' on all files."
+lint-shellcheck() {
     if ! command -v shellcheck > /dev/null; then
         _plsdo_error "Missing shellcheck."
         _plsdo_error "See https://github.com/koalaman/shellcheck#installing"
         return 3
     fi
     # TODO: add other files
-    shellcheck --severity=style --external-sources ./do
+    shellcheck --severity=style --external-sources ./do .dolib/*
 }
 
 help[go-mod-tidy]="Run 'go mod tidy' on all go modules."
@@ -89,6 +88,7 @@ binary-all() {
     GOOS=darwin GOARCH=amd64 binary
 }
 
-source ./.do-ent
+source .dolib/ent.sh
+source .dolib/protobuf.sh
 
 _plsdo_run "$@"
