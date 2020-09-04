@@ -14,7 +14,8 @@ Environment Variables:
                        https://app.circleci.com/settings/user/tokens
 "
 ci-merge-oss-to-ent() {
-    local default_token; default_token=$(grep 'token' ~/.circleci/cli.yml | awk '{print $2}')
+    local default_token
+    default_token=$(grep 'token' ~/.circleci/cli.yml | awk '{print $2}' || true)
     local token=${CIRCLECI_CLI_TOKEN-$default_token}
     local branch=${1-master}
     curl -sL \

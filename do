@@ -28,18 +28,18 @@ lint-shellcheck() {
 
 help[go-mod-tidy]="Run 'go mod tidy' on all go modules."
 go-mod-tidy() {
-    echo "--> Running go mod tidy"
+    echo "Running go mod tidy"
     go mod tidy
     (cd sdk && go mod tidy)
     (cd api && go mod tidy)
 }
 
 help[update-vendor]="Update ./vendor after making changing dependencies."
-update-vendor() {
+go-mod-vendor() {
     go-mod-tidy
-    echo "--> Running go mod vendor"
+    echo "Running go mod vendor"
     go mod vendor
-    echo "--> Removing vendoring of our own nested modules"
+    echo "Removing vendoring of our own nested modules"
     rm -rf vendor/github.com/hashicorp/consul
     grep -v "hashicorp/consul/" < vendor/modules.txt > vendor/modules.txt.new
     mv vendor/modules.txt.new vendor/modules.txt
@@ -53,7 +53,7 @@ Environment Variables:
 "
 lint() {
     ${GOTAGS=}
-    echo "--> Running go golangci-lint"
+    echo "Running go golangci-lint"
     golangci-lint run --build-tags "${GOTAGS}"
     (cd api && golangci-lint run --build-tags "${GOTAGS}")
     (cd sdk && golangci-lint run --build-tags "${GOTAGS}")
