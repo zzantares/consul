@@ -48,6 +48,17 @@ go-mod-vendor() {
     mv vendor/modules.txt.new vendor/modules.txt
 }
 
+
+help[go-mod-versions]="Print a list of modules which can be updated."
+go-mod-versions() {
+    >&2 printf " %-50s %-40s  %-12s  %s\n" module "current version" "version date" "latest"
+    local f='{{if .Update}} {{printf "%-50v %-40s" .Path .Version}} '
+    f="$f"'{{with .Time}} {{ .Format "2006-01-02" -}} {{else}} {{printf "%9s" ""}} {{end}}    '
+    f="$f"'{{ .Update.Version}} {{end}}'
+	go list -m -u -f "$f" all
+}
+
+
 help[lint]="Run 'golangci-lint' on all files.
 
 Environment Variables:
