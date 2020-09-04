@@ -8,12 +8,15 @@ _plsdo_help_task_name_width=22
 
 help[godoc]="Run godoc locally to read package documentation."
 godoc() {
-    local url; url="http://localhost:6060/pkg/$(go list)/${1-}"
-    command -v xdg-open && xdg-open "$url" &
-    command -v open && open "$url" &
+    _open_web "http://localhost:6060/pkg/$(go list)/${1-}"
     command godoc -http=:6060
 }
 
+_open_web() {
+    local url="$1"
+    command -v xdg-open && xdg-open "$url" &
+    command -v open && open "$url" &
+}
 
 help[lint-shellcheck]="Run 'shellcheck' on all files."
 lint-shellcheck() {
@@ -34,7 +37,7 @@ go-mod-tidy() {
     (cd api && go mod tidy)
 }
 
-help[update-vendor]="Update ./vendor after making changing dependencies."
+help[go-mod-vendor]="Update vendor directory after changing dependencies."
 go-mod-vendor() {
     go-mod-tidy
     echo "Running go mod vendor"
