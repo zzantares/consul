@@ -10,7 +10,7 @@ import (
 
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/command/flags"
-	"github.com/hashicorp/consul/command/intention"
+	"github.com/hashicorp/consul/command/intention/finder"
 	"github.com/mitchellh/cli"
 )
 
@@ -54,7 +54,6 @@ func (c *cmd) init() {
 	c.http = &flags.HTTPFlags{}
 	flags.Merge(c.flags, c.http.ClientFlags())
 	flags.Merge(c.flags, c.http.ServerFlags())
-	flags.Merge(c.flags, c.http.NamespaceFlags())
 	c.help = flags.Usage(help, c.flags)
 }
 
@@ -89,21 +88,20 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
+	// Create the finder in case we need it
+	find := &finder.Finder{Client: client}
+
 	// Go through and create each intention
 	for _, ixn := range ixns {
 		// If replace is set to true, then perform an update operation.
 		if c.flagReplace {
-			oldIxn, _, err := client.Connect().IntentionGetExact(
-				intention.FormatSource(ixn),
-				intention.FormatDestination(ixn),
-				nil,
-			)
+			oldIxn, err := find.Find(ixn.SourceString(), ixn.DestinationString())
 			if err != nil {
 				c.UI.Error(fmt.Sprintf(
 					"Error looking up intention for replacement with source %q "+
 						"and destination %q: %s",
-					intention.FormatSource(ixn),
-					intention.FormatDestination(ixn),
+					ixn.SourceString(),
+					ixn.DestinationString(),
 					err))
 				return 1
 			}
@@ -115,8 +113,8 @@ func (c *cmd) Run(args []string) int {
 					c.UI.Error(fmt.Sprintf(
 						"Error replacing intention with source %q "+
 							"and destination %q: %s",
-						intention.FormatSource(ixn),
-						intention.FormatDestination(ixn),
+						ixn.SourceString(),
+						ixn.DestinationString(),
 						err))
 					return 1
 				}

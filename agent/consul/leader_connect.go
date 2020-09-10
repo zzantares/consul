@@ -559,7 +559,6 @@ func (s *Server) startConnectLeader() {
 		s.leaderRoutineManager.Start(secondaryCARootWatchRoutineName, s.secondaryCARootWatch)
 		s.leaderRoutineManager.Start(intentionReplicationRoutineName, s.replicateIntentions)
 		s.leaderRoutineManager.Start(secondaryCertRenewWatchRoutineName, s.secondaryIntermediateCertRenewalWatch)
-		s.startConnectLeaderEnterprise()
 	}
 
 	s.leaderRoutineManager.Start(caRootPruningRoutineName, s.runCARootPruning)
@@ -570,7 +569,6 @@ func (s *Server) stopConnectLeader() {
 	s.leaderRoutineManager.Stop(secondaryCARootWatchRoutineName)
 	s.leaderRoutineManager.Stop(intentionReplicationRoutineName)
 	s.leaderRoutineManager.Stop(caRootPruningRoutineName)
-	s.stopConnectLeaderEnterprise()
 }
 
 func (s *Server) runCARootPruning(ctx context.Context) error {
@@ -791,7 +789,7 @@ func (s *Server) replicateIntentions(ctx context.Context) error {
 			return err
 		}
 
-		_, local, err := s.fsm.State().Intentions(nil, s.replicationEnterpriseMeta())
+		_, local, err := s.fsm.State().Intentions(nil)
 		if err != nil {
 			return err
 		}

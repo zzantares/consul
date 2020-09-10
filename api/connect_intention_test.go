@@ -41,7 +41,7 @@ func TestAPI_ConnectIntentionCreateListGetUpdateDelete(t *testing.T) {
 	require.Equal(ixn, actual)
 
 	// Update it
-	ixn.SourceName = ixn.SourceName + "-different"
+	ixn.SourceNS = ixn.SourceNS + "-different"
 	_, err = connect.IntentionUpdate(ixn, nil)
 	require.NoError(err)
 
@@ -91,9 +91,12 @@ func TestAPI_ConnectIntentionMatch(t *testing.T) {
 	// Create
 	{
 		insert := [][]string{
-			{"default", "*"},
-			{"default", "bar"},
-			{"default", "baz"}, // shouldn't match
+			{"foo", "*"},
+			{"foo", "bar"},
+			{"foo", "baz"}, // shouldn't match
+			{"bar", "bar"}, // shouldn't match
+			{"bar", "*"},   // shouldn't match
+			{"*", "*"},
 		}
 
 		for _, v := range insert {
@@ -109,17 +112,14 @@ func TestAPI_ConnectIntentionMatch(t *testing.T) {
 	// Match it
 	result, _, err := connect.IntentionMatch(&IntentionMatch{
 		By:    IntentionMatchDestination,
-		Names: []string{"bar"},
+		Names: []string{"foo/bar"},
 	}, nil)
 	require.Nil(err)
 	require.Len(result, 1)
 
 	var actual [][]string
-	expected := [][]string{
-		{"default", "bar"},
-		{"default", "*"},
-	}
-	for _, ixn := range result["bar"] {
+	expected := [][]string{{"foo", "bar"}, {"foo", "*"}, {"*", "*"}}
+	for _, ixn := range result["foo/bar"] {
 		actual = append(actual, []string{ixn.DestinationNS, ixn.DestinationName})
 	}
 
@@ -138,8 +138,7 @@ func TestAPI_ConnectIntentionCheck(t *testing.T) {
 	// Create
 	{
 		insert := [][]string{
-			{"default", "*", "default", "bar", "deny"},
-			{"default", "foo", "default", "bar", "allow"},
+			{"foo", "*", "foo", "bar"},
 		}
 
 		for _, v := range insert {
@@ -148,39 +147,39 @@ func TestAPI_ConnectIntentionCheck(t *testing.T) {
 			ixn.SourceName = v[1]
 			ixn.DestinationNS = v[2]
 			ixn.DestinationName = v[3]
-			ixn.Action = IntentionAction(v[4])
+			ixn.Action = IntentionActionDeny
 			id, _, err := connect.IntentionCreate(ixn, nil)
 			require.Nil(err)
 			require.NotEmpty(id)
 		}
 	}
 
-	// Match the deny rule
+	// Match it
 	{
 		result, _, err := connect.IntentionCheck(&IntentionCheck{
-			Source:      "default/qux",
-			Destination: "default/bar",
+			Source:      "foo/qux",
+			Destination: "foo/bar",
 		}, nil)
-		require.NoError(err)
+		require.Nil(err)
 		require.False(result)
 	}
 
-	// Match the allow rule
+	// Match it (non-matching)
 	{
 		result, _, err := connect.IntentionCheck(&IntentionCheck{
-			Source:      "default/foo",
-			Destination: "default/bar",
+			Source:      "bar/qux",
+			Destination: "foo/bar",
 		}, nil)
-		require.NoError(err)
+		require.Nil(err)
 		require.True(result)
 	}
 }
 
 func testIntention() *Intention {
 	return &Intention{
-		SourceNS:        "default",
+		SourceNS:        "eng",
 		SourceName:      "api",
-		DestinationNS:   "default",
+		DestinationNS:   "eng",
 		DestinationName: "db",
 		Precedence:      9,
 		Action:          IntentionActionAllow,

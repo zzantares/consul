@@ -31,7 +31,6 @@ func (c *cmd) init() {
 	c.http = &flags.HTTPFlags{}
 	flags.Merge(c.flags, c.http.ClientFlags())
 	flags.Merge(c.flags, c.http.ServerFlags())
-	flags.Merge(c.flags, c.http.NamespaceFlags())
 	c.help = flags.Usage(help, c.flags)
 }
 
@@ -48,7 +47,8 @@ func (c *cmd) Run(args []string) int {
 	}
 
 	// Get the intention ID to load
-	id, err := finder.IDFromArgs(client, c.flags.Args())
+	f := &finder.Finder{Client: client}
+	id, err := f.IDFromArgs(c.flags.Args())
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error: %s", err))
 		return 1

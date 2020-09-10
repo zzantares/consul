@@ -604,7 +604,7 @@ func TestFSM_SnapshotRestore_OSS(t *testing.T) {
 	require.Equal(t, autopilotConf, restoredConf)
 
 	// Verify intentions are restored.
-	_, ixns, err := fsm2.state.Intentions(nil, structs.WildcardEnterpriseMeta())
+	_, ixns, err := fsm2.state.Intentions(nil)
 	require.NoError(t, err)
 	require.Len(t, ixns, 1)
 	require.Equal(t, ixn, ixns[0])

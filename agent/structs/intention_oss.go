@@ -46,10 +46,3 @@ func (ixn *Intention) DefaultNamespaces(_ *EnterpriseMeta) {
 		ixn.DestinationNS = IntentionDefaultNamespace
 	}
 }
-
-// FillNonDefaultNamespaces will populate the SourceNS and DestinationNS fields
-// if they are empty with the proper defaults, but only if the proper defaults
-// are themselves not "default".
-func (ixn *Intention) FillNonDefaultNamespaces(_ *EnterpriseMeta) {
-	// do nothing
-}
