@@ -277,7 +277,7 @@ func makeUpstreamRouteForDiscoveryChain(
 	return host, nil
 }
 
-func makeRouteMatchForDiscoveryRoute(_ connectionInfo, discoveryRoute *structs.DiscoveryRoute) *envoyroute.RouteMatch {
+func makeRouteMatchForDiscoveryRoute(cInfo connectionInfo, discoveryRoute *structs.DiscoveryRoute) *envoyroute.RouteMatch {
 	match := discoveryRoute.Definition.Match
 	if match == nil || match.IsEmpty() {
 		return makeDefaultRouteMatch()
@@ -295,8 +295,14 @@ func makeRouteMatchForDiscoveryRoute(_ connectionInfo, discoveryRoute *structs.D
 			Prefix: match.HTTP.PathPrefix,
 		}
 	case match.HTTP.PathRegex != "":
-		em.PathSpecifier = &envoyroute.RouteMatch_SafeRegex{
-			SafeRegex: makeEnvoyRegexMatch(match.HTTP.PathRegex),
+		if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+			em.PathSpecifier = &envoyroute.RouteMatch_SafeRegex{
+				SafeRegex: makeEnvoyRegexMatch(match.HTTP.PathRegex),
+			}
+		} else {
+			em.PathSpecifier = &envoyroute.RouteMatch_Regex{
+				Regex: match.HTTP.PathRegex,
+			}
 		}
 	default:
 		em.PathSpecifier = &envoyroute.RouteMatch_Prefix{
@@ -317,8 +323,14 @@ func makeRouteMatchForDiscoveryRoute(_ connectionInfo, discoveryRoute *structs.D
 					ExactMatch: hdr.Exact,
 				}
 			case hdr.Regex != "":
-				eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_SafeRegexMatch{
-					SafeRegexMatch: makeEnvoyRegexMatch(hdr.Regex),
+				if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+					eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_SafeRegexMatch{
+						SafeRegexMatch: makeEnvoyRegexMatch(hdr.Regex),
+					}
+				} else {
+					eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_RegexMatch{
+						RegexMatch: hdr.Regex,
+					}
 				}
 			case hdr.Prefix != "":
 				eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_PrefixMatch{
@@ -349,9 +361,15 @@ func makeRouteMatchForDiscoveryRoute(_ connectionInfo, discoveryRoute *structs.D
 
 		eh := &envoyroute.HeaderMatcher{
 			Name: ":method",
-			HeaderMatchSpecifier: &envoyroute.HeaderMatcher_SafeRegexMatch{
+		}
+		if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+			eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_SafeRegexMatch{
 				SafeRegexMatch: makeEnvoyRegexMatch(methodHeaderRegex),
-			},
+			}
+		} else {
+			eh.HeaderMatchSpecifier = &envoyroute.HeaderMatcher_RegexMatch{
+				RegexMatch: methodHeaderRegex,
+			}
 		}
 
 		em.Headers = append(em.Headers, eh)
@@ -366,24 +384,37 @@ func makeRouteMatchForDiscoveryRoute(_ connectionInfo, discoveryRoute *structs.D
 
 			switch {
 			case qm.Exact != "":
-				eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_StringMatch{
-					StringMatch: &envoymatcher.StringMatcher{
-						MatchPattern: &envoymatcher.StringMatcher_Exact{
-							Exact: qm.Exact,
+				if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+					eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_StringMatch{
+						StringMatch: &envoymatcher.StringMatcher{
+							MatchPattern: &envoymatcher.StringMatcher_Exact{
+								Exact: qm.Exact,
+							},
 						},
-					},
+					}
+				} else {
+					eq.Value = qm.Exact
 				}
 			case qm.Regex != "":
-				eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_StringMatch{
-					StringMatch: &envoymatcher.StringMatcher{
-						MatchPattern: &envoymatcher.StringMatcher_SafeRegex{
-							SafeRegex: makeEnvoyRegexMatch(qm.Regex),
+				if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+					eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_StringMatch{
+						StringMatch: &envoymatcher.StringMatcher{
+							MatchPattern: &envoymatcher.StringMatcher_SafeRegex{
+								SafeRegex: makeEnvoyRegexMatch(qm.Regex),
+							},
 						},
-					},
+					}
+				} else {
+					eq.Value = qm.Regex
+					eq.Regex = makeBoolValue(true)
 				}
 			case qm.Present:
-				eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_PresentMatch{
-					PresentMatch: true,
+				if cInfo.ProxyFeatures.RouterMatchSafeRegex {
+					eq.QueryParameterMatchSpecifier = &envoyroute.QueryParameterMatcher_PresentMatch{
+						PresentMatch: true,
+					}
+				} else {
+					eq.Value = ""
 				}
 			default:
 				continue // skip this impossible situation

@@ -11,7 +11,6 @@ import (
 	"github.com/envoyproxy/go-control-plane/pkg/wellknown"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/agent/xds/proxysupport"
 	"github.com/hashicorp/consul/sdk/testutil"
 	testinf "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -494,9 +493,8 @@ func TestListenersFromSnapshot(t *testing.T) {
 		},
 	}
 
-	for _, envoyVersion := range proxysupport.EnvoyVersions {
-		sf, err := determineSupportedProxyFeaturesFromString(envoyVersion)
-		require.NoError(t, err)
+	for _, envoyVersion := range supportedEnvoyVersions {
+		sf := determineSupportedProxyFeaturesFromString(envoyVersion)
 		t.Run("envoy-"+envoyVersion, func(t *testing.T) {
 			for _, tt := range tests {
 				t.Run(tt.name, func(t *testing.T) {

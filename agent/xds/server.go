@@ -297,11 +297,7 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 
 			if node == nil && req.Node != nil {
 				node = req.Node
-				var err error
-				proxyFeatures, err = determineSupportedProxyFeatures(req.Node)
-				if err != nil {
-					return status.Errorf(codes.InvalidArgument, err.Error())
-				}
+				proxyFeatures = determineSupportedProxyFeatures(req.Node)
 			}
 
 			if handler, ok := handlers[req.TypeUrl]; ok {
