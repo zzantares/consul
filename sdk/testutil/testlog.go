@@ -3,6 +3,7 @@ package testutil
 import (
 	"bytes"
 	"io"
+	"io/ioutil"
 	"os"
 	"sync"
 	"testing"
@@ -22,7 +23,11 @@ func LoggerWithOutput(t TestingTB, output io.Writer) hclog.InterceptLogger {
 	})
 }
 
-var sendTestLogsToStdout = os.Getenv("NOLOGBUFFER") == "1"
+var (
+	sendTestLogsToStdout  = os.Getenv("NOLOGBUFFER") == "1"
+	sendTestLogsToDevNull = os.Getenv("NOAGENTLOGS") == "1"
+	sendTestLogsToFile    = os.Getenv("AGENTLOGS_FILEPATH")
+)
 
 // NewLogBuffer returns an io.Writer which buffers all writes. When the test
 // ends, t.Failed is checked. If the test has failed or has been run in verbose
@@ -31,9 +36,20 @@ var sendTestLogsToStdout = os.Getenv("NOLOGBUFFER") == "1"
 // Set the env var NOLOGBUFFER=1 to disable buffering, resulting in all log
 // output being written immediately to stdout.
 func NewLogBuffer(t TestingTB) io.Writer {
-	if sendTestLogsToStdout {
+	switch {
+	case sendTestLogsToStdout:
 		return os.Stdout
+	case sendTestLogsToDevNull:
+		return ioutil.Discard
+	case sendTestLogsToFile != "":
+		fh, err := os.Create(sendTestLogsToFile)
+		if err != nil {
+			t.Fatalf("failed to open file for logs: %v", err)
+		}
+		t.Cleanup(func() { fh.Close() })
+		return fh
 	}
+
 	buf := &logBuffer{buf: new(bytes.Buffer)}
 	t.Cleanup(func() {
 		if t.Failed() || testing.Verbose() {

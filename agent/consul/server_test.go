@@ -293,9 +293,10 @@ func newServer(t *testing.T, c *Config) (*Server, error) {
 	}
 
 	logger := hclog.NewInterceptLogger(&hclog.LoggerOptions{
-		Name:   c.NodeName,
-		Level:  hclog.Debug,
-		Output: testutil.NewLogBuffer(t),
+		Name:       c.NodeName,
+		Level:      hclog.Warn, // TODO: make this configurable
+		TimeFormat: "04:05.000",
+		Output:     testutil.NewLogBuffer(t),
 	})
 	tlsConf, err := tlsutil.NewConfigurator(c.ToTLSUtilConfig(), logger)
 	if err != nil {

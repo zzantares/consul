@@ -7,5 +7,6 @@ type TestingTB interface {
 	Cleanup(func())
 	Failed() bool
 	Logf(format string, args ...interface{})
+	Fatalf(format string, args ...interface{})
 	Name() string
 }
