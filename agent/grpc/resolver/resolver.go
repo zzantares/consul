@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/hashicorp/consul/agent/metadata"
+	"github.com/hashicorp/consul/agent/router"
 	"google.golang.org/grpc/resolver"
 )
 
@@ -23,16 +24,20 @@ func RegisterWithGRPC(b *ServerResolverBuilder) {
 	resolver.Register(b)
 }
 
+type Router interface {
+	// TODO: better method name and return error for missing
+	GetServerMetadataByAddr(dc, addr string) *metadata.Server
+	ServerList(dc string) []*metadata.Server
+}
+
 // ServerResolverBuilder tracks the current server list and keeps any
 // ServerResolvers updated when changes occur.
 type ServerResolverBuilder struct {
 	// scheme used to query the server. Defaults to consul. Used to support
 	// parallel testing because gRPC registers resolvers globally.
 	scheme string
-	// servers is an index of Servers by Server.ID
-	// TODO: this assumes that server.ID is unique across all datacenter. Is that
-	// a safe assumption?
-	servers map[string]*metadata.Server
+
+	router Router
 	// resolvers is an index of connections to the serverResolver which manages
 	// addresses of servers for that connection.
 	resolvers map[resolver.ClientConn]*serverResolver
@@ -53,10 +58,31 @@ func NewServerResolverBuilder(cfg Config) *ServerResolverBuilder {
 	}
 	return &ServerResolverBuilder{
 		scheme:    cfg.Scheme,
-		servers:   make(map[string]*metadata.Server),
 		resolvers: make(map[resolver.ClientConn]*serverResolver),
 	}
 }
+
+type UpdateNotifier struct {
+	update chan struct{}
+}
+
+func (u *UpdateNotifier) UpdateCh() chan struct{} {
+	return u.update
+}
+
+func (u *UpdateNotifier) Rebalance() {
+
+}
+
+func (u *UpdateNotifier) AddServer(server *metadata.Server) {
+	u.update <- struct{}{}
+}
+
+func (u *UpdateNotifier) RemoveServer(server *metadata.Server) {
+	u.update <- struct{}{}
+}
+
+var _ router.ServerTracker = (*UpdateNotifier)(nil)
 
 // Rebalance shuffles the server list for resolvers in all datacenters.
 func (s *ServerResolverBuilder) Rebalance() {
@@ -78,16 +104,13 @@ func (s *ServerResolverBuilder) Rebalance() {
 }
 
 // ServerForAddr returns server metadata for a server with the specified address.
-func (s *ServerResolverBuilder) ServerForAddr(addr string) (*metadata.Server, error) {
-	s.lock.RLock()
-	defer s.lock.RUnlock()
-
-	for _, server := range s.servers {
-		if server.Addr.String() == addr {
-			return server, nil
-		}
+// TODO: remove this wrapper.
+func (s *ServerResolverBuilder) ServerForAddr(dc, addr string) (*metadata.Server, error) {
+	srv := s.router.GetServerMetadataByAddr(dc, addr)
+	if srv == nil {
+		return nil, fmt.Errorf("failed to find Consul server for address %q", addr)
 	}
-	return nil, fmt.Errorf("failed to find Consul server for address %q", addr)
+	return srv, nil
 }
 
 // Build returns a new serverResolver for the given ClientConn. The resolver
@@ -121,45 +144,11 @@ func (s *ServerResolverBuilder) Build(target resolver.Target, cc resolver.Client
 
 func (s *ServerResolverBuilder) Scheme() string { return s.scheme }
 
-// AddServer updates the resolvers' states to include the new server's address.
-func (s *ServerResolverBuilder) AddServer(server *metadata.Server) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	s.servers[server.ID] = server
-
-	addrs := s.getDCAddrs(server.Datacenter)
-	for _, resolver := range s.resolvers {
-		if resolver.datacenter == server.Datacenter {
-			resolver.updateAddrs(addrs)
-		}
-	}
-}
-
-// RemoveServer updates the resolvers' states with the given server removed.
-func (s *ServerResolverBuilder) RemoveServer(server *metadata.Server) {
-	s.lock.Lock()
-	defer s.lock.Unlock()
-
-	delete(s.servers, server.ID)
-
-	addrs := s.getDCAddrs(server.Datacenter)
-	for _, resolver := range s.resolvers {
-		if resolver.datacenter == server.Datacenter {
-			resolver.updateAddrs(addrs)
-		}
-	}
-}
-
 // getDCAddrs returns a list of the server addresses for the given datacenter.
 // This method requires that lock is held for reads.
 func (s *ServerResolverBuilder) getDCAddrs(dc string) []resolver.Address {
 	var addrs []resolver.Address
-	for _, server := range s.servers {
-		if server.Datacenter != dc {
-			continue
-		}
-
+	for _, server := range s.router.ServerList(dc) {
 		addrs = append(addrs, resolver.Address{
 			Addr:       server.Addr.String(),
 			Type:       resolver.Backend,

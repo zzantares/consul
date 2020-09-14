@@ -38,9 +38,6 @@ type Router struct {
 	// managers for that datacenter. This is used to quickly lookup routes.
 	managers map[string][]*Manager
 
-	// routeFn is a hook to actually do the routing.
-	routeFn func(datacenter string) (*Manager, *metadata.Server, bool)
-
 	// grpcServerTracker is used to balance grpc connections across servers,
 	// and has callbacks for adding or removing a server.
 	grpcServerTracker ServerTracker
@@ -107,9 +104,6 @@ func NewRouter(logger hclog.Logger, localDatacenter, serverName string, tracker 
 		managers:          make(map[string][]*Manager),
 		grpcServerTracker: tracker,
 	}
-
-	// Hook the direct route lookup by default.
-	router.routeFn = router.findDirectRoute
 
 	return router
 }
@@ -360,16 +354,6 @@ func (r *Router) FailServer(areaID types.AreaID, s *metadata.Server) error {
 	return nil
 }
 
-// FindRoute returns a healthy server with a route to the given datacenter. The
-// Boolean return parameter will indicate if a server was available. In some
-// cases this may return a best-effort unhealthy server that can be used for a
-// connection attempt. If any problem occurs with the given server, the caller
-// should feed that back to the manager associated with the server, which is
-// also returned, by calling NotifyFailedServer().
-func (r *Router) FindRoute(datacenter string) (*Manager, *metadata.Server, bool) {
-	return r.routeFn(datacenter)
-}
-
 // FindLANRoute returns a healthy server within the local datacenter. In some
 // cases this may return a best-effort unhealthy server that can be used for a
 // connection attempt. If any problem occurs with the given server, the caller
@@ -392,9 +376,13 @@ func (r *Router) FindLANServer() *metadata.Server {
 	return srv
 }
 
-// findDirectRoute looks for a route to the given datacenter if it's directly
-// adjacent to the server.
-func (r *Router) findDirectRoute(datacenter string) (*Manager, *metadata.Server, bool) {
+// FindRoute returns a healthy server with a route to the given datacenter. The
+// Boolean return parameter will indicate if a server was available. In some
+// cases this may return a best-effort unhealthy server that can be used for a
+// connection attempt. If any problem occurs with the given server, the caller
+// should feed that back to the manager associated with the server, which is
+// also returned, by calling NotifyFailedServer().
+func (r *Router) FindRoute(datacenter string) (*Manager, *metadata.Server, bool) {
 	r.RLock()
 	defer r.RUnlock()
 
@@ -499,6 +487,23 @@ func (r *Router) GetLANManager() *Manager {
 	}
 
 	return managerInfo.manager
+}
+
+// TODO: add area parameter instead of using LAN
+func (r *Router) ServerList(dc string) []*metadata.Server {
+	r.RLock()
+	defer r.RUnlock()
+
+	area, ok := r.areas[types.AreaLAN]
+	if !ok {
+		return nil
+	}
+
+	managerInfo, ok := area.managers[dc]
+	if !ok {
+		return nil
+	}
+	return managerInfo.manager.getServerList().servers
 }
 
 // datacenterSorter takes a list of DC names and a parallel vector of distances
