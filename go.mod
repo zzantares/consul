@@ -95,3 +95,5 @@ require (
 )
 
 replace istio.io/gogo-genproto v0.0.0-20190124151557-6d926a6e6feb => github.com/istio/gogo-genproto v0.0.0-20190124151557-6d926a6e6feb
+
+replace github.com/armon/go-metrics => github.com/dnephin/go-metrics v0.3.5-0.20200914174622-67afe457858f
