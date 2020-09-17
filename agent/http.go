@@ -87,22 +87,23 @@ type HTTPServer struct {
 	denylist *Denylist
 }
 
-// bufferedFile implements os.File and allows us to modify a file from disk by
+// bufferedFile implements http.File and allows us to modify a file from disk by
 // writing out the new version into a buffer and then serving file reads from
 // that. It assumes you are modifying a real file and presents the actual file's
 // info when queried.
 type bufferedFile struct {
 	templated *bytes.Reader
-	info      os.FileInfo
+	name      string
 }
 
-func newBufferedFile(buf *bytes.Buffer, raw http.File) *bufferedFile {
-	info, _ := raw.Stat()
+func newBufferedFile(buf *bytes.Buffer, name string) *bufferedFile {
 	return &bufferedFile{
 		templated: bytes.NewReader(buf.Bytes()),
-		info:      info,
+		name:      name,
 	}
 }
+
+var _ http.File = (*bufferedFile)(nil)
 
 func (t *bufferedFile) Read(p []byte) (n int, err error) {
 	return t.templated.Read(p)
@@ -125,7 +126,7 @@ func (t *bufferedFile) Stat() (os.FileInfo, error) {
 }
 
 func (t *bufferedFile) Name() string {
-	return t.info.Name()
+	return t.name
 }
 
 func (t *bufferedFile) Size() int64 {
@@ -133,11 +134,13 @@ func (t *bufferedFile) Size() int64 {
 }
 
 func (t *bufferedFile) Mode() os.FileMode {
-	return t.info.Mode()
+	return 0644
 }
 
+var procStartTime = time.Now()
+
 func (t *bufferedFile) ModTime() time.Time {
-	return t.info.ModTime()
+	return procStartTime
 }
 
 func (t *bufferedFile) IsDir() bool {
@@ -209,7 +212,8 @@ func (fs *settingsInjectedIndexFS) Open(name string) (http.File, error) {
 		content = bytes.Replace(content, []byte("{{.ContentPath}}"), []byte(path), -1)
 	}
 
-	return newBufferedFile(bytes.NewBuffer(content), file), nil
+	fi, _ := file.Stat()
+	return newBufferedFile(bytes.NewBuffer(content), fi.Name()), nil
 }
 
 // endpoint is a Consul-specific HTTP handler that takes the usual arguments in
