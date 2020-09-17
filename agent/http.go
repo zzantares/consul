@@ -93,13 +93,13 @@ type HTTPServer struct {
 // info when queried.
 type bufferedFile struct {
 	templated *bytes.Reader
-	name      string
+	fileInfo  fileInfo
 }
 
 func newBufferedFile(buf *bytes.Buffer, name string) *bufferedFile {
 	return &bufferedFile{
 		templated: bytes.NewReader(buf.Bytes()),
-		name:      name,
+		fileInfo:  fileInfo{name: name, size: int64(buf.Len())},
 	}
 }
 
@@ -122,33 +122,52 @@ func (t *bufferedFile) Readdir(count int) ([]os.FileInfo, error) {
 }
 
 func (t *bufferedFile) Stat() (os.FileInfo, error) {
-	return t, nil
+	return t.fileInfo, nil
 }
 
-func (t *bufferedFile) Name() string {
-	return t.name
+type fileInfo struct {
+	name string
+	size int64
 }
 
-func (t *bufferedFile) Size() int64 {
-	return int64(t.templated.Len())
+var _ os.FileInfo = (*fileInfo)(nil)
+
+func (i fileInfo) Name() string {
+	return i.name
 }
 
-func (t *bufferedFile) Mode() os.FileMode {
+func (i fileInfo) Size() int64 {
+	return i.size
+}
+
+func (i fileInfo) Mode() os.FileMode {
 	return 0644
 }
 
 var procStartTime = time.Now()
 
-func (t *bufferedFile) ModTime() time.Time {
+func (i fileInfo) ModTime() time.Time {
 	return procStartTime
 }
 
-func (t *bufferedFile) IsDir() bool {
+func (i fileInfo) IsDir() bool {
 	return false
 }
 
-func (t *bufferedFile) Sys() interface{} {
+func (i fileInfo) Sys() interface{} {
 	return nil
+}
+
+type fileInfoWrapper struct {
+	http.File
+}
+
+func (w fileInfoWrapper) Stat() (os.FileInfo, error) {
+	fi, err := w.File.Stat()
+	if err != nil {
+		return nil, err
+	}
+	return fileInfo{name: fi.Name(), size: fi.Size()}, nil
 }
 
 type redirectFS struct {
@@ -157,10 +176,12 @@ type redirectFS struct {
 
 func (fs *redirectFS) Open(name string) (http.File, error) {
 	file, err := fs.fs.Open(name)
-	if err != nil {
-		file, err = fs.fs.Open("/index.html")
+	if err == nil {
+		return fileInfoWrapper{File: file}, err
 	}
-	return file, err
+
+	file, err = fs.fs.Open("/index.html")
+	return fileInfoWrapper{File: file}, err
 }
 
 type settingsInjectedIndexFS struct {
