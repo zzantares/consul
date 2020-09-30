@@ -1,4 +1,9 @@
-<StateChart @src={{chart}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
+
   <Ref @target={{this}} @name="dispatch" @value={{dispatch}} />
   <State @matches="success">
     <Tooltip @targetId={{guid}} @isShown={{true}} @position={{position}} @duration={{3000}} @oncomplete={{action dispatch 'RESET'}}>
@@ -13,4 +18,5 @@
   <div class="copy-button" id={{guid}}>
     <button title={{concat "Copy " name " to the clipboard"}} ...attributes type="button" class="copy-btn" data-clipboard-text={{value}}>{{~yield~}}</button>
   </div>
+{{/let}}
 </StateChart>

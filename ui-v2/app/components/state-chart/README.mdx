@@ -3,7 +3,7 @@
 ```handlebars
 <StateChart
   @chart={{xstateStateChartObject}}
-  as |State Guard Action dispatch state|>
+  as |stateChart|>
 </StateChart>
 ```
 
@@ -17,34 +17,34 @@ from within templates using XState State Machine and Statechart objects.
 | `chart` | `object` |  | An xstate statechart/state machine object |
 | `initial` | `String` | The initial value of the state chart itself | The initial state of the machine/chart (defaults to whatever is defined on the object itself) |
 
-The component currently yields 3 conextual components:
+The component currently yields 3 cotnextual components:
 
-- `<State />`: Used for rendering matching certain states ([also see State Component](../state/README.mdx))
-- `<Action @name="" @exec={{action ""}} />`: Used to wire together ember actions to xstate actions.
-- `<Guard @name="" @cond={{action ""}} />`: Used to wire together ember actions or props to xstate guards.
+- `<stateChart.State />`: Used for rendering matching certain states ([also see State Component](../state/README.mdx))
+- `<stateChart.Action @name="" @exec={{action ""}} />`: Used to wire together ember actions to xstate actions.
+- `<stateChart.Guard @name="" @cond={{action ""}} />`: Used to wire together ember actions or props to xstate guards.
 
 and 2 further objects:
 
-- `dispatch`: An action to dispatch an xstate event
-- `state`: The state object itself for usage in the `state-matches` helper
+- `stateChart.dispatch`: An action to dispatch an xstate event
+- `stateChart.state`: The state object itself for usage in the `state-matches` helper
 
 ### Example
 
 ```handlebars
 <StateChart
   @chart={{xstateStateChartObject}}
-  as |State Guard Action dispatch state|>
-    <Guard @name="nameOfGuard" @cond={{action "testGuardCondition"}} />
-    <Action @name="nameOfAction" @exec={{action "executeAction"}} />
-    <State @matches="idle">
+  as |sc|>
+    <sc.Guard @name="nameOfGuard" @cond={{action "testGuardCondition"}} />
+    <sc.Action @name="nameOfAction" @exec={{action "executeAction"}} />
+    <sc.State @matches="idle">
       Currently Idle
     </State>
-    <State @matches="loading">
+    <sc.State @matches="loading">
       Currently Loading
     </State>
-    <State @matches={{array 'loading' 'idle'}}>
+    <sc.State @matches={{array 'loading' 'idle'}}>
       Idle and loading
-      <button disabled={{state-matches state "loading"}} onclick={{action dispatch "START"}}>Load</button>
+      <button disabled={{state-matches sc.state "loading"}} onclick={{action sc.dispatch "START"}}>Load</button>
     </State>
 </StateChart>
 ```

@@ -1,4 +1,9 @@
-<StateChart @src={{chart}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
+
   {{yield (hash
     reset=(action dispatch "RESET")
     focus=(action 'focus')
@@ -97,4 +102,7 @@
       @onerror={{queue (action (mut error) value="error.errors.firstObject") (action dispatch "ERROR")}}
     />
   </State>
+
+{{/let}}
+
 </StateChart>

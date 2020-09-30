@@ -1,4 +1,9 @@
-<StateChart @src={{chart}} @initial={{if (eq type 'oidc') 'provider' 'secret'}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} @initial={{if (eq type 'oidc') 'provider' 'secret'}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
+
   <Guard @name="isSecret" @cond={{action 'isSecret'}} />
   {{#let (concat '/' (or nspace 'default') '/' dc) as |path|}}
     <State @matches="secret">
@@ -30,4 +35,5 @@
       />
     </State>
   {{/let}}
+{{/let}}
 </StateChart>

@@ -1,4 +1,9 @@
-<StateChart @src={{chart}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
+
   <Ref @target={{this}} @name="dispatch" @value={{dispatch}} />
   <State @matches="loaded">
     <div class="oidc-select" ...attributes>
@@ -45,4 +50,7 @@
   <State @matches="loading">
     <div class="progress indeterminate"></div>
   </State>
+
+{{/let}}
+
 </StateChart>

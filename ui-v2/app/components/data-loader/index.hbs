@@ -1,5 +1,9 @@
 {{yield}}
-<StateChart @src={{chart}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
 
   <Ref @target={{this}} @name="dispatch" @value={{dispatch}} />
   <Guard @name="loaded" @cond={{action "isLoaded"}} />
@@ -69,5 +73,6 @@
 
   </State>
 
+{{/let}}
 {{/let}}
 </StateChart>

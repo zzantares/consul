@@ -1,4 +1,8 @@
-<StateChart @src={{chart}} as |State Guard Action dispatch state|>
+<StateChart @src={{chart}} as |stateChart|>
+
+{{#let
+  stateChart.State startChart.Guard stateChart.Action stateChart.dispatch stateChart.state
+as |State Guard Action dispatch state|}}
 
   <Guard @name="hasToken" @cond={{action 'hasToken'}} />
   <Action @name="login" @exec={{action 'login'}} />
@@ -37,4 +41,6 @@
       </State>
     {{/let}}
   </DataSink>
+
+  {{/let}}
 </StateChart>
