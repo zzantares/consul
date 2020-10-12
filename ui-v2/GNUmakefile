@@ -65,6 +65,10 @@ test-oss-ci: deps test-node
 test-node:
 	yarn run test:node
 
+test-dist: build
+	yarn run test:dist
+##
+
 test-coverage: deps
 	yarn run test:coverage
 
