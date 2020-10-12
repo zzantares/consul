@@ -4,7 +4,7 @@ import { action } from '@ember/object';
 import { inject as service } from '@ember/service';
 
 export default class TopologyMetrics extends Component {
-  @service('ui-config') cfg;
+  @service('env') env;
 
   // =attributes
   @tracked centerDimensions;
@@ -12,11 +12,9 @@ export default class TopologyMetrics extends Component {
   @tracked downLines = [];
   @tracked upView;
   @tracked upLines = [];
-  @tracked hasMetricsProvider = false;
 
-  constructor(owner, args) {
-    super(owner, args);
-    this.hasMetricsProvider = !!this.cfg.get().metrics_provider
+  get hasMetricsProvider() {
+    return this.args.metricsProvider !== '';
   }
 
   // =methods
