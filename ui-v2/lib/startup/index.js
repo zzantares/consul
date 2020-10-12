@@ -40,6 +40,10 @@ module.exports = {
       appName: config.modulePrefix,
       environment: config.environment,
       rootURL: config.environment === 'production' ? '{{.ContentPath}}' : config.rootURL,
+      ui:
+        config.environment === 'production'
+          ? '{{ jsonEncodeAndEscape .UIConfig }}'
+          : escape(JSON.stringify({})),
       config: config,
     };
     switch (type) {

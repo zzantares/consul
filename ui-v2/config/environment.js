@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-module.exports = function (environment, $ = process.env) {
+module.exports = function(environment, $ = process.env) {
   let ENV = {
     modulePrefix: 'consul-ui',
     environment,
@@ -34,7 +34,7 @@ module.exports = function (environment, $ = process.env) {
     CONSUL_UI_DISABLE_REALTIME: typeof process.env.CONSUL_UI_DISABLE_REALTIME !== 'undefined',
     CONSUL_UI_DISABLE_ANCHOR_SELECTION:
       typeof process.env.CONSUL_UI_DISABLE_ANCHOR_SELECTION !== 'undefined',
-    CONSUL_COPYRIGHT_YEAR: (function (val) {
+    CONSUL_COPYRIGHT_YEAR: (function(val) {
       if (val) {
         return val;
       }
@@ -45,7 +45,7 @@ module.exports = function (environment, $ = process.env) {
         .split('-')
         .shift();
     })(process.env.CONSUL_COPYRIGHT_YEAR),
-    CONSUL_GIT_SHA: (function (val) {
+    CONSUL_GIT_SHA: (function(val) {
       if (val) {
         return val;
       }
@@ -55,7 +55,7 @@ module.exports = function (environment, $ = process.env) {
         .toString()
         .trim();
     })(process.env.CONSUL_GIT_SHA),
-    CONSUL_VERSION: (function (val) {
+    CONSUL_VERSION: (function(val) {
       if (val) {
         return val;
       }
@@ -64,16 +64,24 @@ module.exports = function (environment, $ = process.env) {
       const contents = fs.readFileSync(version_go).toString();
       return contents
         .split('\n')
-        .find(function (item, i, arr) {
+        .find(function(item, i, arr) {
           return item.indexOf('Version =') !== -1;
         })
         .trim()
         .split('"')[1];
     })(process.env.CONSUL_VERSION),
     CONSUL_BINARY_TYPE: process.env.CONSUL_BINARY_TYPE ? process.env.CONSUL_BINARY_TYPE : 'oss',
+
     CONSUL_ACLS_ENABLED: false,
     CONSUL_NSPACES_ENABLED: false,
     CONSUL_SSO_ENABLED: false,
+
+    CONSUL_METRICS_PROXY_ENABLED: false,
+    CONSUL_METRICS_PROVIDER: 'prometheus',
+    CONSUL_METRICS_PROVIDER_OPTIONS: {},
+    CONSUL_METRICS_REFRESH_INTERVAL: 10000,
+
+    CONSUL_DASHBOARD_URL_TEMPLATES: {},
 
     CONSUL_HOME_URL: 'https://www.consul.io',
     CONSUL_REPO_ISSUES_URL: 'https://github.com/hashicorp/consul/issues/new/choose',

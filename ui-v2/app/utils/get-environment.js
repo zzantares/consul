@@ -3,7 +3,10 @@ export default function(config = {}, win = window, doc = document) {
     return doc.cookie
       .split(';')
       .filter(item => item !== '')
-      .map(item => item.trim().split('='));
+      .map(item => {
+        const [key, ...rest] = item.trim().split('=');
+        return [key, rest.join('=')];
+      });
   };
   const user = function(str) {
     const item = win.localStorage.getItem(str);
@@ -25,6 +28,7 @@ export default function(config = {}, win = window, doc = document) {
   // to figure out where we are for other things such as
   // base url, api url etc
   const currentSrc = scripts[scripts.length - 1].src;
+  const ui_config = JSON.parse(unescape(doc.getElementsByName('consul-ui/ui_config')[0].content));
   let resource;
   // TODO: Potentially use ui_config {}, for example
   // turning off blocking queries if its a busy cluster
@@ -33,6 +37,14 @@ export default function(config = {}, win = window, doc = document) {
   const operator = function(str, env) {
     let protocol;
     switch (str) {
+      case 'CONSUL_DASHBOARD_URL_TEMPLATES':
+        return ui_config.dashboard_url_templates;
+      case 'CONSUL_METRICS_PROXY_ENABLED':
+        return ui_config.metrics_proxy_enabled;
+      case 'CONSUL_METRICS_PROVIDER':
+        return ui_config.metrics_proxy_provider;
+      case 'CONSUL_METRICS_PROVIDER_OPTIONS':
+        return ui_config.metrics_proxy_options;
       case 'CONSUL_BASE_UI_URL':
         return currentSrc
           .split('/')
@@ -85,6 +97,15 @@ export default function(config = {}, win = window, doc = document) {
             case 'CONSUL_SSO_ENABLE':
               prev['CONSUL_SSO_ENABLED'] = !!JSON.parse(String(value).toLowerCase());
               break;
+            case 'CONSUL_METRICS_PROXY_ENABLE':
+              prev['CONSUL_METRICS_PROXY_ENABLED'] = !!JSON.parse(String(value).toLowerCase());
+              break;
+            case 'CONSUL_DASHBOARD_URL_TEMPLATES':
+            case 'CONSUL_METRICS_PROVIDER_OPTIONS':
+              if (typeof value !== 'undefined') {
+                prev[key] = JSON.parse(value);
+              }
+              break;
             default:
               prev[key] = value;
           }
@@ -116,6 +137,10 @@ export default function(config = {}, win = window, doc = document) {
         // We allow the operator to set these ones via various methods
         // although UI developer config is preferred
         return ui(str) || operator(str, env);
+      case 'CONSUL_METRICS_ENABLED':
+      case 'CONSUL_METRICS_PROVIDER':
+        // The operator can set these, but default to ember config
+        return operator(str, env) || ui(str);
       default:
         return ui(str);
     }

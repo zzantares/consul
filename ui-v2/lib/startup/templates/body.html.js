@@ -1,4 +1,4 @@
-module.exports = ({ appName, environment, rootURL, config }) => `
+module.exports = ({ appName, environment, rootURL, config, ui }) => `
   <noscript>
       <div style="margin: 0 auto;">
           <h2>JavaScript Required</h2>
