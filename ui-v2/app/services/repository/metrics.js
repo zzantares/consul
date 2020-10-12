@@ -1,27 +1,18 @@
 import RepositoryService from 'consul-ui/services/repository';
 import { inject as service } from '@ember/service';
-import { env } from 'consul-ui/env';
-
-// meta is used by DataSource to configure polling. The interval controls how
-// long between each poll to the metrics provider. TODO - make this configurable
-// in the UI settings.
-const meta = {
-  interval: env('CONSUL_METRICS_POLL_INTERVAL') || 10000,
-};
 
 export default RepositoryService.extend({
-  cfg: service('ui-config'),
+  env: service('env'),
 
-  init: function() {
-    this._super(...arguments);
-    const uiCfg = this.cfg.get();
-    // Inject whether or not the proxy is enabled as an option into the opaque
-    // JSON options the user provided.
-    const opts = uiCfg.metrics_provider_options || {};
-    opts.metrics_proxy_enabled = uiCfg.metrics_proxy_enabled;
-    // Inject the base app URL
-    const provider = uiCfg.metrics_provider || 'prometheus';
-    this.provider = window.consul.getMetricsProvider(provider, opts);
+  get provider() {
+    return window.consul.getMetricsProvider(this.env.var('CONSUL_METRICS_PROVIDER'), {
+      ...this.env.var('CONSUL_METRICS_PROVIDER_OPTIONS'),
+      metrics_proxy_enabled: this.env.var('CONSUL_METRICS_PROXY_ENABLED'),
+    });
+  },
+
+  findDashboardURLs: function() {
+    return Promise.resolve(this.env.var('CONSUL_DASHBOARD_URL_TEMPLATES'));
   },
 
   findServiceSummary: function(protocol, slug, dc, nspace, configuration = {}) {
@@ -30,9 +21,11 @@ export default RepositoryService.extend({
       this.provider.serviceRecentSummarySeries(slug, protocol, {}),
       this.provider.serviceRecentSummaryStats(slug, protocol, {}),
     ];
-    return Promise.all(promises).then(function(results) {
+    return Promise.all(promises).then(results => {
       return {
-        meta: meta,
+        meta: {
+          interval: this.env.var('CONSUL_METRICS_REFRESH_INTERVAL'),
+        },
         series: results[0].series,
         stats: results[1].stats,
       };
@@ -40,15 +33,19 @@ export default RepositoryService.extend({
   },
 
   findUpstreamSummary: function(slug, dc, nspace, configuration = {}) {
-    return this.provider.upstreamRecentSummaryStats(slug, {}).then(function(result) {
-      result.meta = meta;
+    return this.provider.upstreamRecentSummaryStats(slug, {}).then(result => {
+      result.meta = {
+        interval: this.env.var('CONSUL_METRICS_REFRESH_INTERVAL'),
+      };
       return result;
     });
   },
 
   findDownstreamSummary: function(slug, dc, nspace, configuration = {}) {
-    return this.provider.downstreamRecentSummaryStats(slug, {}).then(function(result) {
-      result.meta = meta;
+    return this.provider.downstreamRecentSummaryStats(slug, {}).then(result => {
+      result.meta = {
+        interval: this.env.var('CONSUL_METRICS_REFRESH_INTERVAL'),
+      };
       return result;
     });
   },
