@@ -83,13 +83,15 @@ func newTestServer(t *testing.T, name string, dc string) testServer {
 }
 
 type simple struct {
-	name string
-	dc   string
+	name    string
+	dc      string
+	counter int64
 }
 
 func (s *simple) Flow(_ *testservice.Req, flow testservice.Simple_FlowServer) error {
+	id := atomic.AddInt64(&s.counter, 1)
 	for flow.Context().Err() == nil {
-		resp := &testservice.Resp{ServerName: "one", Datacenter: s.dc}
+		resp := &testservice.Resp{ServerName: "one", Datacenter: s.dc, Count: id}
 		if err := flow.Send(resp); err != nil {
 			return err
 		}
@@ -99,7 +101,8 @@ func (s *simple) Flow(_ *testservice.Req, flow testservice.Simple_FlowServer) er
 }
 
 func (s *simple) Something(_ context.Context, _ *testservice.Req) (*testservice.Resp, error) {
-	return &testservice.Resp{ServerName: s.name, Datacenter: s.dc}, nil
+	id := atomic.AddInt64(&s.counter, 1)
+	return &testservice.Resp{ServerName: s.name, Datacenter: s.dc, Count: id}, nil
 }
 
 // fakeRPCListener mimics agent/consul.Server.listen to handle the RPCType byte.

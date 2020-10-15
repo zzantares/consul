@@ -132,21 +132,41 @@ func TestClientConnPool_IntegrationWithGRPCResolver_Rebalance(t *testing.T) {
 	require.NoError(t, err)
 	client := testservice.NewSimpleClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	t.Cleanup(cancel)
 
 	first, err := client.Something(ctx, &testservice.Req{})
 	require.NoError(t, err)
 
-	t.Run("rebalance a different DC, does nothing", func(t *testing.T) {
+	runStep(t, "rebalance a different DC, does nothing", func(t *testing.T) {
 		res.NewRebalancer("dc-other")()
 
 		resp, err := client.Something(ctx, &testservice.Req{})
 		require.NoError(t, err)
 		require.Equal(t, resp.ServerName, first.ServerName)
+		require.Equal(t, resp.Count, first.Count+1)
 	})
 
-	t.Run("rebalance the dc", func(t *testing.T) {
+	chStreamDone := make(chan error)
+
+	runStep(t, "start a stream in the background", func(t *testing.T) {
+		go func() {
+			stream, err := client.Flow(ctx, &testservice.Req{})
+			require.NoError(t, err)
+
+			for {
+				resp, err := stream.Recv()
+				if err != nil {
+					chStreamDone <- err
+					close(chStreamDone)
+					return
+				}
+				fmt.Println("received ", resp.Count)
+			}
+		}()
+	})
+
+	runStep(t, "rebalance the dc", func(t *testing.T) {
 		// Rebalance is random, but if we repeat it a few times it should give us a
 		// new server.
 		attempts := 100
@@ -160,6 +180,12 @@ func TestClientConnPool_IntegrationWithGRPCResolver_Rebalance(t *testing.T) {
 			}
 		}
 		t.Fatalf("server was not rebalanced after %v attempts", attempts)
+	})
+
+	runStep(t, "check that our steam was reconnected after a rebalance", func(t *testing.T) {
+		err := <-chStreamDone
+		fmt.Println(err) // this does not fire until context is cancelled.
+		t.Fail()
 	})
 }
 
@@ -188,5 +214,12 @@ func TestClientConnPool_IntegrationWithGRPCResolver_MultiDC(t *testing.T) {
 		resp, err := client.Something(ctx, &testservice.Req{})
 		require.NoError(t, err)
 		require.Equal(t, resp.Datacenter, dc)
+	}
+}
+
+func runStep(t *testing.T, name string, fn func(t *testing.T)) {
+	t.Helper()
+	if !t.Run(name, fn) {
+		t.FailNow()
 	}
 }
