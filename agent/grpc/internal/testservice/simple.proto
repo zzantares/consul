@@ -15,4 +15,5 @@ message Req {
 message Resp {
     string ServerName = 1;
     string Datacenter = 2;
+    int64 Count = 3;
 }
