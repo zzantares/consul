@@ -12,10 +12,11 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/hashicorp/go-hclog"
+
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/logging"
-	"github.com/hashicorp/go-hclog"
 )
 
 const (
@@ -497,23 +498,6 @@ func (m *Manager) RemoveServer(s *metadata.Server) {
 	}
 }
 
-// refreshServerRebalanceTimer is only called once m.rebalanceTimer expires.
-func (m *Manager) refreshServerRebalanceTimer() time.Duration {
-	l := m.getServerList()
-	numServers := len(l.servers)
-	// Limit this connection's life based on the size (and health) of the
-	// cluster.  Never rebalance a connection more frequently than
-	// connReuseLowWatermarkDuration, and make sure we never exceed
-	// clusterWideRebalanceConnsPerSec operations/s across numLANMembers.
-	clusterWideRebalanceConnsPerSec := float64(numServers * newRebalanceConnsPerSecPerServer)
-	connReuseLowWatermarkDuration := clientRPCMinReuseDuration + lib.RandomStagger(clientRPCMinReuseDuration/clientRPCJitterFraction)
-	numLANMembers := m.clusterInfo.NumNodes()
-	connRebalanceTimeout := lib.RateScaledInterval(clusterWideRebalanceConnsPerSec, connReuseLowWatermarkDuration, numLANMembers)
-
-	m.rebalanceTimer.Reset(connRebalanceTimeout)
-	return connRebalanceTimeout
-}
-
 // ResetRebalanceTimer resets the rebalance timer.  This method exists for
 // testing and should not be used directly.
 func (m *Manager) ResetRebalanceTimer() {
@@ -522,13 +506,13 @@ func (m *Manager) ResetRebalanceTimer() {
 	m.rebalanceTimer.Reset(clientRPCMinReuseDuration)
 }
 
-// Start is used to start and manage the task of automatically shuffling and
-// rebalancing the list of Consul servers.  This maintenance only happens
-// periodically based on the expiration of the timer.  Failed servers are
-// automatically cycled to the end of the list.  New servers are appended to
-// the list.  The order of the server list must be shuffled periodically to
-// distribute load across all known and available Consul servers.
-func (m *Manager) Start() {
+// Run periodically shuffles the list of servers to evenly distribute load.
+// Run exits when shutdownCh is closed.
+//
+// When a server fails it is moved to the end of the list, and new servers are
+// appended to the end of the list. Run ensures that load is distributed evenly
+// to all servers by randomly shuffling the list.
+func (m *Manager) Run() {
 	for {
 		select {
 		case <-m.rebalanceTimer.C:
@@ -541,4 +525,26 @@ func (m *Manager) Start() {
 			return
 		}
 	}
+}
+
+// TODO: cleanup
+// refreshServerRebalanceTimer is only called once m.rebalanceTimer expires.
+//
+// TODO: reword
+// Limit this connection's life based on the size (and health) of the
+// cluster.  Never rebalance a connection more frequently than
+// connReuseLowWatermarkDuration, and make sure we never exceed
+// clusterWideRebalanceConnsPerSec operations/s across numLANMembers.
+func (m *Manager) refreshServerRebalanceTimer() time.Duration {
+	numServers := len(m.getServerList().servers)
+	delay := lib.RateScaledInterval(
+		// 3=192 5=320 7=448
+		float64(numServers*newRebalanceConnsPerSecPerServer),
+		// range(120, 180)
+		clientRPCMinReuseDuration+lib.RandomStagger(clientRPCMinReuseDuration/clientRPCJitterFraction),
+		//127*time.Second,
+		m.clusterInfo.NumNodes())
+
+	m.rebalanceTimer.Reset(delay)
+	return delay
 }
