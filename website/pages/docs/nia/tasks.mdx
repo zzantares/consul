@@ -8,6 +8,8 @@ description: >-
 
 # Tasks
 
+@include ‘nia_tech_preview_note.mdx’
+
 A task is the translation of dynamic service information from the Consul Catalog into network infrastructure changes downstream. Consul-Terraform-Sync carries out automation for executing tasks using network drivers. For a Terraform driver, the scope of a task is a Terraform module.
 
 Below is an example task configuration:
@@ -31,22 +33,22 @@ See [task configuration](/docs/nia/installation/configuration#task) for more det
 
 A task is executed when any change of information for services the task is configured for is detected from the Consul catalog. Execution could include one or more changes to service values, like IP address, added or removed service instance, or tags. A complete list of values that would cause a task to run are expanded below:
 
-| Attribute | Description |
-| -- | -- |
-| `id` | A unique Consul ID for this service. This is unique per Consul agent. |
-| `name` | The logical name of the service. Many service instances may share the same logical service name. |
-| `address` | IP address of the service host -- if empty, node address should be used. |
-| `port` | Port number of the service |
-| `meta` | List of user-defined metadata key/value pairs for the service |
-| `tags` | List of tags for the service |
-| `namespace` | Consul Enterprise namespace of the service instance |
-| `status` | Representative status for the service instance based on an aggregate of the list of health checks |
-| `node` | Name of the Consul node on which the service is registered |
-| `node_id` | ID of the node on which the service is registered. |
-| `node_address` | The IP address of the Consul node on which the service is registered. |
-| `node_datacenter` | Data center of the Consul node on which the service is registered. |
-| `node_tagged_addresses` | List of explicit LAN and WAN IP addresses for the agent |
-| `node_meta` | List of user-defined metadata key/value pairs for the node |
+| Attribute               | Description                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------- |
+| `id`                    | A unique Consul ID for this service. This is unique per Consul agent.                             |
+| `name`                  | The logical name of the service. Many service instances may share the same logical service name.  |
+| `address`               | IP address of the service host -- if empty, node address should be used.                          |
+| `port`                  | Port number of the service                                                                        |
+| `meta`                  | List of user-defined metadata key/value pairs for the service                                     |
+| `tags`                  | List of tags for the service                                                                      |
+| `namespace`             | Consul Enterprise namespace of the service instance                                               |
+| `status`                | Representative status for the service instance based on an aggregate of the list of health checks |
+| `node`                  | Name of the Consul node on which the service is registered                                        |
+| `node_id`               | ID of the node on which the service is registered.                                                |
+| `node_address`          | The IP address of the Consul node on which the service is registered.                             |
+| `node_datacenter`       | Data center of the Consul node on which the service is registered.                                |
+| `node_tagged_addresses` | List of explicit LAN and WAN IP addresses for the agent                                           |
+| `node_meta`             | List of user-defined metadata key/value pairs for the node                                        |
 
 Consul-Terraform-Sync automatically generates any files needed to execute the network driver for each task. See [network drivers](/docs/nia/network-drivers) for more details on the files generated for the Terraform driver.
 
