@@ -860,55 +860,55 @@ workflows:
                 - stable-website
                 - /^docs\/.*/
                 - /^ui\/.*/
-      - check-generated-protobuf: *filter-ignore-non-go-branches
-      - lint-consul-retry: *filter-ignore-non-go-branches
-      - lint: *filter-ignore-non-go-branches
-      - test-connect-ca-providers: *filter-ignore-non-go-branches
-      - dev-build: *filter-ignore-non-go-branches
-      - go-test:
-          requires: [dev-build]
-      - go-test-api:
-          requires: [dev-build]
-      - go-test-race: *filter-ignore-non-go-branches
-      - go-test-sdk: *filter-ignore-non-go-branches
-  build-distros:
-    jobs:
-      - check-vendor: *filter-ignore-non-go-branches
-      - build-386: &require-check-vendor
-          requires:
-            - check-vendor
-      - build-amd64: *require-check-vendor
-      - build-arm: *require-check-vendor
-      # every commit on ui-staging and master will have a rebuilt UI
-      - frontend-cache:
-          filters:
-            branches:
-              only:
-                - master
-                - ui-staging
-      - ember-build-prod:
-          requires:
-            - frontend-cache
-      - build-static-assets:
-          requires:
-            - ember-build-prod
-      - publish-static-assets:
-          filters:
-            branches:
-              only:
-                - master
-          requires:
-            - build-static-assets
-      - dev-build:
-          requires:
-            - build-static-assets
-      - dev-upload-s3:
-          requires:
-            - dev-build
-      - dev-upload-docker:
-          requires:
-            - dev-build
-          context: consul-ci
+  #     - check-generated-protobuf: *filter-ignore-non-go-branches
+  #     - lint-consul-retry: *filter-ignore-non-go-branches
+  #     - lint: *filter-ignore-non-go-branches
+  #     - test-connect-ca-providers: *filter-ignore-non-go-branches
+  #     - dev-build: *filter-ignore-non-go-branches
+  #     - go-test:
+  #         requires: [dev-build]
+  #     - go-test-api:
+  #         requires: [dev-build]
+  #     - go-test-race: *filter-ignore-non-go-branches
+  #     - go-test-sdk: *filter-ignore-non-go-branches
+  # build-distros:
+  #   jobs:
+  #     - check-vendor: *filter-ignore-non-go-branches
+  #     - build-386: &require-check-vendor
+  #         requires:
+  #           - check-vendor
+  #     - build-amd64: *require-check-vendor
+  #     - build-arm: *require-check-vendor
+  #     # every commit on ui-staging and master will have a rebuilt UI
+  #     - frontend-cache:
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #               - ui-staging
+  #     - ember-build-prod:
+  #         requires:
+  #           - frontend-cache
+  #     - build-static-assets:
+  #         requires:
+  #           - ember-build-prod
+  #     - publish-static-assets:
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #         requires:
+  #           - build-static-assets
+  #     - dev-build:
+  #         requires:
+  #           - build-static-assets
+  #     - dev-upload-s3:
+  #         requires:
+  #           - dev-build
+  #     - dev-upload-docker:
+  #         requires:
+  #           - dev-build
+  #         context: consul-ci
   test-integrations:
     jobs:
       - dev-build: *filter-ignore-non-go-branches
@@ -942,59 +942,59 @@ workflows:
       - envoy-integration-test-1.15.0:
           requires:
             - dev-build
-  website:
-    jobs:
-      - build-website-docker-image:
-          context: website-docker-image
-          filters:
-            branches:
-              only:
-                - master
-      - algolia-index:
-          context: consul-docs
-          filters:
-            branches:
-              only:
-                - stable-website
-  frontend:
-    jobs:
-      - frontend-cache:
-          filters:
-            branches:
-              only:
-                - master
-                - ui-staging
-                - /^ui\/.*/
-      - node-tests:
-          requires:
-            - frontend-cache
-      - ember-build-oss:
-          requires:
-            - frontend-cache
-      - ember-build-ent:
-          requires:
-            - frontend-cache
-      - ember-test-oss:
-          requires:
-            - ember-build-oss
-      - ember-test-ent:
-          requires:
-            - ember-build-ent
-      - ember-coverage:
-          requires:
-            - ember-build-ent
-  workflow-automation:
-    jobs:
-      - trigger-oss-merge:
-          context: team-consul
-          filters:
-            branches:
-              only:
-                - master
-                - /release\/\d+\.\d+\.x$/
-      - cherry-picker:
-          context: team-consul
-          filters:
-            branches:
-              only:
-                - master
+  # website:
+  #   jobs:
+  #     - build-website-docker-image:
+  #         context: website-docker-image
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #     - algolia-index:
+  #         context: consul-docs
+  #         filters:
+  #           branches:
+  #             only:
+  #               - stable-website
+  # frontend:
+  #   jobs:
+  #     - frontend-cache:
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #               - ui-staging
+  #               - /^ui\/.*/
+  #     - node-tests:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-build-oss:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-build-ent:
+  #         requires:
+  #           - frontend-cache
+  #     - ember-test-oss:
+  #         requires:
+  #           - ember-build-oss
+  #     - ember-test-ent:
+  #         requires:
+  #           - ember-build-ent
+  #     - ember-coverage:
+  #         requires:
+  #           - ember-build-ent
+  # workflow-automation:
+  #   jobs:
+  #     - trigger-oss-merge:
+  #         context: team-consul
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
+  #               - /release\/\d+\.\d+\.x$/
+  #     - cherry-picker:
+  #         context: team-consul
+  #         filters:
+  #           branches:
+  #             only:
+  #               - master
