@@ -1,11 +1,14 @@
+// +build !tiny
+
 package agent
 
 import (
 	"bytes"
 	"testing"
 
-	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/stretchr/testify/require"
+
+	"github.com/hashicorp/consul/sdk/testutil"
 )
 
 func TestAgentRetryNewDiscover(t *testing.T) {
