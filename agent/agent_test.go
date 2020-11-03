@@ -23,6 +23,13 @@ import (
 
 	"github.com/golang/protobuf/jsonpb"
 	"github.com/google/tcpproxy"
+	"github.com/hashicorp/serf/coordinate"
+	"github.com/hashicorp/serf/serf"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
+	"gopkg.in/square/go-jose.v2/jwt"
+
 	"github.com/hashicorp/consul/agent/cache"
 	cachetype "github.com/hashicorp/consul/agent/cache-types"
 	"github.com/hashicorp/consul/agent/checks"
@@ -39,12 +46,6 @@ import (
 	"github.com/hashicorp/consul/sdk/testutil/retry"
 	"github.com/hashicorp/consul/testrpc"
 	"github.com/hashicorp/consul/types"
-	"github.com/hashicorp/serf/coordinate"
-	"github.com/hashicorp/serf/serf"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	"golang.org/x/time/rate"
-	"gopkg.in/square/go-jose.v2/jwt"
 )
 
 func getService(a *TestAgent, id string) *structs.NodeService {
@@ -1292,7 +1293,7 @@ func TestAgent_AddCheck(t *testing.T) {
 	}
 
 	// Ensure a TTL is setup
-	requireCheckExistsMap(t, a.checkMonitors, "mem")
+	requireCheckExistsMap(t, a.checkScripts, "mem")
 }
 
 func TestAgent_AddCheck_StartPassing(t *testing.T) {
@@ -1326,7 +1327,7 @@ func TestAgent_AddCheck_StartPassing(t *testing.T) {
 	}
 
 	// Ensure a TTL is setup
-	requireCheckExistsMap(t, a.checkMonitors, "mem")
+	requireCheckExistsMap(t, a.checkScripts, "mem")
 }
 
 func TestAgent_AddCheck_MinInterval(t *testing.T) {
@@ -1355,7 +1356,7 @@ func TestAgent_AddCheck_MinInterval(t *testing.T) {
 	requireCheckExists(t, a, "mem")
 
 	// Ensure a TTL is setup
-	if mon, ok := a.checkMonitors[structs.NewCheckID("mem", nil)]; !ok {
+	if mon, ok := a.checkScripts[structs.NewCheckID("mem", nil)]; !ok {
 		t.Fatalf("missing mem monitor")
 	} else if mon.Interval != checks.MinInterval {
 		t.Fatalf("bad mem monitor interval")
@@ -1849,7 +1850,7 @@ func TestAgent_RemoveCheck(t *testing.T) {
 	requireCheckMissing(t, a, "mem")
 
 	// Ensure a TTL is setup
-	requireCheckMissingMap(t, a.checkMonitors, "mem")
+	requireCheckMissingMap(t, a.checkScripts, "mem")
 }
 
 func TestAgent_HTTPCheck_TLSSkipVerify(t *testing.T) {
@@ -2338,7 +2339,7 @@ func TestAgent_PersistCheck(t *testing.T) {
 	require.Equal(t, "mem1", result.Name)
 
 	// Should have restored the monitor
-	requireCheckExistsMap(t, a2.checkMonitors, check.CheckID)
+	requireCheckExistsMap(t, a2.checkScripts, check.CheckID)
 	chkState := a2.State.CheckState(structs.NewCheckID(check.CheckID, nil))
 	require.NotNil(t, chkState)
 	require.Equal(t, "mytoken", chkState.Token)

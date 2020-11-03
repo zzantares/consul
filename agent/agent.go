@@ -189,8 +189,8 @@ type Agent struct {
 	// reap its associated service
 	checkReapAfter map[structs.CheckID]time.Duration
 
-	// checkMonitors maps the check ID to an associated monitor
-	checkMonitors map[structs.CheckID]*checks.CheckMonitor
+	// checkScripts maps the check ID to an associated monitor
+	checkScripts map[structs.CheckID]*checks.CheckScript
 
 	// checkHTTPs maps the check ID to an associated HTTP check
 	checkHTTPs map[structs.CheckID]*checks.CheckHTTP
@@ -337,7 +337,7 @@ type Agent struct {
 func New(bd BaseDeps) (*Agent, error) {
 	a := Agent{
 		checkReapAfter:  make(map[structs.CheckID]time.Duration),
-		checkMonitors:   make(map[structs.CheckID]*checks.CheckMonitor),
+		checkScripts:    make(map[structs.CheckID]*checks.CheckScript),
 		checkTTLs:       make(map[structs.CheckID]*checks.CheckTTL),
 		checkHTTPs:      make(map[structs.CheckID]*checks.CheckHTTP),
 		checkTCPs:       make(map[structs.CheckID]*checks.CheckTCP),
@@ -1333,7 +1333,7 @@ func (a *Agent) ShutdownAgent() error {
 	// Stop all the checks
 	a.stateLock.Lock()
 	defer a.stateLock.Unlock()
-	for _, chk := range a.checkMonitors {
+	for _, chk := range a.checkScripts {
 		chk.Stop()
 	}
 	for _, chk := range a.checkTTLs {
@@ -2671,9 +2671,9 @@ func (a *Agent) addCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 			a.checkDockers[cid] = dockerCheck
 
 		case chkType.IsMonitor():
-			if existing, ok := a.checkMonitors[cid]; ok {
+			if existing, ok := a.checkScripts[cid]; ok {
 				existing.Stop()
-				delete(a.checkMonitors, cid)
+				delete(a.checkScripts, cid)
 			}
 			if chkType.Interval < checks.MinInterval {
 				a.logger.Warn("check has interval below minimum",
@@ -2682,7 +2682,7 @@ func (a *Agent) addCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 				)
 				chkType.Interval = checks.MinInterval
 			}
-			monitor := &checks.CheckMonitor{
+			monitor := &checks.CheckScript{
 				Notify:        a.State,
 				CheckID:       cid,
 				ServiceID:     sid,
@@ -2694,7 +2694,7 @@ func (a *Agent) addCheck(check *structs.HealthCheck, chkType *structs.CheckType,
 				StatusHandler: statusHandler,
 			}
 			monitor.Start()
-			a.checkMonitors[cid] = monitor
+			a.checkScripts[cid] = monitor
 
 		case chkType.IsAlias():
 			if existing, ok := a.checkAliases[cid]; ok {
@@ -2877,9 +2877,9 @@ func (a *Agent) resolveProxyCheckAddress(proxyCfg map[string]interface{}) string
 func (a *Agent) cancelCheckMonitors(checkID structs.CheckID) {
 	// Stop any monitors
 	delete(a.checkReapAfter, checkID)
-	if check, ok := a.checkMonitors[checkID]; ok {
+	if check, ok := a.checkScripts[checkID]; ok {
 		check.Stop()
-		delete(a.checkMonitors, checkID)
+		delete(a.checkScripts, checkID)
 	}
 	if check, ok := a.checkHTTPs[checkID]; ok {
 		check.Stop()
@@ -3019,7 +3019,7 @@ func (a *Agent) purgeCheckState(checkID structs.CheckID) error {
 func (a *Agent) Stats() map[string]map[string]string {
 	stats := a.delegate.Stats()
 	stats["agent"] = map[string]string{
-		"check_monitors": strconv.Itoa(len(a.checkMonitors)),
+		"check_monitors": strconv.Itoa(len(a.checkScripts)),
 		"check_ttls":     strconv.Itoa(len(a.checkTTLs)),
 	}
 	for k, v := range a.State.Stats() {

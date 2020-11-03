@@ -47,18 +47,17 @@ type RPC interface {
 	RPC(method string, args interface{}, reply interface{}) error
 }
 
-// CheckNotifier interface is used by the CheckMonitor
+// CheckNotifier interface is used by the CheckScript
 // to notify when a check has a status update. The update
 // should take care to be idempotent.
 type CheckNotifier interface {
 	UpdateCheck(checkID structs.CheckID, status, output string)
 }
 
-// CheckMonitor is used to periodically invoke a script to
-// determine the health of a given check. It is compatible with
-// nagios plugins and expects the output in the same format.
+// CheckScript is used to periodically invoke a script to determine the health.
+// It is compatible with nagios plugins and expects the output in the same format.
 // Supports failures_before_critical and success_before_passing.
-type CheckMonitor struct {
+type CheckScript struct {
 	Notify        CheckNotifier
 	CheckID       structs.CheckID
 	ServiceID     structs.ServiceID
@@ -77,7 +76,7 @@ type CheckMonitor struct {
 
 // Start is used to start a check monitor.
 // Monitor runs until stop is called
-func (c *CheckMonitor) Start() {
+func (c *CheckScript) Start() {
 	c.stopLock.Lock()
 	defer c.stopLock.Unlock()
 	c.stop = false
@@ -86,7 +85,7 @@ func (c *CheckMonitor) Start() {
 }
 
 // Stop is used to stop a check monitor.
-func (c *CheckMonitor) Stop() {
+func (c *CheckScript) Stop() {
 	c.stopLock.Lock()
 	defer c.stopLock.Unlock()
 	if !c.stop {
@@ -96,7 +95,7 @@ func (c *CheckMonitor) Stop() {
 }
 
 // run is invoked by a goroutine to run until Stop() is called
-func (c *CheckMonitor) run() {
+func (c *CheckScript) run() {
 	// Get the randomized initial pause time
 	initialPauseTime := lib.RandomStagger(c.Interval)
 	next := time.After(initialPauseTime)
@@ -112,7 +111,7 @@ func (c *CheckMonitor) run() {
 }
 
 // check is invoked periodically to perform the script check
-func (c *CheckMonitor) check() {
+func (c *CheckScript) check() {
 	// Create the command
 	var cmd *osexec.Cmd
 	var err error

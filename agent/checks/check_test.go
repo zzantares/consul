@@ -13,13 +13,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/go-uuid"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/consul/agent/mock"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
-	"github.com/hashicorp/go-uuid"
-	"github.com/stretchr/testify/require"
 )
 
 func uniqueID() string {
@@ -47,7 +48,7 @@ func TestCheckMonitor_Script(t *testing.T) {
 			statusHandler := NewStatusHandler(notif, logger, 0, 0)
 
 			cid := structs.NewCheckID("foo", nil)
-			check := &CheckMonitor{
+			check := &CheckScript{
 				Notify:        notif,
 				CheckID:       cid,
 				Script:        tt.script,
@@ -88,7 +89,7 @@ func TestCheckMonitor_Args(t *testing.T) {
 			statusHandler := NewStatusHandler(notif, logger, 0, 0)
 			cid := structs.NewCheckID("foo", nil)
 
-			check := &CheckMonitor{
+			check := &CheckScript{
 				Notify:        notif,
 				CheckID:       cid,
 				ScriptArgs:    tt.args,
@@ -118,7 +119,7 @@ func TestCheckMonitor_Timeout(t *testing.T) {
 	statusHandler := NewStatusHandler(notif, logger, 0, 0)
 
 	cid := structs.NewCheckID("foo", nil)
-	check := &CheckMonitor{
+	check := &CheckScript{
 		Notify:        notif,
 		CheckID:       cid,
 		ScriptArgs:    []string{"sh", "-c", "sleep 1 && exit 0"},
@@ -154,7 +155,7 @@ func TestCheckMonitor_RandomStagger(t *testing.T) {
 
 	cid := structs.NewCheckID("foo", nil)
 
-	check := &CheckMonitor{
+	check := &CheckScript{
 		Notify:        notif,
 		CheckID:       cid,
 		ScriptArgs:    []string{"sh", "-c", "exit 0"},
@@ -185,7 +186,7 @@ func TestCheckMonitor_LimitOutput(t *testing.T) {
 	statusHandler := NewStatusHandler(notif, logger, 0, 0)
 	cid := structs.NewCheckID("foo", nil)
 
-	check := &CheckMonitor{
+	check := &CheckScript{
 		Notify:        notif,
 		CheckID:       cid,
 		ScriptArgs:    []string{"od", "-N", "81920", "/dev/urandom"},
