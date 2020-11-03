@@ -96,15 +96,14 @@ func (c *CheckScript) Stop() {
 
 // run is invoked by a goroutine to run until Stop() is called
 func (c *CheckScript) run() {
-	// Get the randomized initial pause time
-	initialPauseTime := lib.RandomStagger(c.Interval)
-	next := time.After(initialPauseTime)
+	timer := time.NewTimer(lib.RandomStagger(c.Interval))
 	for {
 		select {
-		case <-next:
+		case <-timer.C:
 			c.check()
-			next = time.After(c.Interval)
+			timer = time.NewTimer(c.Interval)
 		case <-c.stopCh:
+			timer.Stop()
 			return
 		}
 	}
