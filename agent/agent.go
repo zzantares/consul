@@ -2875,7 +2875,6 @@ func (a *Agent) resolveProxyCheckAddress(proxyCfg map[string]interface{}) string
 }
 
 func (a *Agent) cancelCheckMonitors(checkID structs.CheckID) {
-	// Stop any monitors
 	delete(a.checkReapAfter, checkID)
 	if check, ok := a.checkScripts[checkID]; ok {
 		check.Stop()
@@ -2900,6 +2899,10 @@ func (a *Agent) cancelCheckMonitors(checkID structs.CheckID) {
 	if check, ok := a.checkDockers[checkID]; ok {
 		check.Stop()
 		delete(a.checkDockers, checkID)
+	}
+	if check, ok := a.checkAliases[checkID]; ok {
+		check.Stop()
+		delete(a.checkAliases, checkID)
 	}
 }
 
