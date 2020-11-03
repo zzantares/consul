@@ -189,6 +189,11 @@ type Agent struct {
 	// reap its associated service
 	checkReapAfter map[structs.CheckID]time.Duration
 
+	// TODO: there appear to be 3 kinds of checks
+	// 1. standards (scripts, tcp, docker, aliases)
+	// 2. HTTP/GRPC have 3 additional methods for Connect proxies
+	// 3. TTLs have a method to update them from the API
+
 	// checkScripts maps the check ID to an associated monitor
 	checkScripts map[structs.CheckID]*checks.CheckScript
 
@@ -2244,7 +2249,7 @@ func (a *Agent) validateService(service *structs.NodeService, chkTypes []*struct
 	return nil
 }
 
-// cleanupRegistration is called on  registration error to ensure no there are no
+// cleanupRegistration is called on registration error to ensure there are no
 // leftovers after a partial failure
 func (a *Agent) cleanupRegistration(serviceIDs []structs.ServiceID, checksIDs []structs.CheckID) {
 	for _, s := range serviceIDs {
@@ -3022,6 +3027,8 @@ func (a *Agent) purgeCheckState(checkID structs.CheckID) error {
 func (a *Agent) Stats() map[string]map[string]string {
 	stats := a.delegate.Stats()
 	stats["agent"] = map[string]string{
+		// TODO: rename to check_script, leave old for compat?
+		// TODO: why are all the other check types missing from Stats?
 		"check_monitors": strconv.Itoa(len(a.checkScripts)),
 		"check_ttls":     strconv.Itoa(len(a.checkTTLs)),
 	}
