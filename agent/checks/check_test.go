@@ -143,6 +143,10 @@ func TestCheckMonitor_Timeout(t *testing.T) {
 }
 
 func TestCheckMonitor_RandomStagger(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
 	// t.Parallel() // timing test. no parallel
 	notif := mock.NewNotify()
 	logger := testutil.Logger(t)

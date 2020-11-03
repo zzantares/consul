@@ -2,81 +2,54 @@ package checks
 
 import (
 	"crypto/tls"
-	"flag"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"net"
-	"os"
 	"testing"
 	"time"
+
+	"github.com/hashicorp/go-hclog"
+	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 
 	"github.com/hashicorp/consul/agent/mock"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
-	"github.com/hashicorp/go-hclog"
-
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/health"
-	hv1 "google.golang.org/grpc/health/grpc_health_v1"
 )
 
-var (
-	port         int
-	server       string
-	svcHealthy   string
-	svcUnhealthy string
-	svcMissing   string
-)
+func startGRPCHealthCheckServer(t *testing.T) net.Addr {
+	t.Helper()
 
-func startServer() (*health.Server, *grpc.Server) {
-	listener, err := net.Listen("tcp", fmt.Sprintf(":%d", port))
-	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
-	}
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
 	grpcServer := grpc.NewServer()
-	server := health.NewServer()
-	hv1.RegisterHealthServer(grpcServer, server)
+	srv := health.NewServer()
+	hv1.RegisterHealthServer(grpcServer, srv)
 	go grpcServer.Serve(listener)
-	return server, grpcServer
+	t.Cleanup(grpcServer.Stop)
+
+	srv.SetServingStatus("healthy", hv1.HealthCheckResponse_SERVING)
+	srv.SetServingStatus("unhealthy", hv1.HealthCheckResponse_NOT_SERVING)
+	return listener.Addr()
 }
 
-func init() {
-	flag.IntVar(&port, "grpc-stub-port", 54321, "port for the gRPC stub server")
-}
+func TestGRPCHealthProbe_Check(t *testing.T) {
+	server := startGRPCHealthCheckServer(t).String()
 
-func TestMain(m *testing.M) {
-	flag.Parse()
-
-	healthy := "healthy"
-	unhealthy := "unhealthy"
-	missing := "missing"
-
-	srv, grpcStubApp := startServer()
-	srv.SetServingStatus(healthy, hv1.HealthCheckResponse_SERVING)
-	srv.SetServingStatus(unhealthy, hv1.HealthCheckResponse_NOT_SERVING)
-
-	server = fmt.Sprintf("%s:%d", "localhost", port)
-	svcHealthy = fmt.Sprintf("%s/%s", server, healthy)
-	svcUnhealthy = fmt.Sprintf("%s/%s", server, unhealthy)
-	svcMissing = fmt.Sprintf("%s/%s", server, missing)
-
-	result := 1
-	defer func() {
-		grpcStubApp.Stop()
-		os.Exit(result)
-	}()
-
-	result = m.Run()
-}
-
-func TestCheck(t *testing.T) {
 	type args struct {
 		target    string
 		timeout   time.Duration
 		tlsConfig *tls.Config
 	}
+
+	svcHealthy := fmt.Sprintf("%s/%s", server, "healthy")
+	svcUnhealthy := fmt.Sprintf("%s/%s", server, "unhealthy")
+	svcMissing := fmt.Sprintf("%s/%s", server, "missing")
+
 	tests := []struct {
 		name    string
 		args    args
@@ -105,8 +78,7 @@ func TestCheck(t *testing.T) {
 }
 
 func TestGRPC_Proxied(t *testing.T) {
-	t.Parallel()
-
+	addr := startGRPCHealthCheckServer(t)
 	notif := mock.NewNotify()
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   uniqueID(),
@@ -121,7 +93,7 @@ func TestGRPC_Proxied(t *testing.T) {
 		GRPC:          "",
 		Interval:      10 * time.Millisecond,
 		Logger:        logger,
-		ProxyGRPC:     server,
+		ProxyGRPC:     addr.String(),
 		StatusHandler: statusHandler,
 	}
 	check.Start()
@@ -139,8 +111,7 @@ func TestGRPC_Proxied(t *testing.T) {
 }
 
 func TestGRPC_NotProxied(t *testing.T) {
-	t.Parallel()
-
+	addr := startGRPCHealthCheckServer(t)
 	notif := mock.NewNotify()
 	logger := hclog.New(&hclog.LoggerOptions{
 		Name:   uniqueID(),
@@ -152,7 +123,7 @@ func TestGRPC_NotProxied(t *testing.T) {
 
 	check := &CheckGRPC{
 		CheckID:       cid,
-		GRPC:          server,
+		GRPC:          addr.String(),
 		Interval:      10 * time.Millisecond,
 		Logger:        logger,
 		ProxyGRPC:     "",
