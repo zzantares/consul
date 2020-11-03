@@ -43,6 +43,9 @@ type CheckAlias struct {
 type AliasNotifier interface {
 	CheckNotifier
 
+	// ServiceExists return true if the given service does exists
+	ServiceExists(serviceID structs.ServiceID) bool
+
 	AddAliasCheck(structs.CheckID, structs.ServiceID, chan<- struct{}) error
 	RemoveAliasCheck(structs.CheckID, structs.ServiceID)
 	Checks(*structs.EnterpriseMeta) map[structs.CheckID]*structs.HealthCheck

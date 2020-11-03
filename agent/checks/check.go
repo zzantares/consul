@@ -14,14 +14,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/hashicorp/consul/agent/structs"
+	"github.com/armon/circbuf"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/hashicorp/go-hclog"
 
-	"github.com/armon/circbuf"
 	"github.com/hashicorp/consul/agent/exec"
+	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/lib"
-	"github.com/hashicorp/go-cleanhttp"
 )
 
 const (
@@ -52,8 +52,6 @@ type RPC interface {
 // should take care to be idempotent.
 type CheckNotifier interface {
 	UpdateCheck(checkID structs.CheckID, status, output string)
-	// ServiceExists return true if the given service does exists
-	ServiceExists(serviceID structs.ServiceID) bool
 }
 
 // CheckMonitor is used to periodically invoke a script to
@@ -813,7 +811,7 @@ type StatusHandler struct {
 	failuresCounter        int
 }
 
-// NewStatusHandler set counters values to threshold in order to immediatly update status after first check.
+// NewStatusHandler set counters values to threshold in order to immediately update status after first check.
 func NewStatusHandler(inner CheckNotifier, logger hclog.Logger, successBeforePassing, failuresBeforeCritical int) *StatusHandler {
 	return &StatusHandler{
 		logger:                 logger,
@@ -826,37 +824,30 @@ func NewStatusHandler(inner CheckNotifier, logger hclog.Logger, successBeforePas
 }
 
 func (s *StatusHandler) updateCheck(checkID structs.CheckID, status, output string) {
+	logger := s.logger.With("check", checkID.String(), "status", status)
 
 	if status == api.HealthPassing || status == api.HealthWarning {
 		s.successCounter++
 		s.failuresCounter = 0
 		if s.successCounter >= s.successBeforePassing {
-			s.logger.Debug("Check status updated",
-				"check", checkID.String(),
-				"status", status,
-			)
+			logger.Debug("Check status updated")
 			s.inner.UpdateCheck(checkID, status, output)
 			return
 		}
-		s.logger.Warn("Check passed but has not reached success threshold",
-			"check", checkID.String(),
-			"status", status,
+		logger.Warn("Check passed but has not reached success threshold",
 			"success_count", s.successCounter,
-			"success_threshold", s.successBeforePassing,
-		)
-	} else {
-		s.failuresCounter++
-		s.successCounter = 0
-		if s.failuresCounter >= s.failuresBeforeCritical {
-			s.logger.Warn("Check is now critical", "check", checkID.String())
-			s.inner.UpdateCheck(checkID, status, output)
-			return
-		}
-		s.logger.Warn("Check failed but has not reached failure threshold",
-			"check", checkID.String(),
-			"status", status,
-			"failure_count", s.failuresCounter,
-			"failure_threshold", s.failuresBeforeCritical,
-		)
+			"success_threshold", s.successBeforePassing)
+		return
 	}
+
+	s.failuresCounter++
+	s.successCounter = 0
+	if s.failuresCounter >= s.failuresBeforeCritical {
+		logger.Warn("Check is now critical")
+		s.inner.UpdateCheck(checkID, status, output)
+		return
+	}
+	s.logger.Warn("Check failed but has not reached failure threshold",
+		"failure_count", s.failuresCounter,
+		"failure_threshold", s.failuresBeforeCritical)
 }
