@@ -400,3 +400,29 @@ func GetT(t testing.T, n int) (ports []int) { return MustTake(n) }
 
 // Deprecated: Please use Take/Return calls instead.
 func Free(n int) (ports []int, err error) { return MustTake(n), nil }
+
+type TestingT interface {
+	Helper()
+	Cleanup(func())
+	Fatalf(string, ...interface{})
+}
+
+func Acquire(t TestingT, n int, fn func(ports []int) error) {
+	t.Helper()
+
+	var err error
+	for i := 0; i < 5; i++ {
+		var ports []int
+		ports, err = Take(n)
+		if err != nil {
+			t.Fatalf("failed to acquire %d ports: %v", n, err)
+		}
+		if err = fn(ports); err == nil {
+			t.Cleanup(func() {
+				Return(ports)
+			})
+			return
+		}
+	}
+	t.Fatalf("failed to acquire a port: %v", err)
+}
