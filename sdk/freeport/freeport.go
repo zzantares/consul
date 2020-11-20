@@ -10,6 +10,7 @@ import (
 	"os"
 	"runtime"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/mitchellh/go-testing-interface"
@@ -259,11 +260,17 @@ func MustTake(n int) (ports []int) {
 	return ports
 }
 
+var Elapsed int64
+
 // Take returns a list of free ports from the allocated port block. It is safe
 // to call this method concurrently. Ports have been tested to be available on
 // 127.0.0.1 TCP but there is no guarantee that they will remain free in the
 // future.
 func Take(n int) (ports []int, err error) {
+	start := time.Now()
+	defer func() {
+		atomic.AddInt64(&Elapsed, int64(time.Since(start)))
+	}()
 	if n <= 0 {
 		return nil, fmt.Errorf("freeport: cannot take %d ports", n)
 	}
@@ -336,6 +343,10 @@ func stats() (numTotal, numPending, numFree int) {
 // Return returns a block of ports back to the general pool. These ports should
 // have been returned from a call to Take().
 func Return(ports []int) {
+	start := time.Now()
+	defer func() {
+		atomic.AddInt64(&Elapsed, int64(time.Since(start)))
+	}()
 	if len(ports) == 0 {
 		return // convenience short circuit for test ergonomics
 	}
