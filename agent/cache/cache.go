@@ -37,7 +37,7 @@ import (
 var Gauges = []prometheus.GaugeDefinition{
 	{
 		Name: []string{"consul", "cache", "entries_count"},
-		Help: "Represents the number of entries in this cache.",
+		Help: "",
 	},
 }
 
@@ -45,19 +45,19 @@ var Gauges = []prometheus.GaugeDefinition{
 var Counters = []prometheus.CounterDefinition{
 	{
 		Name: []string{"consul", "cache", "bypass"},
-		Help: "Counts how many times a request bypassed the cache because no cache-key was provided.",
+		Help: "",
 	},
 	{
 		Name: []string{"consul", "cache", "fetch_success"},
-		Help: "Counts the number of successful fetches by the cache.",
+		Help: "",
 	},
 	{
 		Name: []string{"consul", "cache", "fetch_error"},
-		Help: "Counts the number of failed fetches by the cache.",
+		Help: "",
 	},
 	{
 		Name: []string{"consul", "cache", "evict_expired"},
-		Help: "Counts the number of expired entries that are evicted.",
+		Help: "",
 	},
 }
 

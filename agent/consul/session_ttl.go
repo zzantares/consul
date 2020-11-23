@@ -16,11 +16,11 @@ var SessionGauges = []prometheus.GaugeDefinition{
 	},
 	{
 		Name: []string{"raft", "applied_index"},
-		Help: "Represents the raft applied index.",
+		Help: "",
 	},
 	{
 		Name: []string{"raft", "last_index"},
-		Help: "Represents the raft last index.",
+		Help: "",
 	},
 }
 
@@ -153,7 +153,7 @@ func (s *Server) clearAllSessionTimers() {
 	s.sessionTimers.StopAll()
 }
 
-// updateMetrics is a long running routine used to update a
+// updateMetrics is a long running routine used to uddate a
 // number of server periodic metrics
 func (s *Server) updateMetrics() {
 	for {

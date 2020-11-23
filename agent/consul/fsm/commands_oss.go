@@ -53,43 +53,43 @@ var CommandsSummaries = []prometheus.SummaryDefinition{
 	},
 	{
 		Name: []string{"consul", "fsm", "intention"},
-		Help: "Deprecated - use fsm_intention instead",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "intention"},
-		Help: "Measures the time it takes to apply an intention operation to the FSM.",
+		Help: "",
 	},
 	{
 		Name: []string{"consul", "fsm", "ca"},
-		Help: "Deprecated - use fsm_ca instead",
-	},
-	{
-		Name: []string{"fsm", "ca"},
-		Help: "Measures the time it takes to apply CA configuration operations to the FSM.",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "ca", "leaf"},
-		Help: "Measures the time it takes to apply an operation while signing a leaf certificate.",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "acl", "token"},
-		Help: "Measures the time it takes to apply an ACL token operation to the FSM.",
+		Help: "",
+	},
+	{
+		Name: []string{"fsm", "ca", "leaf"},
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "acl", "policy"},
-		Help: "Measures the time it takes to apply an ACL policy operation to the FSM.",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "acl", "bindingrule"},
-		Help: "Measures the time it takes to apply an ACL binding rule operation to the FSM.",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "acl", "authmethod"},
-		Help: "Measures the time it takes to apply an ACL authmethod operation to the FSM.",
+		Help: "",
 	},
 	{
 		Name: []string{"fsm", "system_metadata"},
-		Help: "Measures the time it takes to apply a system metadata operation to the FSM.",
+		Help: "",
 	},
 	// TODO(kit): We generate the config-entry fsm summaries by reading off of the request. It is
 	//  possible to statically declare these when we know all of the names, but I didn't get to it
@@ -378,12 +378,8 @@ func (c *FSM) applyIntentionOperation(buf []byte, index uint64) interface{} {
 		panic(fmt.Errorf("failed to decode request: %v", err))
 	}
 
-	// TODO(kit): We should deprecate this first metric that writes the metrics_prefix itself,
-	//  the config we use to flag this out, telemetry.disable_compat_1.9 is on the agent - how do
-	//  we access it here?
 	defer metrics.MeasureSinceWithLabels([]string{"consul", "fsm", "intention"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
-
 	defer metrics.MeasureSinceWithLabels([]string{"fsm", "intention"}, time.Now(),
 		[]metrics.Label{{Name: "op", Value: string(req.Op)}})
 
@@ -478,7 +474,6 @@ func (c *FSM) applyConnectCAOperation(buf []byte, index uint64) interface{} {
 	}
 }
 
-// applyConnectCALeafOperation applies an operation while signing a leaf certificate.
 func (c *FSM) applyConnectCALeafOperation(buf []byte, index uint64) interface{} {
 	var req structs.CALeafRequest
 	if err := structs.Decode(buf, &req); err != nil {

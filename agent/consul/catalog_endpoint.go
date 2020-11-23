@@ -25,7 +25,7 @@ var CatalogCounters = []prometheus.CounterDefinition{
 	},
 	{
 		Name: []string{"catalog", "connect", "query"},
-		Help: "Increments for each connect-based catalog query for the given service.",
+		Help: "",
 	},
 	{
 		Name: []string{"catalog", "service", "query-tag"},
@@ -33,7 +33,7 @@ var CatalogCounters = []prometheus.CounterDefinition{
 	},
 	{
 		Name: []string{"catalog", "connect", "query-tag"},
-		Help: "Increments for each connect-based catalog query for the given service with the given tag.",
+		Help: "",
 	},
 	{
 		Name: []string{"catalog", "service", "query-tags"},
@@ -41,7 +41,7 @@ var CatalogCounters = []prometheus.CounterDefinition{
 	},
 	{
 		Name: []string{"catalog", "connect", "query-tags"},
-		Help: "Increments for each connect-based catalog query for the given service with the given tags.",
+		Help: "",
 	},
 	{
 		Name: []string{"catalog", "service", "not-found"},
@@ -49,7 +49,7 @@ var CatalogCounters = []prometheus.CounterDefinition{
 	},
 	{
 		Name: []string{"catalog", "connect", "not-found"},
-		Help: "Increments for each connect-based catalog query where the given service could not be found.",
+		Help: "",
 	},
 }
 
