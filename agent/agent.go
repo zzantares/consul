@@ -1884,7 +1884,7 @@ func (a *Agent) AddServiceAndReplaceChecks(service *structs.NodeService, chkType
 		token:                 token,
 		replaceExistingChecks: true,
 		source:                source,
-		snap:                  a.snapshotCheckState(),
+		snap:                  a.State.Checks(structs.WildcardEnterpriseMeta()),
 	})
 }
 
@@ -1904,7 +1904,7 @@ func (a *Agent) AddService(service *structs.NodeService, chkTypes []*structs.Che
 		token:                 token,
 		replaceExistingChecks: false,
 		source:                source,
-		snap:                  a.snapshotCheckState(),
+		snap:                  a.State.Checks(structs.WildcardEnterpriseMeta()),
 	})
 }
 
@@ -3374,13 +3374,6 @@ func (a *Agent) unloadChecks() error {
 	return nil
 }
 
-// snapshotCheckState is used to snapshot the current state of the health
-// checks. This is done before we reload our checks, so that we can properly
-// restore into the same state.
-func (a *Agent) snapshotCheckState() map[structs.CheckID]*structs.HealthCheck {
-	return a.State.Checks(structs.WildcardEnterpriseMeta())
-}
-
 // loadMetadata loads node metadata fields from the agent config and
 // updates them on the local agent.
 func (a *Agent) loadMetadata(conf *config.RuntimeConfig) error {
@@ -3544,7 +3537,7 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 
 	// Snapshot the current state, and use that to initialize the checks when
 	// they are recreated.
-	snap := a.snapshotCheckState()
+	snap := a.State.Checks(structs.WildcardEnterpriseMeta())
 
 	// First unload all checks, services, and metadata. This lets us begin the reload
 	// with a clean slate.

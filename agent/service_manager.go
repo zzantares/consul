@@ -4,12 +4,13 @@ import (
 	"fmt"
 	"sync"
 
-	"github.com/hashicorp/consul/agent/cache"
-	cachetype "github.com/hashicorp/consul/agent/cache-types"
-	"github.com/hashicorp/consul/agent/structs"
 	"github.com/imdario/mergo"
 	"github.com/mitchellh/copystructure"
 	"golang.org/x/net/context"
+
+	"github.com/hashicorp/consul/agent/cache"
+	cachetype "github.com/hashicorp/consul/agent/cache-types"
+	"github.com/hashicorp/consul/agent/structs"
 )
 
 // The ServiceManager is a layer for service registration in between the agent
@@ -88,7 +89,7 @@ func (s *ServiceManager) registerOnce(args *addServiceRequest) error {
 	defer s.agent.stateLock.Unlock()
 
 	if args.snap == nil {
-		args.snap = s.agent.snapshotCheckState()
+		args.snap = s.agent.State.Checks(structs.WildcardEnterpriseMeta())
 	}
 
 	err := s.agent.addServiceInternal(args)
@@ -277,7 +278,7 @@ func (w *serviceConfigWatch) RegisterAndStart(
 		token:                 w.registration.token,
 		replaceExistingChecks: w.registration.replaceExistingChecks,
 		source:                w.registration.source,
-		snap:                  w.agent.snapshotCheckState(),
+		snap:                  w.agent.State.Checks(structs.WildcardEnterpriseMeta()),
 	})
 	if err != nil {
 		return fmt.Errorf("error updating service registration: %v", err)

@@ -3099,6 +3099,7 @@ func TestAgent_NodeMaintenanceMode(t *testing.T) {
 	}
 }
 
+// TODO: this is really a test of agent/local.State.Checks, move it there
 func TestAgent_checkStateSnapshot(t *testing.T) {
 	t.Parallel()
 	a := NewTestAgent(t, "")
@@ -3129,7 +3130,7 @@ func TestAgent_checkStateSnapshot(t *testing.T) {
 	}
 
 	// Snapshot the state
-	snap := a.snapshotCheckState()
+	snap := a.State.Checks(structs.WildcardEnterpriseMeta())
 
 	// Unload all of the checks
 	if err := a.unloadChecks(); err != nil {
