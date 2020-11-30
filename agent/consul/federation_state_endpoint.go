@@ -16,19 +16,19 @@ import (
 var FederationStateSummaries = []prometheus.SummaryDefinition{
 	{
 		Name: []string{"federation_state", "apply"},
-		Help: "",
+		Help: "Measures how long it takes to handle a federation_state apply RPC.",
 	},
 	{
 		Name: []string{"federation_state", "get"},
-		Help: "",
+		Help: "Measures how long it takes to handle a federation_state get RPC.",
 	},
 	{
 		Name: []string{"federation_state", "list"},
-		Help: "",
+		Help: "Measures how long it takes to handle a federation_state list RPC.",
 	},
 	{
 		Name: []string{"federation_state", "list_mesh_gateways"},
-		Help: "",
+		Help: "Measures how long it takes to handle a federation_state list_mesh_gateways RPC.",
 	},
 }
 

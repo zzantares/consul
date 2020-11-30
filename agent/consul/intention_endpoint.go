@@ -20,11 +20,11 @@ import (
 var IntentionSummaries = []prometheus.SummaryDefinition{
 	{
 		Name: []string{"consul", "intention", "apply"},
-		Help: "",
+		Help: "DEPRECTED - use intention.apply",
 	},
 	{
 		Name: []string{"intention", "apply"},
-		Help: "",
+		Help: "Measures how long it takes to handle an intention apply RPC.",
 	},
 }
 
@@ -83,6 +83,7 @@ func (s *Intention) Apply(args *structs.IntentionRequest, reply *string) error {
 	if done, err := s.srv.ForwardRPC("Intention.Apply", args, args, reply); done {
 		return err
 	}
+	// TODO(kit): Deprecate the metric emission with "consul"
 	defer metrics.MeasureSince([]string{"consul", "intention", "apply"}, time.Now())
 	defer metrics.MeasureSince([]string{"intention", "apply"}, time.Now())
 

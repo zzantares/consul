@@ -17,27 +17,27 @@ import (
 var ConfigSummaries = []prometheus.SummaryDefinition{
 	{
 		Name: []string{"config_entry", "apply"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry apply RPC.",
 	},
 	{
 		Name: []string{"config_entry", "get"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry get RPC.",
 	},
 	{
 		Name: []string{"config_entry", "list"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry list RPC.",
 	},
 	{
 		Name: []string{"config_entry", "listAll"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry listAll RPC.",
 	},
 	{
 		Name: []string{"config_entry", "delete"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry delete RPC.",
 	},
 	{
 		Name: []string{"config_entry", "resolve_service_config"},
-		Help: "",
+		Help: "Measures how long it takes to handle a config_entry resolve_service_config RPC.",
 	},
 }
 
