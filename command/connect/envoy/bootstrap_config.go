@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/hashicorp/consul/api"
 	"net"
 	"net/url"
 	"os"
 	"strings"
 	"text/template"
+
+	"github.com/hashicorp/consul/api"
 )
 
 const (
@@ -212,19 +213,19 @@ func (c *BootstrapConfig) ConfigureArgs(args *BootstrapTplArgs, omitDeprecatedTa
 	}
 	// Setup prometheus if needed. This MUST happen after the Static*JSON is set above
 	if c.PrometheusBindAddr != "" {
-		if err := c.generateListenerConfig(args, c.PrometheusBindAddr, "envoy_prometheus_metrics", "path", "/metrics", "/stats/prometheus"); err != nil {
+		if err := c.generateListenerConfig(args, c.PrometheusBindAddr, "envoy_prometheus_metrics", "path", "/metrics", "/stats/prometheus", true); err != nil {
 			return err
 		}
 	}
 	// Setup /stats proxy listener if needed. This MUST happen after the Static*JSON is set above
 	if c.StatsBindAddr != "" {
-		if err := c.generateListenerConfig(args, c.StatsBindAddr, "envoy_metrics", "prefix", "/stats", "/stats"); err != nil {
+		if err := c.generateListenerConfig(args, c.StatsBindAddr, "envoy_metrics", "prefix", "/stats", "/stats", false); err != nil {
 			return err
 		}
 	}
 	// Setup /ready proxy listener if needed. This MUST happen after the Static*JSON is set above
 	if c.ReadyBindAddr != "" {
-		if err := c.generateListenerConfig(args, c.ReadyBindAddr, "envoy_ready", "path", "/ready", "/ready"); err != nil {
+		if err := c.generateListenerConfig(args, c.ReadyBindAddr, "envoy_ready", "path", "/ready", "/ready", false); err != nil {
 			return err
 		}
 	}
@@ -539,7 +540,7 @@ func generateStatsTags(args *BootstrapTplArgs, initialTags []string, omitDepreca
 	return tagJSONs, nil
 }
 
-func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAddr, name, matchType, matchValue, prefixRewrite string) error {
+func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAddr, name, matchType, matchValue, prefixRewrite string, metrics bool) error {
 	host, port, err := net.SplitHostPort(bindAddr)
 	if err != nil {
 		return fmt.Errorf("invalid %s bind address: %s", name, err)
@@ -616,6 +617,86 @@ func (c *BootstrapConfig) generateListenerConfig(args *BootstrapTplArgs, bindAdd
 			}
 		]
 	}`
+
+	// if envoy prometheus bind addr is set, the metrics flag is set to true
+	// when the metrics flag is true, the backend cluster should be the merged
+	// metrics endpoint. TODO: should there be an extra flag in consul for this?
+	// Default cluster points to 127.0.0.1:19000/stats/prometheus, this is changing
+	// to point to 127.0.0.1:20100/stats/prometheus.
+	// Should the merged metric port be configurable here? (probably)
+	if metrics {
+		clusterJSON = `{
+			"name": "` + "mergedMetricsEndpoint" + `",
+			"connect_timeout": "5s",
+			"type": "STATIC",
+			"http_protocol_options": {},
+			"hosts": [
+				{
+					"socket_address": {
+						"address": "127.0.0.1",
+						"port_value": ` + "20100" + `
+					}
+				}
+			]
+		}`
+		listenerJSON = `{
+			"name": "` + name + `_listener",
+			"address": {
+				"socket_address": {
+					"address": "` + host + `",
+					"port_value": ` + port + `
+				}
+			},
+			"filter_chains": [
+				{
+					"filters": [
+						{
+							"name": "envoy.http_connection_manager",
+							"config": {
+								"stat_prefix": "` + name + `",
+								"codec_type": "HTTP1",
+								"route_config": {
+									"name": "self_admin_route",
+									"virtual_hosts": [
+										{
+											"name": "self_admin",
+											"domains": [
+												"*"
+											],
+											"routes": [
+												{
+													"match": {
+														"` + matchType + `": "` + matchValue + `"
+													},
+													"route": {
+														"cluster": "mergedMetricsEndpoint",
+														"prefix_rewrite": "` + prefixRewrite + `"
+													}
+												},
+												{
+													"match": {
+														"prefix": "/"
+													},
+													"direct_response": {
+														"status": 404
+													}
+												}
+											]
+										}
+									]
+								},
+								"http_filters": [
+									{
+										"name": "envoy.router"
+									}
+								]
+							}
+						}
+					]
+				}
+			]
+		}`
+	}
 
 	// Make sure we do not append the same cluster multiple times, as that will
 	// cause envoy startup to fail.
