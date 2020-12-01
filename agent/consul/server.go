@@ -631,6 +631,10 @@ func newGRPCHandlerFromConfig(deps Deps, config *Config, s *Server) connHandler 
 	return agentgrpc.NewHandler(config.RPCAddr, register)
 }
 
+func (s *Server) HackFSMState() *state.Store {
+	return s.fsm.State()
+}
+
 func (s *Server) connectCARootsMonitor(ctx context.Context) {
 	for {
 		ws := memdb.NewWatchSet()

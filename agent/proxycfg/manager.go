@@ -3,8 +3,10 @@ package proxycfg
 import (
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/hashicorp/consul/agent/cache"
+	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/local"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/tlsutil"
@@ -44,6 +46,8 @@ type Manager struct {
 	// out changes and removals with those efficiently.
 	stateCh chan struct{}
 
+	hackTimerC <-chan time.Time
+
 	mu       sync.Mutex
 	started  bool
 	proxies  map[structs.ServiceID]*state
@@ -55,6 +59,7 @@ type Manager struct {
 // panic. The ManagerConfig is passed by value to NewManager so the passed value
 // can be mutated safely.
 type ManagerConfig struct {
+	HackServer *consul.Server
 	// Cache is the agent's cache instance that can be used to retrieve, store and
 	// monitor state for the proxies.
 	Cache *cache.Cache
@@ -83,6 +88,10 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 		cfg.Logger == nil {
 		return nil, errors.New("all ManagerConfig fields must be provided")
 	}
+	if cfg.HackServer == nil {
+		return nil, errors.New("NOT SUITABLE FOR HACKING")
+	}
+
 	m := &Manager{
 		ManagerConfig: cfg,
 		// Single item buffer is enough since there is no data transferred so this
@@ -93,6 +102,8 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 	}
 	return m, nil
 }
+
+const hackFreq = 500 * time.Millisecond
 
 // Run is the long-running method that handles state syncing. It should be run
 // in it's own goroutine and will continue until a fatal error is hit or Close
@@ -119,14 +130,19 @@ func (m *Manager) Run() error {
 	m.State.Notify(stateCh)
 	defer m.State.StopNotify(stateCh)
 
+	m.hackTimerC = time.After(hackFreq)
 	for {
 		m.syncState()
 
 		// Wait for a state change
-		_, ok := <-stateCh
-		if !ok {
-			// Stopped
-			return nil
+		select {
+		case <-m.hackTimerC:
+			m.hackTimerC = time.After(hackFreq)
+		case _, ok := <-stateCh:
+			if !ok {
+				// Stopped
+				return nil
+			}
 		}
 	}
 }
@@ -137,8 +153,28 @@ func (m *Manager) syncState() {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
+	wildMeta := structs.WildcardEnterpriseMeta()
+
 	// Traverse the local state and ensure all proxy services are registered
-	services := m.State.Services(structs.WildcardEnterpriseMeta())
+	services := m.State.Services(wildMeta)
+
+	{
+		hackState := m.HackServer.HackFSMState()
+		_, nodes, err := hackState.ServiceDump(nil, structs.ServiceKindConnectProxy, true, wildMeta)
+		if err != nil {
+			m.Logger.Error("HACK: failed to dump memdb", "error", err)
+			return
+		}
+
+		for _, csn := range nodes {
+			svc := csn.Service
+
+			sid := svc.CompoundServiceID()
+
+			services[sid] = svc
+		}
+	}
+
 	for sid, svc := range services {
 		if svc.Kind != structs.ServiceKindConnectProxy &&
 			svc.Kind != structs.ServiceKindTerminatingGateway &&

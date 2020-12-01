@@ -527,11 +527,17 @@ func (a *Agent) Start(ctx context.Context) error {
 		return fmt.Errorf("unexpected ACL default policy value of %q", a.config.ACLDefaultPolicy)
 	}
 
+	var hackServer *consul.Server
+	if srv, ok := a.delegate.(*consul.Server); ok {
+		hackServer = srv
+	}
+
 	// Start the proxy config manager.
 	a.proxyConfig, err = proxycfg.NewManager(proxycfg.ManagerConfig{
-		Cache:  a.cache,
-		Logger: a.logger.Named(logging.ProxyConfig),
-		State:  a.State,
+		HackServer: hackServer,
+		Cache:      a.cache,
+		Logger:     a.logger.Named(logging.ProxyConfig),
+		State:      a.State,
 		Source: &structs.QuerySource{
 			Node:       a.config.NodeName,
 			Datacenter: a.config.Datacenter,
