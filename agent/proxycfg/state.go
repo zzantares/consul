@@ -89,6 +89,39 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 	if ns == nil {
 		return structs.ConnectProxyConfig{}, nil
 	}
+
+	// Hack special case - build a fake proxyConfig from the meta
+	if ns.Kind == structs.ServiceKindTypical {
+		proxyCfg := structs.ConnectProxyConfig{
+			DestinationServiceName: ns.Service,
+			DestinationServiceID:   ns.ID,
+		}
+
+		// Add upstreams from service meta
+		if upstreamsStr := ns.Meta["connect_upstreams"]; upstreamsStr != "" {
+			upstreams := strings.Split(upstreamsStr, ",")
+			for _, up := range upstreams {
+				if upRaw := strings.TrimSpace(up); upRaw != "" {
+					// Hack! rely on upstream service names being valid hostnames for now
+					svc, portStr, err := net.SplitHostPort(upRaw)
+					if err != nil {
+						return structs.ConnectProxyConfig{}, err
+					}
+					port, err := strconv.Atoi(portStr)
+					if err != nil {
+						return structs.ConnectProxyConfig{}, err
+					}
+					proxyCfg.Upstreams = append(proxyCfg.Upstreams, structs.Upstream{
+						DestinationName: svc,
+						// TODO namespace support, DC support etc.
+						LocalBindPort: port,
+					})
+				}
+			}
+		}
+		return proxyCfg, nil
+	}
+
 	// Copy the config map
 	proxyCfgRaw, err := copystructure.Copy(ns.Proxy)
 	if err != nil {
@@ -125,37 +158,10 @@ func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*stat
 	// Hack!!! allow regular service registations to have proxies. Rather than
 	// change a bunch of code in here for now we'll just create a fake proxyCfg
 	// and pretend it's a connect-proxy registration!
-	var proxyCfg *structs.ConnectProxyConfig
 	kind := ns.Kind
 	if kind == "" || kind == structs.ServiceKindTypical {
 		kind = structs.ServiceKindConnectProxy
-		proxyCfg = &structs.ConnectProxyConfig{
-			DestinationServiceName: ns.Service,
-			DestinationServiceID:   ns.ID,
-		}
 
-		// Add upstreams from service meta
-		if upstreamsStr := ns.Meta["connect_upstreams"]; upstreamsStr != "" {
-			upstreams := strings.Split(upstreamsStr, ",")
-			for _, up := range upstreams {
-				if upRaw := strings.TrimSpace(up); upRaw != "" {
-					// Hack! rely on upstream service names being valid hostnames for now
-					svc, portStr, err := net.SplitHostPort(upRaw)
-					if err != nil {
-						return nil, err
-					}
-					port, err := strconv.Atoi(portStr)
-					if err != nil {
-						return nil, err
-					}
-					proxyCfg.Upstreams = append(proxyCfg.Upstreams, structs.Upstream{
-						DestinationName: svc,
-						// TODO namespace support, DC support etc.
-						LocalBindPort: port,
-					})
-				}
-			}
-		}
 	}
 
 	switch kind {
@@ -167,16 +173,12 @@ func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*stat
 		return nil, errors.New("not a connect-proxy, terminating-gateway, mesh-gateway, or ingress-gateway")
 	}
 
-	// Only copy proxy config if it's a real proxy and we didn't just build a fake
-	// one.
-	if proxyCfg == nil {
-		pcfg, err := copyProxyConfig(ns)
-		if err != nil {
-			return nil, err
-		}
-		proxyCfg = &pcfg
+	// Copy will actually create a fake proxy config for typical services based on
+	// their meta.
+	proxyCfg, err := copyProxyConfig(ns)
+	if err != nil {
+		return nil, err
 	}
-
 	taggedAddresses := make(map[string]structs.ServiceAddress)
 	for k, v := range ns.TaggedAddresses {
 		taggedAddresses[k] = v
@@ -195,7 +197,7 @@ func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*stat
 		port:            ns.Port,
 		meta:            meta,
 		taggedAddresses: taggedAddresses,
-		proxyCfg:        *proxyCfg,
+		proxyCfg:        proxyCfg,
 		token:           token,
 		// 10 is fairly arbitrary here but allow for the 3 mandatory and a
 		// reasonable number of upstream watches to all deliver their initial
@@ -326,13 +328,15 @@ func (s *state) initWatchesConnectProxy() error {
 	}
 
 	// Watch for service check updates
-	err = s.cache.Notify(s.ctx, cachetype.ServiceHTTPChecksName, &cachetype.ServiceHTTPChecksRequest{
-		ServiceID:      s.proxyCfg.DestinationServiceID,
-		EnterpriseMeta: s.proxyID.EnterpriseMeta,
-	}, svcChecksWatchIDPrefix+structs.ServiceIDString(s.proxyCfg.DestinationServiceID, &s.proxyID.EnterpriseMeta), s.ch)
-	if err != nil {
-		return err
-	}
+
+	// Hack disable for now since it relies upon being able to watch local state for service checks.
+	// err = s.cache.Notify(s.ctx, cachetype.ServiceHTTPChecksName, &cachetype.ServiceHTTPChecksRequest{
+	// 	ServiceID:      s.proxyCfg.DestinationServiceID,
+	// 	EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	// }, svcChecksWatchIDPrefix+structs.ServiceIDString(s.proxyCfg.DestinationServiceID, &s.proxyID.EnterpriseMeta), s.ch)
+	// if err != nil {
+	// 	return err
+	// }
 
 	// default the namespace to the namespace of this proxy service
 	currentNamespace := s.proxyID.NamespaceOrDefault()
@@ -1641,7 +1645,13 @@ func (s *state) Changed(ns *structs.NodeService, token string) bool {
 		s.logger.Warn("Failed to parse proxy config and will treat the new service as unchanged")
 	}
 
-	return ns.Kind != s.kind ||
+	kindsMatch := ns.Kind != s.kind
+	// Hack special case for typical services with 'fake' proxy states
+	if ns.Kind == structs.ServiceKindTypical && s.kind == structs.ServiceKindConnectProxy {
+		kindsMatch = true
+	}
+
+	return kindsMatch ||
 		s.proxyID.ServiceID != ns.CompoundServiceID() ||
 		s.address != ns.Address ||
 		s.port != ns.Port ||

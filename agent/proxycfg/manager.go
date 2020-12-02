@@ -104,7 +104,7 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 	return m, nil
 }
 
-const hackFreq = 500 * time.Millisecond
+const hackFreq = 5000 * time.Millisecond
 
 // HackFQServiceID is a "fully qualified" service ID that includes the node name
 // to work globally accross the whole catalog.
@@ -192,13 +192,16 @@ func (m *Manager) syncState() {
 
 	{
 		hackState := m.HackServer.HackFSMState()
-		_, nodes, err := hackState.ServiceDump(nil, structs.ServiceKindConnectProxy, true, wildMeta)
+		_, nodes, err := hackState.ServiceDump(nil, structs.ServiceKindTypical, true, wildMeta)
 		if err != nil {
 			m.Logger.Error("HACK: failed to dump memdb", "error", err)
 			return
 		}
 
 		for _, csn := range nodes {
+			if csn.Service.Meta["connect_proxy"] != "true" && csn.Service.Meta["connect_upstreams"] == "" {
+				continue
+			}
 			sid := HackFQServiceID{
 				ServiceID: csn.Service.CompoundServiceID(),
 				Node:      m.Source.Node,
