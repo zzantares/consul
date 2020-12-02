@@ -204,7 +204,7 @@ func (m *Manager) syncState() {
 			}
 			sid := HackFQServiceID{
 				ServiceID: csn.Service.CompoundServiceID(),
-				Node:      m.Source.Node,
+				Node:      csn.Node.Node,
 			}
 			fqservices[sid] = csn.Service
 		}

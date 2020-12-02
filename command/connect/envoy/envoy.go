@@ -66,6 +66,7 @@ type cmd struct {
 
 	// mesh gateway registration information
 	register           bool
+	agentless          bool
 	lanAddress         ServiceAddressValue
 	wanAddress         ServiceAddressValue
 	deregAfterCritical string
@@ -139,6 +140,9 @@ func (c *cmd) init() {
 
 	c.flags.BoolVar(&c.register, "register", false,
 		"Register a new gateway service before configuring and starting Envoy")
+
+	c.flags.BoolVar(&c.agentless, "agentless", false,
+		"Connect to servers instead of local client agent")
 
 	c.flags.Var(&c.lanAddress, "address",
 		"LAN address to advertise in the gateway service registration")
@@ -262,6 +266,10 @@ func (c *cmd) run(args []string) int {
 	}
 
 	if c.proxyID == "" {
+		if c.agentless {
+			c.UI.Error("No proxy ID specified. -proxy-id must be provided in agentless mode and should be in the format <nodeName>/<namespace>/<serviceID>")
+			return 1
+		}
 		switch {
 		case c.sidecarFor != "":
 			proxyID, err := proxyCmd.LookupProxyIDForSidecar(c.client, c.sidecarFor)
@@ -500,14 +508,37 @@ func (c *cmd) generateConfig() ([]byte, error) {
 		}
 		bsCfg.ReadyBindAddr = lanAddr
 	}
-
-	// Fetch any customization from the registration
-	svc, _, err := c.client.Agent().Service(c.proxyID, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed fetch proxy config from local agent: %s", err)
-	}
-	if svc.Proxy == nil {
-		return nil, errors.New("service is not a Connect proxy or gateway")
+	var svc *api.AgentService
+	if c.agentless {
+		parts := strings.SplitN(c.proxyID, "/", 3)
+		svcs, _, err := c.client.Catalog().NodeServiceList(parts[0], nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch proxy config from servers: %s", err)
+		}
+		svcID := parts[1]
+		if len(parts) == 3 {
+			svcID = parts[2]
+		}
+		for _, s := range svcs.Services {
+			// TODO handle namespaces
+			if s.ID == svcID {
+				svc = s
+				break
+			}
+		}
+		if svc == nil {
+			return nil, fmt.Errorf("proxy ID doesn't exist")
+		}
+	} else {
+		// Fetch any customization from the local registration
+		s, _, err := c.client.Agent().Service(c.proxyID, nil)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch proxy config from local agent: %s", err)
+		}
+		if s.Proxy == nil {
+			return nil, errors.New("service is not a Connect proxy or gateway")
+		}
+		svc = s
 	}
 
 	if svc.Proxy.DestinationServiceName != "" {
