@@ -1645,13 +1645,13 @@ func (s *state) Changed(ns *structs.NodeService, token string) bool {
 		s.logger.Warn("Failed to parse proxy config and will treat the new service as unchanged")
 	}
 
-	kindsMatch := ns.Kind != s.kind
+	kindsChanged := ns.Kind != s.kind
 	// Hack special case for typical services with 'fake' proxy states
 	if ns.Kind == structs.ServiceKindTypical && s.kind == structs.ServiceKindConnectProxy {
-		kindsMatch = true
+		kindsChanged = false
 	}
 
-	return kindsMatch ||
+	return kindsChanged ||
 		s.proxyID.ServiceID != ns.CompoundServiceID() ||
 		s.address != ns.Address ||
 		s.port != ns.Port ||
