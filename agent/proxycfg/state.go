@@ -92,9 +92,25 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 
 	// Hack special case - build a fake proxyConfig from the meta
 	if ns.Kind == structs.ServiceKindTypical {
+		bindAddr := ns.Meta["connect_local_bind"]
+		if bindAddr == "" {
+			bindAddr = fmt.Sprintf("127.0.0.1:%d", ns.Port)
+		}
+
+		host, portStr, err := net.SplitHostPort(bindAddr)
+		if err != nil {
+			return structs.ConnectProxyConfig{}, err
+		}
+		port, err := strconv.Atoi(portStr)
+		if err != nil {
+			return structs.ConnectProxyConfig{}, err
+		}
+
 		proxyCfg := structs.ConnectProxyConfig{
 			DestinationServiceName: ns.Service,
 			DestinationServiceID:   ns.ID,
+			LocalServiceAddress:    host,
+			LocalServicePort:       port,
 		}
 
 		// Add upstreams from service meta
