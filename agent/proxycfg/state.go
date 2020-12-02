@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -121,7 +122,43 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 // The returned state needs its required dependencies to be set before Watch
 // can be called.
 func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*state, error) {
-	switch ns.Kind {
+	// Hack!!! allow regular service registations to have proxies. Rather than
+	// change a bunch of code in here for now we'll just create a fake proxyCfg
+	// and pretend it's a connect-proxy registration!
+	var proxyCfg *structs.ConnectProxyConfig
+	kind := ns.Kind
+	if kind == "" || kind == structs.ServiceKindTypical {
+		kind = structs.ServiceKindConnectProxy
+		proxyCfg = &structs.ConnectProxyConfig{
+			DestinationServiceName: ns.Service,
+			DestinationServiceID:   ns.ID,
+		}
+
+		// Add upstreams from service meta
+		if upstreamsStr := ns.Meta["connect_upstreams"]; upstreamsStr != "" {
+			upstreams := strings.Split(upstreamsStr, ",")
+			for _, up := range upstreams {
+				if upRaw := strings.TrimSpace(up); upRaw != "" {
+					// Hack! rely on upstream service names being valid hostnames for now
+					svc, portStr, err := net.SplitHostPort(upRaw)
+					if err != nil {
+						return nil, err
+					}
+					port, err := strconv.Atoi(portStr)
+					if err != nil {
+						return nil, err
+					}
+					proxyCfg.Upstreams = append(proxyCfg.Upstreams, structs.Upstream{
+						DestinationName: svc,
+						// TODO namespace support, DC support etc.
+						LocalBindPort: port,
+					})
+				}
+			}
+		}
+	}
+
+	switch kind {
 	case structs.ServiceKindConnectProxy:
 	case structs.ServiceKindTerminatingGateway:
 	case structs.ServiceKindMeshGateway:
@@ -130,9 +167,14 @@ func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*stat
 		return nil, errors.New("not a connect-proxy, terminating-gateway, mesh-gateway, or ingress-gateway")
 	}
 
-	proxyCfg, err := copyProxyConfig(ns)
-	if err != nil {
-		return nil, err
+	// Only copy proxy config if it's a real proxy and we didn't just build a fake
+	// one.
+	if proxyCfg == nil {
+		pcfg, err := copyProxyConfig(ns)
+		if err != nil {
+			return nil, err
+		}
+		proxyCfg = &pcfg
 	}
 
 	taggedAddresses := make(map[string]structs.ServiceAddress)
@@ -146,14 +188,14 @@ func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*stat
 	}
 
 	return &state{
-		kind:            ns.Kind,
+		kind:            kind,
 		service:         ns.Service,
 		proxyID:         sid,
 		address:         ns.Address,
 		port:            ns.Port,
 		meta:            meta,
 		taggedAddresses: taggedAddresses,
-		proxyCfg:        proxyCfg,
+		proxyCfg:        *proxyCfg,
 		token:           token,
 		// 10 is fairly arbitrary here but allow for the 3 mandatory and a
 		// reasonable number of upstream watches to all deliver their initial

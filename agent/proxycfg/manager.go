@@ -208,12 +208,14 @@ func (m *Manager) syncState() {
 	}
 
 	for sid, svc := range fqservices {
-		if svc.Kind != structs.ServiceKindConnectProxy &&
-			svc.Kind != structs.ServiceKindTerminatingGateway &&
-			svc.Kind != structs.ServiceKindMeshGateway &&
-			svc.Kind != structs.ServiceKindIngressGateway {
-			continue
-		}
+		// Allow all services to be implicitly treated like they have proxies for now!
+		//
+		// if svc.Kind != structs.ServiceKindConnectProxy &&
+		// 	svc.Kind != structs.ServiceKindTerminatingGateway &&
+		// 	svc.Kind != structs.ServiceKindMeshGateway &&
+		// 	svc.Kind != structs.ServiceKindIngressGateway {
+		// 	continue
+		// }
 		// TODO(banks): need to work out when to default some stuff. For example
 		// Proxy.LocalServicePort is practically necessary for any sidecar and can
 		// default to the port of the sidecar service, but only if it's already
