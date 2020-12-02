@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -104,7 +105,9 @@ type ConfigFetcher interface {
 // easier testing without several layers of mocked cache, local state and
 // proxycfg.Manager.
 type ConfigManager interface {
-	Watch(proxyID structs.ServiceID) (<-chan *proxycfg.ConfigSnapshot, proxycfg.CancelFunc)
+	// Hack! dependency on the proxycfg package when this interface is supposed to
+	// decouple. Hack quality code alert!
+	Watch(proxyID proxycfg.HackFQServiceID) (<-chan *proxycfg.ConfigSnapshot, proxycfg.CancelFunc)
 }
 
 // Server represents a gRPC server that can handle xDS requests from Envoy. All
@@ -191,7 +194,7 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 		ok            bool
 		stateCh       <-chan *proxycfg.ConfigSnapshot
 		watchCancel   func()
-		proxyID       structs.ServiceID
+		proxyID       proxycfg.HackFQServiceID
 	)
 
 	// need to run a small state machine to get through initial authentication.
@@ -321,7 +324,9 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 				continue
 			}
 			// Start authentication process, we need the proxyID
-			proxyID = structs.NewServiceID(req.Node.Id, parseEnterpriseMeta(req.Node))
+			// Hack encode Envoy's "node" ID as <consul node>/svcID
+			parts := strings.SplitN(req.Node.Id, "/", 2)
+			proxyID = proxycfg.NewHackFQServiceID(parts[0], parts[1], parseEnterpriseMeta(req.Node))
 
 			// Start watching config for that proxy
 			stateCh, watchCancel = s.CfgMgr.Watch(proxyID)

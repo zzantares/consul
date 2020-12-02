@@ -316,7 +316,7 @@ func (k *IngressListenerKey) RouteName() string {
 type ConfigSnapshot struct {
 	Kind                  structs.ServiceKind
 	Service               string
-	ProxyID               structs.ServiceID
+	ProxyID               HackFQServiceID
 	Address               string
 	Port                  int
 	ServiceMeta           map[string]string

@@ -64,7 +64,7 @@ type state struct {
 
 	kind            structs.ServiceKind
 	service         string
-	proxyID         structs.ServiceID
+	proxyID         HackFQServiceID
 	address         string
 	port            int
 	meta            map[string]string
@@ -120,7 +120,7 @@ func copyProxyConfig(ns *structs.NodeService) (structs.ConnectProxyConfig, error
 //
 // The returned state needs its required dependencies to be set before Watch
 // can be called.
-func newState(ns *structs.NodeService, token string) (*state, error) {
+func newState(sid HackFQServiceID, ns *structs.NodeService, token string) (*state, error) {
 	switch ns.Kind {
 	case structs.ServiceKindConnectProxy:
 	case structs.ServiceKindTerminatingGateway:
@@ -148,7 +148,7 @@ func newState(ns *structs.NodeService, token string) (*state, error) {
 	return &state{
 		kind:            ns.Kind,
 		service:         ns.Service,
-		proxyID:         ns.CompoundServiceID(),
+		proxyID:         sid,
 		address:         ns.Address,
 		port:            ns.Port,
 		meta:            meta,
@@ -1600,7 +1600,7 @@ func (s *state) Changed(ns *structs.NodeService, token string) bool {
 	}
 
 	return ns.Kind != s.kind ||
-		s.proxyID != ns.CompoundServiceID() ||
+		s.proxyID.ServiceID != ns.CompoundServiceID() ||
 		s.address != ns.Address ||
 		s.port != ns.Port ||
 		!reflect.DeepEqual(s.proxyCfg, proxyCfg) ||

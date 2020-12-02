@@ -195,7 +195,7 @@ func TestManager_BasicLifecycle(t *testing.T) {
 			expectSnap: &ConfigSnapshot{
 				Kind:            structs.ServiceKindConnectProxy,
 				Service:         webProxy.Service,
-				ProxyID:         webProxy.CompoundServiceID(),
+				ProxyID:         HackFQServiceID{ServiceID: webProxy.CompoundServiceID(), Node: "node1"},
 				Address:         webProxy.Address,
 				Port:            webProxy.Port,
 				Proxy:           mustCopyProxyConfig(t, webProxy),
@@ -244,7 +244,7 @@ func TestManager_BasicLifecycle(t *testing.T) {
 			expectSnap: &ConfigSnapshot{
 				Kind:            structs.ServiceKindConnectProxy,
 				Service:         webProxy.Service,
-				ProxyID:         webProxy.CompoundServiceID(),
+				ProxyID:         HackFQServiceID{ServiceID: webProxy.CompoundServiceID(), Node: "node1"},
 				Address:         webProxy.Address,
 				Port:            webProxy.Port,
 				Proxy:           mustCopyProxyConfig(t, webProxy),
@@ -338,7 +338,7 @@ func testManager_BasicLifecycle(
 	state.TriggerSyncChanges = func() {}
 
 	// Create manager
-	m, err := NewManager(ManagerConfig{c, state, source, DNSConfig{}, logger, nil, false})
+	m, err := NewManager(ManagerConfig{nil, c, state, source, DNSConfig{}, logger, nil, false})
 	require.NoError(err)
 
 	// And run it
@@ -348,7 +348,7 @@ func testManager_BasicLifecycle(
 	}()
 
 	// BEFORE we register, we should be able to get a watch channel
-	wCh, cancel := m.Watch(webProxy.CompoundServiceID())
+	wCh, cancel := m.Watch(HackFQServiceID{ServiceID: webProxy.CompoundServiceID(), Node: "node1"})
 	defer cancel()
 
 	// And it should block with nothing sent on it yet
@@ -372,7 +372,7 @@ func testManager_BasicLifecycle(
 	assertWatchChanRecvs(t, wCh, expectSnap)
 
 	// Register a second watcher
-	wCh2, cancel2 := m.Watch(webProxy.CompoundServiceID())
+	wCh2, cancel2 := m.Watch(HackFQServiceID{ServiceID: webProxy.CompoundServiceID(), Node: "node1"})
 	defer cancel2()
 
 	// New watcher should immediately receive the current state
@@ -480,11 +480,11 @@ func TestManager_deliverLatest(t *testing.T) {
 	require.NoError(err)
 
 	snap1 := &ConfigSnapshot{
-		ProxyID: structs.NewServiceID("test-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "test-proxy", nil),
 		Port:    1111,
 	}
 	snap2 := &ConfigSnapshot{
-		ProxyID: structs.NewServiceID("test-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "test-proxy", nil),
 		Port:    2222,
 	}
 

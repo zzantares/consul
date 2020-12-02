@@ -2,6 +2,7 @@ package proxycfg
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -50,8 +51,8 @@ type Manager struct {
 
 	mu       sync.Mutex
 	started  bool
-	proxies  map[structs.ServiceID]*state
-	watchers map[structs.ServiceID]map[uint64]chan *ConfigSnapshot
+	proxies  map[HackFQServiceID]*state
+	watchers map[HackFQServiceID]map[uint64]chan *ConfigSnapshot
 }
 
 // ManagerConfig holds the required external dependencies for a Manager
@@ -97,13 +98,31 @@ func NewManager(cfg ManagerConfig) (*Manager, error) {
 		// Single item buffer is enough since there is no data transferred so this
 		// is "level triggering" and we can't miss actual data.
 		stateCh:  make(chan struct{}, 1),
-		proxies:  make(map[structs.ServiceID]*state),
-		watchers: make(map[structs.ServiceID]map[uint64]chan *ConfigSnapshot),
+		proxies:  make(map[HackFQServiceID]*state),
+		watchers: make(map[HackFQServiceID]map[uint64]chan *ConfigSnapshot),
 	}
 	return m, nil
 }
 
 const hackFreq = 500 * time.Millisecond
+
+// HackFQServiceID is a "fully qualified" service ID that includes the node name
+// to work globally accross the whole catalog.
+type HackFQServiceID struct {
+	structs.ServiceID
+	Node string
+}
+
+func (sid *HackFQServiceID) String() string {
+	return fmt.Sprintf("%s/%s", sid.Node, sid.ServiceID.String())
+}
+
+func NewHackFQServiceID(node, svcID string, entMeta *structs.EnterpriseMeta) HackFQServiceID {
+	return HackFQServiceID{
+		Node:      node,
+		ServiceID: structs.NewServiceID(svcID, entMeta),
+	}
+}
 
 // Run is the long-running method that handles state syncing. It should be run
 // in it's own goroutine and will continue until a fatal error is hit or Close
@@ -156,7 +175,20 @@ func (m *Manager) syncState() {
 	wildMeta := structs.WildcardEnterpriseMeta()
 
 	// Traverse the local state and ensure all proxy services are registered
-	services := m.State.Services(wildMeta)
+	localServices := m.State.Services(wildMeta)
+
+	// Hack, we need node IDs as well as serviceIDs to make this work on servers
+	// accross the whole catalog. We'll call these "fully qualified service ids"
+	// and format them as strings for now.
+	fqservices := make(map[HackFQServiceID]*structs.NodeService)
+
+	for sid, ns := range localServices {
+		fqsid := HackFQServiceID{
+			ServiceID: sid,
+			Node:      m.Source.Node,
+		}
+		fqservices[fqsid] = ns
+	}
 
 	{
 		hackState := m.HackServer.HackFSMState()
@@ -167,15 +199,15 @@ func (m *Manager) syncState() {
 		}
 
 		for _, csn := range nodes {
-			svc := csn.Service
-
-			sid := svc.CompoundServiceID()
-
-			services[sid] = svc
+			sid := HackFQServiceID{
+				ServiceID: csn.Service.CompoundServiceID(),
+				Node:      m.Source.Node,
+			}
+			fqservices[sid] = csn.Service
 		}
 	}
 
-	for sid, svc := range services {
+	for sid, svc := range fqservices {
 		if svc.Kind != structs.ServiceKindConnectProxy &&
 			svc.Kind != structs.ServiceKindTerminatingGateway &&
 			svc.Kind != structs.ServiceKindMeshGateway &&
@@ -189,7 +221,7 @@ func (m *Manager) syncState() {
 		// know that so we'd need to set it here if not during registration of the
 		// proxy service. Sidecar Service in the interim can do that, but we should
 		// validate more generally that that is always true.
-		err := m.ensureProxyServiceLocked(svc, m.State.ServiceToken(sid))
+		err := m.ensureProxyServiceLocked(sid, svc, m.State.ServiceToken(sid.ServiceID))
 		if err != nil {
 			m.Logger.Error("failed to watch proxy service",
 				"service", sid.String(),
@@ -200,7 +232,7 @@ func (m *Manager) syncState() {
 
 	// Now see if any proxies were removed
 	for proxyID := range m.proxies {
-		if _, ok := services[proxyID]; !ok {
+		if _, ok := fqservices[proxyID]; !ok {
 			// Remove them
 			m.removeProxyServiceLocked(proxyID)
 		}
@@ -208,8 +240,7 @@ func (m *Manager) syncState() {
 }
 
 // ensureProxyServiceLocked adds or changes the proxy to our state.
-func (m *Manager) ensureProxyServiceLocked(ns *structs.NodeService, token string) error {
-	sid := ns.CompoundServiceID()
+func (m *Manager) ensureProxyServiceLocked(sid HackFQServiceID, ns *structs.NodeService, token string) error {
 	state, ok := m.proxies[sid]
 
 	if ok {
@@ -223,7 +254,7 @@ func (m *Manager) ensureProxyServiceLocked(ns *structs.NodeService, token string
 	}
 
 	var err error
-	state, err = newState(ns, token)
+	state, err = newState(sid, ns, token)
 	if err != nil {
 		return err
 	}
@@ -257,7 +288,7 @@ func (m *Manager) ensureProxyServiceLocked(ns *structs.NodeService, token string
 
 // removeProxyService is called when a service deregisters and frees all
 // resources for that service.
-func (m *Manager) removeProxyServiceLocked(proxyID structs.ServiceID) {
+func (m *Manager) removeProxyServiceLocked(proxyID HackFQServiceID) {
 	state, ok := m.proxies[proxyID]
 	if !ok {
 		return
@@ -330,7 +361,7 @@ OUTER:
 // will not fail, but no updates will be delivered until the proxy is
 // registered. If there is already a valid snapshot in memory, it will be
 // delivered immediately.
-func (m *Manager) Watch(proxyID structs.ServiceID) (<-chan *ConfigSnapshot, CancelFunc) {
+func (m *Manager) Watch(proxyID HackFQServiceID) (<-chan *ConfigSnapshot, CancelFunc) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -364,7 +395,7 @@ func (m *Manager) Watch(proxyID structs.ServiceID) (<-chan *ConfigSnapshot, Canc
 
 // closeWatchLocked cleans up state related to a single watcher. It assumes the
 // lock is held.
-func (m *Manager) closeWatchLocked(proxyID structs.ServiceID, watchIdx uint64) {
+func (m *Manager) closeWatchLocked(proxyID HackFQServiceID, watchIdx uint64) {
 	if watchers, ok := m.watchers[proxyID]; ok {
 		if ch, ok := watchers[watchIdx]; ok {
 			delete(watchers, watchIdx)

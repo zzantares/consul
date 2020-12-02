@@ -656,7 +656,7 @@ func TestConfigSnapshot(t testing.T) *ConfigSnapshot {
 	return &ConfigSnapshot{
 		Kind:    structs.ServiceKindConnectProxy,
 		Service: "web-sidecar-proxy",
-		ProxyID: structs.NewServiceID("web-sidecar-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "web-sidecar-proxy", nil),
 		Address: "0.0.0.0",
 		Port:    9999,
 		Proxy: structs.ConnectProxyConfig{
@@ -775,7 +775,7 @@ func testConfigSnapshotDiscoveryChain(t testing.T, variation string, additionalE
 	snap := &ConfigSnapshot{
 		Kind:    structs.ServiceKindConnectProxy,
 		Service: "web-sidecar-proxy",
-		ProxyID: structs.NewServiceID("web-sidecar-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "web-sidecar-proxy", nil),
 		Address: "0.0.0.0",
 		Port:    9999,
 		Proxy: structs.ConnectProxyConfig{
@@ -1427,7 +1427,7 @@ func testConfigSnapshotMeshGateway(t testing.T, populateServices bool, useFedera
 	snap := &ConfigSnapshot{
 		Kind:    structs.ServiceKindMeshGateway,
 		Service: "mesh-gateway",
-		ProxyID: structs.NewServiceID("mesh-gateway", nil),
+		ProxyID: NewHackFQServiceID("node1", "mesh-gateway", nil),
 		Address: "1.2.3.4",
 		Port:    8443,
 		Proxy: structs.ConnectProxyConfig{
@@ -1628,7 +1628,7 @@ func testConfigSnapshotIngressGateway(
 	snap := &ConfigSnapshot{
 		Kind:       structs.ServiceKindIngressGateway,
 		Service:    "ingress-gateway",
-		ProxyID:    structs.NewServiceID("ingress-gateway", nil),
+		ProxyID:    NewHackFQServiceID("node1", "ingress-gateway", nil),
 		Address:    "1.2.3.4",
 		Roots:      roots,
 		Datacenter: "dc1",
@@ -1657,7 +1657,7 @@ func TestConfigSnapshotExposeConfig(t testing.T) *ConfigSnapshot {
 	return &ConfigSnapshot{
 		Kind:    structs.ServiceKindConnectProxy,
 		Service: "web-proxy",
-		ProxyID: structs.NewServiceID("web-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "web-proxy", nil),
 		Address: "1.2.3.4",
 		Port:    8080,
 		Proxy: structs.ConnectProxyConfig{
@@ -1698,7 +1698,7 @@ func testConfigSnapshotTerminatingGateway(t testing.T, populateServices bool) *C
 	snap := &ConfigSnapshot{
 		Kind:    structs.ServiceKindTerminatingGateway,
 		Service: "terminating-gateway",
-		ProxyID: structs.NewServiceID("terminating-gateway", nil),
+		ProxyID: NewHackFQServiceID("node1", "terminating-gateway", nil),
 		Address: "1.2.3.4",
 		TaggedAddresses: map[string]structs.ServiceAddress{
 			structs.TaggedAddressWAN: {
@@ -1932,7 +1932,7 @@ func TestConfigSnapshotGRPCExposeHTTP1(t testing.T) *ConfigSnapshot {
 	return &ConfigSnapshot{
 		Kind:    structs.ServiceKindConnectProxy,
 		Service: "grpc-proxy",
-		ProxyID: structs.NewServiceID("grpc-proxy", nil),
+		ProxyID: NewHackFQServiceID("node1", "grpc-proxy", nil),
 		Address: "1.2.3.4",
 		Port:    8080,
 		Proxy: structs.ConnectProxyConfig{

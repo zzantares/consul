@@ -111,7 +111,7 @@ func TestStateChanged(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			require := require.New(t)
-			state, err := newState(tt.ns, tt.token)
+			state, err := newState(NewHackFQServiceID("node1", tt.ns.ID, &tt.ns.EnterpriseMeta), tt.ns, tt.token)
 			require.NoError(err)
 			otherNS, otherToken := tt.mutate(*tt.ns, tt.token)
 			require.Equal(tt.want, state.Changed(otherNS, otherToken))
@@ -1509,7 +1509,7 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
-			state, err := newState(&tc.ns, "")
+			state, err := newState(NewHackFQServiceID("node1", tc.ns.ID, &tc.ns.EnterpriseMeta), &tc.ns, "")
 
 			// verify building the initial state worked
 			require.NoError(t, err)
