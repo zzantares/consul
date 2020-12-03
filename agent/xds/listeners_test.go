@@ -128,6 +128,19 @@ func TestListenersFromSnapshot(t *testing.T) {
 				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
 					ns.Proxy.Config["bind_address"] = "127.0.0.2"
 				}, nil)
+		},
+		{
+			name: "http-public-listener-wasm-filters",
+			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
+				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
+					ns.Proxy.Config["protocol"] = "http"
+					ns.Proxy.Config["wasm_filters"] = []WASMFilter{
+						{
+							Name:     "add_header",
+							Location: "./optimized.wasm",
+						},
+					}
+				}, nil)
 			},
 		},
 		{
