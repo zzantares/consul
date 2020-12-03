@@ -1186,6 +1186,10 @@ func makeHTTPFilter(opts listenerFilterOpts) (*envoylistener.Filter, error) {
 			config.Fields["name"] = &pbstruct.Value{Kind: &pbstruct.Value_StringValue{StringValue: f.Name}}
 			config.Fields["root_id"] = &pbstruct.Value{Kind: &pbstruct.Value_StringValue{StringValue: f.Name}}
 
+			if f.NackOnCodeCacheMiss {
+				config.Fields["nack_on_code_cache_miss"] = &pbstruct.Value{Kind: &pbstruct.Value_BoolValue{BoolValue: f.NackOnCodeCacheMiss}}
+			}
+
 			var code *pbstruct.Value
 
 			if f.LocalFile != "" {

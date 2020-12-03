@@ -286,6 +286,11 @@ type WASMFilter struct {
 	// Configuration is an arbitary string which is serialized to bytes and passed
 	// to proxy_on_configure when the plugin initializes.
 	Configuration string `mapstructure:"configuration"`
+
+	// NackOnCodeCacheMiss if true and the code needs to be remotely fetched and it is
+	// not in the cache then NACK the configuration update and do a background fetch to
+	// fill the cache, otherwise fetch the code asynchronously and enter warming state.
+	NackOnCodeCacheMiss bool `mapstructure:"nack_on_code_cache_miss"`
 }
 
 type WASMFilterRemoteFile struct {
