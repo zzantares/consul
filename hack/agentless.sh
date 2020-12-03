@@ -13,13 +13,18 @@ if ! consul info >/dev/null 2>&1 ; then
     die "consul not running; please run it as 'consul agent -dev'"
 fi
 
-docker rm -f ping || true
-docker rm -f pong || true
+# docker rm -f ping || true
+# docker rm -f pong || true
 
-docker run -d --name ping --net=host --init rboyer/pingpong \
-    -bind 127.0.0.1:8081 -dial 127.0.0.1:5000 -dialfreq 5ms -name ping
-docker run -d --name pong --net=host --init rboyer/pingpong \
-    -bind 127.0.0.1:9091 -dial 127.0.0.1:6000 -dialfreq 5ms -name pong
+# docker run -d --name ping --init -p 8081:8081 rboyer/pingpong \
+#     -bind 0.0.0.0:8081 -dial pong:5000 -dialfreq 5ms -name ping
+# docker run -d --name pong --init -p 9091:9091 rboyer/pingpong \
+#     -bind 0.0.0.0:9091 -dial ping:6000 -dialfreq 5ms -name pong
+
+killall pingpong || true
+
+./pingpong -bind 127.0.0.1:8081 -dial 127.0.0.1:5000 -dialfreq 5ms -name ping &
+./pingpong -bind 127.0.0.1:9091 -dial 127.0.0.1:6000 -dialfreq 5ms -name pong &
 
 curl -sL -XPUT localhost:8500/v1/catalog/register -d'
 {
