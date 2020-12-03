@@ -58,9 +58,50 @@ func TestListenersFromSnapshot(t *testing.T) {
 								},
 							},
 						},
-					},
-				})
+					}
+				}, nil)
+			}
+		},
+		{
+			name: "http-public-listener-wasm-filters-local",
+			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
+				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
+					ns.Proxy.Config["protocol"] = "http"
+					ns.Proxy.Config["wasm_filters"] = []WASMFilter{
+						{
+							Name:     "add_header",
+							Location: "./optimized.wasm",
+						},
+					}
+				}, nil)
 			},
+		},
+		{
+			name:   "http-public-listener-wasm-filters-remote",
+			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
+				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
+				snap.Proxy.Config["protocol"] = "http"
+				snap.Proxy.Config["wasm_filters"] = []WASMFilter{
+					{
+						Name: "add_header",
+						RemoteFile: WASMFilterRemoteFile{
+							HTTPURI: WASMFilterRemoteFileHTTPURI{
+								URI:     "http://localhost:8080",
+								Cluster: "example",
+								Timeout: 30,
+							},
+							RetryPolicy: WASMFilterRemoteFileRetryPolicy{
+								RetryBackOff: WASMFilterRemoteFileRetryPolicyRetryBackOff{
+									BaseInterval: 2,
+									MaxInterval:  120,
+								},
+								NumRetries: 12,
+							},
+							SHA256: "16ae80a0a36ab0c230ceeb90c7bb984adc3466fdf584b638a2ea53e6d38701b2f7fd3637bc90107a40d0eaec60b414bd41e3ccc0c97e76292769647f2568cb5c",
+						},
+					},
+				},
+			}, nil)
 		},
 		{
 			name: "connect-proxy-with-tls-incoming-min-version",
@@ -128,20 +169,6 @@ func TestListenersFromSnapshot(t *testing.T) {
 				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
 					ns.Proxy.Config["bind_address"] = "127.0.0.2"
 				}, nil)
-		},
-		{
-			name: "http-public-listener-wasm-filters",
-			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
-				return proxycfg.TestConfigSnapshot(t, func(ns *structs.NodeService) {
-					ns.Proxy.Config["protocol"] = "http"
-					ns.Proxy.Config["wasm_filters"] = []WASMFilter{
-						{
-							Name:     "add_header",
-							Location: "./optimized.wasm",
-						},
-					}
-				}, nil)
-			},
 		},
 		{
 			name: "listener-bind-port",
