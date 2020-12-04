@@ -1190,6 +1190,23 @@ func makeHTTPFilter(opts listenerFilterOpts) (*envoylistener.Filter, error) {
 				config.Fields["nack_on_code_cache_miss"] = &pbstruct.Value{Kind: &pbstruct.Value_BoolValue{BoolValue: f.NackOnCodeCacheMiss}}
 			}
 
+			if f.Configuration != "" {
+				config.Fields["configuration"] = &pbstruct.Value{
+					Kind: &pbstruct.Value_StructValue{
+						StructValue: &pbstruct.Struct{
+							Fields: map[string]*pbstruct.Value{
+								"@type": {
+									Kind: &pbstruct.Value_StringValue{StringValue: "type.googleapis.com/google.protobuf.StringValue"},
+								},
+								"value": {
+									Kind: &pbstruct.Value_StringValue{StringValue: f.Configuration},
+								},
+							},
+						},
+					},
+				}
+			}
+
 			var code *pbstruct.Value
 
 			if f.LocalFile != "" {
