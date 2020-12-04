@@ -1,0 +1,87 @@
+#!/usr/bin/env bash
+
+source .plsdo.sh
+
+declare -A help
+
+envname=consul
+
+init() {
+  docker network create "$envname" 
+}
+
+server() {
+  docker run -ti \
+    -v "$PWD:/work" -w /work \
+    --network "$envname" \
+    --name "server1" \
+    alpine:latest \
+    /work/consul agent -config-file=consul-server.hcl
+}
+
+client() {
+  idx="$1"
+  docker run -ti \
+    -v "$PWD:/work" -w /work \
+    --network "$envname" \
+    --name "client$idx" \
+    alpine:latest \
+    /work/consul agent -config-file=consul-client.hcl
+}
+
+
+service-backend() {
+  id="c"
+  node="$1"
+  name="service-$id-$node"
+
+  docker run -d --rm \
+    -v "$PWD:/work" -w /work \
+    --network "container:client$node" \
+    --name "$name" \
+    -e LISTEN_ADDR=0.0.0.0:9090 \
+    -e MESSAGE="$name" \
+    -e NAME="service-$id" \
+    nicholasjackson/fake-service:v0.19.1
+
+  docker exec -ti "$name" ./consul services register service-c.hcl
+  proxy "$id" "$node" "localhost:19003"
+}
+
+proxy() {
+  id="$1"
+  node="$2"
+  name="proxy-$id-$node"
+  admin="$3"
+
+  docker run -d --rm \
+    -v "$PWD:/work" -w /work \
+    --network "container:client$node" \
+    --name "$name" \
+	--entrypoint=/work/consul \
+    envoyproxy/envoy-alpine:v1.16.0 \
+    connect envoy -sidecar-for "service-$id" -admin-bind="$admin"
+}
+
+service-mid() {
+  id="b"
+  node="$1"
+  name="service-$id-$node"
+
+  docker run -d --rm \
+    -v "$PWD:/work" -w /work \
+    --network "container:client$node" \
+    --name "$name" \
+    -e LISTEN_ADDR=0.0.0.0:9091 \
+    -e UPSTREAM_URIS=http://localhost:9990 \
+    -e MESSAGE="$name" \
+    -e NAME="service-$id" \
+    nicholasjackson/fake-service:v0.19.1
+
+  docker exec -ti "$name" ./consul services register service-b.hcl
+  proxy "$id" "$node" "localhost:19002"
+}
+
+
+
+_plsdo_run "$@"
