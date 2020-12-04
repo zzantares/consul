@@ -1317,7 +1317,11 @@ func makeHTTPFilter(opts listenerFilterOpts) (*envoylistener.Filter, error) {
 			}
 
 			hc := &envoyhttp.HttpFilter_Config{
-				Config: config,
+				Config: &pbstruct.Struct{
+					Fields: map[string]*pbstruct.Value{
+						"config": {Kind: &pbstruct.Value_StructValue{StructValue: config}},
+					},
+				},
 			}
 
 			ef := &envoyhttp.HttpFilter{
