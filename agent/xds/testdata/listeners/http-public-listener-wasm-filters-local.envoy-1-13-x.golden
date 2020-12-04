@@ -95,7 +95,6 @@
                             },
                         {
                               "config": {
-                                    "config": {
                                           "name": "add_header",
                                           "root_id": "add_header",
                                           "vm_config": {
@@ -108,7 +107,6 @@
                                                 "runtime": "envoy.wasm.runtime.v8",
                                                 "vm_id": "add_header"
                                               }
-                                        }
                                   },
                               "name": "envoy.filters.http.wasm"
                             },
