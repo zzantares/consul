@@ -1,6 +1,7 @@
 package proxycfg
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"sync"
@@ -244,6 +245,93 @@ func (m *Manager) syncState() {
 	}
 }
 
+// HACK: Implements agent/proxycfg.CacheNotifier interface.
+// Looks a lot like agent/cache/watch.go which is the
+// implementation that gathers the info from the cache.
+// But this implementation gathers a very small subset of the
+// info from the server instead via rpc. (Just health-services)
+type hackServerNotifier struct {
+	manager *Manager
+}
+
+func (s *hackServerNotifier) Notify(ctx context.Context,
+	t string,
+	r cache.Request,
+	correlationID string,
+	ch chan<- cache.UpdateEvent) error {
+	s.manager.Logger.Debug("************")
+	s.manager.Logger.Debug("Using server to notify for some endpoints")
+	s.manager.Logger.Debug("************")
+	if t == "health-services" {
+		// this Notify call comes from agent/proxycfg/state.go L288
+		// this notify implementation will gather info from server
+		go s.queryHealth(ctx, t, r, correlationID, ch)
+
+	} else {
+		// the rest of the requests are forwarded to the original cache implementation
+		return s.manager.Cache.Notify(ctx, t, r, correlationID, ch)
+	}
+	return nil
+
+}
+
+// this is going to look a lot like agent/cache/watch.go,
+// like the notify blocking query
+func (s *hackServerNotifier) queryHealth(ctx context.Context,
+	t string,
+	r cache.Request,
+	correlationID string,
+	ch chan<- cache.UpdateEvent) {
+
+	// assert this is a ServiceSpecificRequest so we can pass it as args to the RPC
+	serviceSpecificRequest := r.(*structs.ServiceSpecificRequest)
+
+	index := uint64(0)
+	for {
+
+		// Check context hasn't been canceled
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Make rpc rather than getting this from cache
+		var reply structs.IndexedCheckServiceNodes
+		serviceSpecificRequest.MinQueryIndex = index
+		err := s.manager.HackServer.RPC("Health.ServiceNodes", serviceSpecificRequest, &reply)
+
+		if err != nil {
+			s.manager.Logger.Debug("ERROR: couldn't make rpc health.servicenodes rpc")
+		}
+		// var result cache.FetchResult
+		// result.Value = &reply
+		// result.Index = reply.QueryMeta.Index
+
+		// Check context hasn't been canceled
+		if ctx.Err() != nil {
+			return
+		}
+
+		// Check the index of the value returned by the rpc call to be sure it
+		// changed
+		rpcmeta := reply.QueryMeta
+		if index == 0 || index < rpcmeta.Index {
+			u := cache.UpdateEvent{correlationID, &reply, cache.ResultMeta{Index: rpcmeta.Index}, err}
+			select {
+			case ch <- u:
+			case <-ctx.Done():
+				return
+			}
+		}
+		// Update index for next request
+		index = rpcmeta.Index
+
+		s.manager.Logger.Debug("%%%%%%%%%%%")
+		s.manager.Logger.Debug("Doing the health-services watch via server rpc not cache!!")
+		s.manager.Logger.Debug("%%%%%%%%%%%")
+	}
+
+}
+
 // ensureProxyServiceLocked adds or changes the proxy to our state.
 func (m *Manager) ensureProxyServiceLocked(sid HackFQServiceID, ns *structs.NodeService, token string) error {
 	state, ok := m.proxies[sid]
@@ -266,7 +354,15 @@ func (m *Manager) ensureProxyServiceLocked(sid HackFQServiceID, ns *structs.Node
 
 	// Set the necessary dependencies
 	state.logger = m.Logger.With("service_id", sid.String())
+
+	// HACK: set state.cache to something that conforms
+	// to proxycfg.CacheNotifier interface
 	state.cache = m.Cache
+	if m.HackServer != nil {
+		hackNotifier := new(hackServerNotifier)
+		hackNotifier.manager = m
+		state.cache = hackNotifier
+	}
 	state.source = m.Source
 	state.dnsConfig = m.DNSConfig
 	state.intentionDefaultAllow = m.IntentionDefaultAllow
