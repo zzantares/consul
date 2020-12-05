@@ -1,15 +1,10 @@
 package xds
 
 import (
-	"strings"
 	"time"
 
 	envoycluster "github.com/envoyproxy/go-control-plane/envoy/api/v2/cluster"
-	"github.com/golang/protobuf/ptypes"
-	"github.com/golang/protobuf/ptypes/wrappers"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/lib/decode"
-	"github.com/mitchellh/mapstructure"
 )
 
 // ProxyConfig describes the keys we understand from Connect.Proxy.Config. Note
@@ -91,29 +86,7 @@ type GatewayConfig struct {
 // error occurs during parsing, it is returned along with the default config. This
 // allows the caller to choose whether and how to report the error
 func ParseGatewayConfig(m map[string]interface{}) (GatewayConfig, error) {
-	var cfg GatewayConfig
-	d, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			decode.HookWeakDecodeFromSlice,
-			decode.HookTranslateKeys,
-		),
-		Result:           &cfg,
-		WeaklyTypedInput: true,
-	})
-	if err != nil {
-		return cfg, err
-	}
-	if err := d.Decode(m); err != nil {
-		return cfg, err
-	}
-
-	if cfg.ConnectTimeoutMs < 1 {
-		cfg.ConnectTimeoutMs = 5000
-	}
-
-	cfg.DNSDiscoveryType = strings.ToLower(cfg.DNSDiscoveryType)
-
-	return cfg, err
+	return GatewayConfig{}, nil
 }
 
 // UpstreamLimits describes the limits that are associated with a specific
@@ -184,50 +157,16 @@ type PassiveHealthCheck struct {
 // If all values are zero a default empty OutlierDetection will be returned to
 // enable outlier detection with default values.
 func (p PassiveHealthCheck) AsOutlierDetection() *envoycluster.OutlierDetection {
-	od := &envoycluster.OutlierDetection{}
-	if p.Interval != 0 {
-		od.Interval = ptypes.DurationProto(p.Interval)
-	}
-	if p.MaxFailures != 0 {
-		od.Consecutive_5Xx = &wrappers.UInt32Value{Value: p.MaxFailures}
-	}
-	return od
+	return nil
 }
 
 func ParseUpstreamConfigNoDefaults(m map[string]interface{}) (UpstreamConfig, error) {
-	var cfg UpstreamConfig
-	config := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			decode.HookWeakDecodeFromSlice,
-			decode.HookTranslateKeys,
-			mapstructure.StringToTimeDurationHookFunc(),
-		),
-		Result:           &cfg,
-		WeaklyTypedInput: true,
-	}
-
-	decoder, err := mapstructure.NewDecoder(config)
-	if err != nil {
-		return cfg, err
-	}
-
-	err = decoder.Decode(m)
-	return cfg, err
+	return UpstreamConfig{}, nil
 }
 
 // ParseUpstreamConfig returns the UpstreamConfig parsed from an opaque map.
 // If an error occurs during parsing it is returned along with the default
 // config this allows caller to choose whether and how to report the error.
 func ParseUpstreamConfig(m map[string]interface{}) (UpstreamConfig, error) {
-	cfg, err := ParseUpstreamConfigNoDefaults(m)
-	// Set defaults (even if error is returned)
-	if cfg.Protocol == "" {
-		cfg.Protocol = "tcp"
-	} else {
-		cfg.Protocol = strings.ToLower(cfg.Protocol)
-	}
-	if cfg.ConnectTimeoutMs < 1 {
-		cfg.ConnectTimeoutMs = 5000
-	}
-	return cfg, err
+	return UpstreamConfig{}, nil
 }

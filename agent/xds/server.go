@@ -12,6 +12,7 @@ import (
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/tlsutil"
+	"github.com/hashicorp/go-hclog"
 	"google.golang.org/grpc"
 )
 
@@ -104,6 +105,7 @@ type ConfigManager interface {
 // A full description of the XDS protocol can be found at
 // https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol
 type Server struct {
+	Logger       hclog.Logger
 	CfgMgr       ConfigManager
 	ResolveToken ACLResolverFunc
 	// AuthCheckFrequency is how often we should re-check the credentials used
@@ -112,6 +114,7 @@ type Server struct {
 	// there has been no recent DiscoveryRequest).
 	AuthCheckFrequency time.Duration
 	CheckFetcher       HTTPCheckFetcher
+	CfgFetcher         ConfigFetcher
 }
 
 // Initialize will finish configuring the Server for first use.
@@ -137,12 +140,12 @@ func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest)
 }
 
 type xDSType struct {
-	typeURL       string
-	stream        ADSStream
-	req           *envoy.DiscoveryRequest
-	node          *envoycore.Node
-	proxyFeatures supportedProxyFeatures
-	lastNonce     string
+	typeURL string
+	stream  ADSStream
+	req     *envoy.DiscoveryRequest
+	node    *envoycore.Node
+
+	lastNonce string
 	// lastVersion is the version that was last sent to the proxy. It is needed
 	// because we don't want to send the same version more than once.
 	// req.VersionInfo may be an older version than the most recent once sent in
@@ -157,11 +160,10 @@ type xDSType struct {
 
 // connectionInfo represents details specific to this connection
 type connectionInfo struct {
-	Token         string
-	ProxyFeatures supportedProxyFeatures
+	Token string
 }
 
-func (t *xDSType) Recv(req *envoy.DiscoveryRequest, node *envoycore.Node, proxyFeatures supportedProxyFeatures) {
+func (t *xDSType) Recv(req *envoy.DiscoveryRequest, node *envoycore.Node) {
 }
 
 func (t *xDSType) SendIfNew(cfgSnap *proxycfg.ConfigSnapshot, version uint64, nonce *uint64) error {
