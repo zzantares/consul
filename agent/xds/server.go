@@ -1,13 +1,9 @@
 package xds
 
 import (
-	"context"
 	"time"
 
-	envoy "github.com/envoyproxy/go-control-plane/envoy/api/v2"
-	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoydisco "github.com/envoyproxy/go-control-plane/envoy/service/discovery/v2"
-	"github.com/golang/protobuf/proto"
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
@@ -127,51 +123,6 @@ func (s *Server) Initialize() {
 // the only xDS API we directly support for now.
 func (s *Server) StreamAggregatedResources(stream ADSStream) error {
 	return nil
-}
-
-const (
-	stateInit int = iota
-	statePendingInitialConfig
-	stateRunning
-)
-
-func (s *Server) process(stream ADSStream, reqCh <-chan *envoy.DiscoveryRequest) error {
-	return nil
-}
-
-type xDSType struct {
-	typeURL string
-	stream  ADSStream
-	req     *envoy.DiscoveryRequest
-	node    *envoycore.Node
-
-	lastNonce string
-	// lastVersion is the version that was last sent to the proxy. It is needed
-	// because we don't want to send the same version more than once.
-	// req.VersionInfo may be an older version than the most recent once sent in
-	// two cases: 1) if the ACK wasn't received yet and `req` still points to the
-	// previous request we already responded to and 2) if the proxy rejected the
-	// last version we sent with a Nack then req.VersionInfo will be the older
-	// version it's hanging on to.
-	lastVersion  uint64
-	resources    func(cInfo connectionInfo, cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error)
-	allowEmptyFn func(cfgSnap *proxycfg.ConfigSnapshot) bool
-}
-
-// connectionInfo represents details specific to this connection
-type connectionInfo struct {
-	Token string
-}
-
-func (t *xDSType) Recv(req *envoy.DiscoveryRequest, node *envoycore.Node) {
-}
-
-func (t *xDSType) SendIfNew(cfgSnap *proxycfg.ConfigSnapshot, version uint64, nonce *uint64) error {
-	return nil
-}
-
-func tokenFromContext(ctx context.Context) string {
-	return ""
 }
 
 // DeltaAggregatedResources implements envoydisco.AggregatedDiscoveryServiceServer

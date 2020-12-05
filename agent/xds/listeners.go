@@ -5,14 +5,6 @@ import (
 )
 
 type listenerFilterOpts struct {
-	useRDS     bool
-	protocol   string
-	filterName string
-	routeName  string
-	cluster    string
-	statPrefix string
-	routePath  string
-	ingress    bool
 
 	// TODO(m1) removing this line eliminates the problem
 	httpAuthzFilter *envoyhttp.HttpFilter
