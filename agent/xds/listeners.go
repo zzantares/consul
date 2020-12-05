@@ -29,7 +29,6 @@ import (
 	"github.com/hashicorp/consul/agent/connect"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/logging"
 	"github.com/hashicorp/go-hclog"
 )
 
@@ -95,7 +94,6 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		for _, check := range s.CheckFetcher.ServiceHTTPBasedChecks(psid) {
 			p, err := parseCheckPath(check)
 			if err != nil {
-				s.Logger.Warn("failed to create listener for", "check", check.CheckID, "error", err)
 				continue
 			}
 			paths = append(paths, p)
@@ -195,7 +193,6 @@ func (s *Server) listenersFromSnapshotGateway(cInfo connectionInfo, cfgSnap *pro
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse Connect.Proxy.Config", "error", err)
 	}
 
 	// Prevent invalid configurations of binding to the same port/addr twice
@@ -519,7 +516,6 @@ func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.Conf
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse Connect.Proxy.Config", "error", err)
 	}
 
 	if cfg.PublicListenerJSON != "" {
@@ -600,11 +596,6 @@ func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.Conf
 		// HTTP RBAC filter, but if we can't then just inject the RBAC Network
 		// filter instead.
 		if err := s.injectHTTPFilterOnFilterChains(l, httpAuthzFilter); err != nil {
-			s.Logger.Warn(
-				"could not inject the HTTP RBAC filter to enforce intentions on user-provided 'envoy_public_listener_json' config; falling back on the RBAC network filter instead",
-				"proxy", cfgSnap.ProxyID,
-				"error", err,
-			)
 			useHTTPFilter = false
 		}
 	}
@@ -627,7 +618,6 @@ func (s *Server) makeExposedCheckListener(cfgSnap *proxycfg.ConfigSnapshot, clus
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse Connect.Proxy.Config", "error", err)
 	}
 
 	// No user config, use default listener
@@ -725,11 +715,6 @@ func (s *Server) makeTerminatingGatewayListener(
 		if err != nil {
 			// Don't hard fail on a config typo, just warn. The parse func returns
 			// default config if there is an error so it's safe to continue.
-			s.Logger.Named(logging.TerminatingGateway).Warn(
-				"failed to parse Connect.Proxy.Config for linked service",
-				"service", svc.String(),
-				"error", err,
-			)
 		}
 
 		clusterChain, err := s.makeFilterChainTerminatingGateway(
@@ -970,11 +955,6 @@ func (s *Server) makeUpstreamListenerForDiscoveryChain(
 	upstreamID := u.Identifier()
 	l := makeListener(upstreamID, address, u.LocalBindPort)
 
-	cfg := getAndModifyUpstreamConfigForListener(s.Logger, u, chain)
-	if cfg.ListenerJSON != "" {
-		return makeListenerFromUserConfig(cfg.ListenerJSON)
-	}
-
 	useRDS := true
 	var (
 		clusterName                        string
@@ -995,21 +975,6 @@ func (s *Server) makeUpstreamListenerForDiscoveryChain(
 	} else {
 		destination, datacenter, namespace = chain.ServiceName, chain.Datacenter, chain.Namespace
 
-		if cfg.Protocol == "tcp" {
-			useRDS = false
-
-			startNode := chain.Nodes[chain.StartNode]
-			if startNode == nil {
-				return nil, fmt.Errorf("missing first node in compiled discovery chain for: %s", chain.ServiceName)
-			}
-			if startNode.Type != structs.DiscoveryGraphNodeTypeResolver {
-				return nil, fmt.Errorf("unexpected first node in discovery chain using protocol=%q: %s", cfg.Protocol, startNode.Type)
-			}
-			targetID := startNode.Resolver.Target
-			target := chain.Targets[targetID]
-
-			clusterName = CustomizeClusterName(target.Name, chain)
-		}
 	}
 
 	// Default the namespace to match how SNIs are generated
@@ -1026,7 +991,6 @@ func (s *Server) makeUpstreamListenerForDiscoveryChain(
 
 	opts := listenerFilterOpts{
 		useRDS:          useRDS,
-		protocol:        cfg.Protocol,
 		filterName:      filterName,
 		routeName:       upstreamID,
 		cluster:         clusterName,

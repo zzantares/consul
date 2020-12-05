@@ -20,7 +20,6 @@ import (
 	"github.com/hashicorp/consul/agent/connect"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/logging"
 )
 
 // clustersFromSnapshot returns the xDS API representation of the "clusters" in the snapshot.
@@ -95,7 +94,6 @@ func (s *Server) clustersFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnapsh
 		for _, check := range s.CheckFetcher.ServiceHTTPBasedChecks(psid) {
 			p, err := parseCheckPath(check)
 			if err != nil {
-				s.Logger.Warn("failed to create cluster for", "check", check.CheckID, "error", err)
 				continue
 			}
 			paths = append(paths, p)
@@ -109,7 +107,6 @@ func (s *Server) clustersFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnapsh
 		}
 		c, err := s.makeAppCluster(cfgSnap, makeExposeClusterName(path.LocalPathPort), path.Protocol, path.LocalPathPort)
 		if err != nil {
-			s.Logger.Warn("failed to make local cluster", "path", path.Path, "error", err)
 			continue
 		}
 		clusters = append(clusters, c)
@@ -333,7 +330,6 @@ func (s *Server) makeAppCluster(cfgSnap *proxycfg.ConfigSnapshot, name, pathProt
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse Connect.Proxy.Config", "error", err)
 	}
 
 	// If we have overridden local cluster config try to parse it into an Envoy cluster
@@ -385,7 +381,6 @@ func (s *Server) makeUpstreamClusterForPreparedQuery(upstream structs.Upstream, 
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse", "upstream", upstream.Identifier(), "error", err)
 	}
 	if cfg.ClusterJSON != "" {
 		c, err = makeClusterFromUserConfig(cfg.ClusterJSON)
@@ -440,8 +435,6 @@ func (s *Server) makeUpstreamClustersForDiscoveryChain(
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse", "upstream", upstream.Identifier(),
-			"error", err)
 	}
 
 	var escapeHatchCluster *envoy.Cluster
@@ -454,9 +447,6 @@ func (s *Server) makeUpstreamClustersForDiscoveryChain(
 				return nil, err
 			}
 		} else {
-			s.Logger.Warn("ignoring escape hatch setting, because a discovery chain is configured for",
-				"discovery chain", chain.ServiceName, "upstream", upstream.Identifier(),
-				"envoy_cluster_json", chain.ServiceName)
 		}
 	}
 
@@ -490,7 +480,6 @@ func (s *Server) makeUpstreamClustersForDiscoveryChain(
 			}
 		}
 
-		s.Logger.Debug("generating cluster for", "cluster", clusterName)
 		c := &envoy.Cluster{
 			Name:                 clusterName,
 			AltStatName:          clusterName,
@@ -623,7 +612,6 @@ func (s *Server) makeGatewayCluster(snap *proxycfg.ConfigSnapshot, opts gatewayC
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse gateway config", "error", err)
 	}
 	if opts.connectTimeout <= 0 {
 		opts.connectTimeout = time.Duration(cfg.ConnectTimeoutMs) * time.Millisecond
@@ -671,11 +659,9 @@ func (s *Server) makeGatewayCluster(snap *proxycfg.ConfigSnapshot, opts gatewayC
 	uniqueHostnames := make(map[string]bool)
 
 	var (
-		hostname string
-		idx      int
 		fallback *envoyendpoint.LbEndpoint
 	)
-	for i, e := range opts.hostnameEndpoints {
+	for _, e := range opts.hostnameEndpoints {
 		addr, port := e.BestAddress(opts.isRemote)
 		uniqueHostnames[addr] = true
 
@@ -688,31 +674,19 @@ func (s *Server) makeGatewayCluster(snap *proxycfg.ConfigSnapshot, opts gatewayC
 		if len(endpoints) == 0 {
 			endpoints = append(endpoints, makeLbEndpoint(addr, port, health, weight))
 
-			hostname = addr
-			idx = i
 			break
 		}
 	}
 
-	dc := opts.hostnameEndpoints[idx].Node.Datacenter
-	service := opts.hostnameEndpoints[idx].Service.CompoundServiceName()
-
-	loggerName := logging.TerminatingGateway
 	if snap.Kind == structs.ServiceKindMeshGateway {
-		loggerName = logging.MeshGateway
+
 	}
 
 	// Fall back to last unhealthy endpoint if none were healthy
 	if len(endpoints) == 0 {
-		s.Logger.Named(loggerName).Warn("upstream service does not contain any healthy instances",
-			"dc", dc, "service", service.String())
-
 		endpoints = append(endpoints, fallback)
 	}
 	if len(uniqueHostnames) > 1 {
-		s.Logger.Named(loggerName).
-			Warn(fmt.Sprintf("service contains instances with more than one unique hostname; only %q be resolved by Envoy", hostname),
-				"dc", dc, "service", service.String())
 	}
 
 	cluster.LoadAssignment = &envoy.ClusterLoadAssignment{

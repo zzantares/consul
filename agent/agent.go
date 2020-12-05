@@ -8,7 +8,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/consul/agent/xds"
 	"github.com/hashicorp/go-connlimit"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -26,6 +25,7 @@ import (
 	"github.com/hashicorp/consul/agent/rpcclient/health"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/token"
+	"github.com/hashicorp/consul/agent/xds"
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/tlsutil"
@@ -311,49 +311,9 @@ func (a *Agent) Failed() <-chan struct{} {
 	return nil
 }
 
-// TODO(m1): removing this eliminates the huge block panic
 func (a *Agent) listenAndServeGRPC() error {
-	if len(a.config.GRPCAddrs) < 1 {
-		return nil
-	}
-
-	xdsServer := &xds.Server{
-		Logger:       a.logger,
-		CfgMgr:       a.proxyConfig,
-		ResolveToken: a.resolveToken,
-		CheckFetcher: nil,
-		CfgFetcher:   nil,
-	}
-	xdsServer.Initialize()
-
-	var err error
-	if a.config.HTTPSPort > 0 {
-		// gRPC uses the same TLS settings as the HTTPS API. If HTTPS is
-		// enabled then gRPC will require HTTPS as well.
-		a.grpcServer, err = xdsServer.GRPCServer(a.tlsConfigurator)
-	} else {
-		a.grpcServer, err = xdsServer.GRPCServer(nil)
-	}
-	if err != nil {
-		return err
-	}
-
-	ln, err := a.startListeners(a.config.GRPCAddrs)
-	if err != nil {
-		return err
-	}
-
-	for _, l := range ln {
-		go func(innerL net.Listener) {
-			a.logger.Info("Started gRPC server",
-				"address", innerL.Addr().String(),
-				"network", innerL.Addr().Network(),
-			)
-			err := a.grpcServer.Serve(innerL)
-			if err != nil {
-				a.logger.Error("gRPC server failed", "error", err)
-			}
-		}(l)
+	_ = &xds.Server{
+		// TODO(m1): removing this stops the panic
 	}
 	return nil
 }

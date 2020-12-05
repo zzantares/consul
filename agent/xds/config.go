@@ -58,33 +58,7 @@ type ProxyConfig struct {
 // error occurs during parsing it is returned along with the default config this
 // allows caller to choose whether and how to report the error.
 func ParseProxyConfig(m map[string]interface{}) (ProxyConfig, error) {
-	var cfg ProxyConfig
-	decodeConf := &mapstructure.DecoderConfig{
-		DecodeHook: mapstructure.ComposeDecodeHookFunc(
-			decode.HookWeakDecodeFromSlice,
-			decode.HookTranslateKeys,
-		),
-		Result:           &cfg,
-		WeaklyTypedInput: true,
-	}
-	decoder, err := mapstructure.NewDecoder(decodeConf)
-	if err != nil {
-		return cfg, err
-	}
-	if err := decoder.Decode(m); err != nil {
-		return cfg, err
-	}
-
-	// Set defaults (even if error is returned)
-	if cfg.Protocol == "" {
-		cfg.Protocol = "tcp"
-	} else {
-		cfg.Protocol = strings.ToLower(cfg.Protocol)
-	}
-	if cfg.LocalConnectTimeoutMs < 1 {
-		cfg.LocalConnectTimeoutMs = 5000
-	}
-	return cfg, err
+	return ProxyConfig{}, nil
 }
 
 type GatewayConfig struct {

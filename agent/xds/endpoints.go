@@ -127,7 +127,6 @@ func (s *Server) endpointsFromSnapshotMeshGateway(cfgSnap *proxycfg.ConfigSnapsh
 		if !ok {
 			endpoints, ok = cfgSnap.MeshGateway.FedStateGateways[dc]
 			if !ok { // not possible
-				s.Logger.Error("skipping mesh gateway endpoints because no definition found", "datacenter", dc)
 				continue
 			}
 		}
@@ -314,8 +313,6 @@ func (s *Server) endpointsFromDiscoveryChain(
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse", "upstream", upstream.Identifier(),
-			"error", err)
 	}
 
 	var escapeHatchCluster *envoy.Cluster
@@ -328,9 +325,6 @@ func (s *Server) endpointsFromDiscoveryChain(
 				return resources
 			}
 		} else {
-			s.Logger.Warn("ignoring escape hatch setting, because a discovery chain is configued for",
-				"discovery chain", chain.ServiceName, "upstream", upstream.Identifier(),
-				"envoy_cluster_json", chain.ServiceName)
 		}
 	}
 
@@ -348,7 +342,6 @@ func (s *Server) endpointsFromDiscoveryChain(
 		if escapeHatchCluster != nil {
 			clusterName = escapeHatchCluster.Name
 		}
-		s.Logger.Debug("generating endpoints for", "cluster", clusterName)
 
 		// Determine if we have to generate the entire cluster differently.
 		failoverThroughMeshGateway := chain.WillFailoverThroughMeshGateway(node)

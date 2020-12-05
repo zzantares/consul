@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/consul/agent/connect"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/logging"
 )
 
 // routesFromSnapshot returns the xDS API representation of the "routes" in the
@@ -84,7 +83,6 @@ func (s *Server) routesFromSnapshotTerminatingGateway(_ connectionInfo, cfgSnap 
 	if cfgSnap == nil {
 		return nil, errors.New("nil config given")
 	}
-	logger := s.Logger.Named(logging.TerminatingGateway)
 
 	var resources []proto.Message
 	for _, svc := range cfgSnap.TerminatingGateway.ValidServices() {
@@ -113,7 +111,6 @@ func (s *Server) routesFromSnapshotTerminatingGateway(_ connectionInfo, cfgSnap 
 		}
 		route, err := makeNamedDefaultRouteWithLB(clusterName, lb)
 		if err != nil {
-			logger.Error("failed to make route", "cluster", clusterName, "error", err)
 			continue
 		}
 		resources = append(resources, route)
@@ -123,7 +120,6 @@ func (s *Server) routesFromSnapshotTerminatingGateway(_ connectionInfo, cfgSnap 
 			clusterName = connect.ServiceSNI(svc.Name, name, svc.NamespaceOrDefault(), cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain)
 			route, err := makeNamedDefaultRouteWithLB(clusterName, lb)
 			if err != nil {
-				logger.Error("failed to make route", "cluster", clusterName, "error", err)
 				continue
 			}
 			resources = append(resources, route)
