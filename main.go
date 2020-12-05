@@ -1,56 +1,32 @@
 package main
 
 import (
-	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
-
-	"github.com/hashicorp/consul/command"
-	"github.com/hashicorp/consul/command/version"
-	"github.com/hashicorp/consul/lib"
-	_ "github.com/hashicorp/consul/service_os"
+	"github.com/hashicorp/consul/agent"
+	"github.com/hashicorp/consul/command/flags"
 	"github.com/mitchellh/cli"
 )
 
+func main() { println("issue 42738") }
+
 func init() {
-	lib.SeedMathRand()
+	registry["agent"] = func(ui cli.Ui) (cli.Command, error) {
+		return (*cmd)(nil), nil
+	}
 }
 
-func main() {
-	os.Exit(realMain())
+type cmd struct {
+	_ *flags.HTTPFlags
 }
 
-func realMain() int {
-	log.SetOutput(ioutil.Discard)
-
-	ui := &cli.BasicUi{Writer: os.Stdout, ErrorWriter: os.Stderr}
-	cmds := command.Map(ui)
-	var names []string
-	for c := range cmds {
-		names = append(names, c)
-	}
-
-	cli := &cli.CLI{
-		Args:         os.Args[1:],
-		Commands:     cmds,
-		Autocomplete: true,
-		Name:         "consul",
-		HelpFunc:     cli.FilteredHelpFunc(names, cli.BasicHelpFunc("consul")),
-		HelpWriter:   os.Stdout,
-		ErrorWriter:  os.Stderr,
-	}
-
-	if cli.IsVersion() {
-		cmd := version.New(ui)
-		return cmd.Run(nil)
-	}
-
-	exitCode, err := cli.Run()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error executing CLI: %v\n", err)
-		return 1
-	}
-
-	return exitCode
+func (*cmd) Run(args []string) int {
+	agent.NewBaseDeps(nil, nil)
+	return 1
 }
+
+func (*cmd) Synopsis() string { return "" }
+
+func (*cmd) Help() string { return "" }
+
+type Factory func(cli.Ui) (cli.Command, error)
+
+var registry = make(map[string]Factory)
