@@ -15,7 +15,6 @@ import (
 	"github.com/hashicorp/consul/agent/debug"
 	"github.com/hashicorp/consul/agent/structs"
 	token_store "github.com/hashicorp/consul/agent/token"
-	"github.com/hashicorp/consul/agent/xds/proxysupport"
 	"github.com/hashicorp/consul/api"
 	"github.com/hashicorp/consul/ipaddr"
 	"github.com/hashicorp/consul/lib"
@@ -64,13 +63,11 @@ func (s *HTTPHandlers) AgentSelf(resp http.ResponseWriter, req *http.Request) (i
 	}
 
 	var xds *xdsSelf
-	if s.agent.grpcServer != nil {
-		xds = &xdsSelf{
-			SupportedProxies: map[string][]string{
-				"envoy": proxysupport.EnvoyVersions,
-			},
-		}
-	}
+	//if s.agent.grpcServer != nil {
+	//	xds = &xdsSelf{
+	//		SupportedProxies: map[string][]string{},
+	//	}
+	//}
 
 	config := struct {
 		Datacenter string

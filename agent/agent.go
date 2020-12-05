@@ -12,7 +12,6 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/serf/serf"
-	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/ae"
@@ -22,7 +21,6 @@ import (
 	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/local"
 	"github.com/hashicorp/consul/agent/proxycfg"
-	"github.com/hashicorp/consul/agent/rpcclient/health"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/token"
 
@@ -248,7 +246,7 @@ type Agent struct {
 
 	// grpcServer is the server instance used currently to serve xDS API for
 	// Envoy.
-	grpcServer *grpc.Server
+	// grpcServer *grpc.Server
 
 	// tlsConfigurator is the central instance to provide a *tls.Config
 	// based on the current consul configuration.
@@ -264,10 +262,10 @@ type Agent struct {
 
 	// TODO: pass directly to HTTPHandlers and DNSServer once those are passed
 	// into Agent, which will allow us to remove this field.
-	rpcClientHealth *health.Client
+	// rpcClientHealth *health.Client
 
 	// enterpriseAgent embeds fields that we only access in consul-enterprise builds
-	enterpriseAgent
+	// enterpriseAgent
 }
 
 // New process the desired options and creates a new Agent.

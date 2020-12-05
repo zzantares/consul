@@ -1171,34 +1171,7 @@ func (d *DNSServer) trimDNSResponse(cfg *dnsConfig, network string, req, resp *d
 
 // lookupServiceNodes returns nodes with a given service.
 func (d *DNSServer) lookupServiceNodes(cfg *dnsConfig, lookup serviceLookup) (structs.IndexedCheckServiceNodes, error) {
-	args := structs.ServiceSpecificRequest{
-		Connect:     lookup.Connect,
-		Ingress:     lookup.Ingress,
-		Datacenter:  lookup.Datacenter,
-		ServiceName: lookup.Service,
-		ServiceTags: []string{lookup.Tag},
-		TagFilter:   lookup.Tag != "",
-		QueryOptions: structs.QueryOptions{
-			Token:            d.agent.tokens.UserToken(),
-			AllowStale:       cfg.AllowStale,
-			MaxAge:           cfg.CacheMaxAge,
-			UseCache:         cfg.UseCache,
-			MaxStaleDuration: cfg.MaxStale,
-		},
-		EnterpriseMeta: lookup.EnterpriseMeta,
-	}
-
-	out, _, err := d.agent.rpcClientHealth.ServiceNodes(context.TODO(), args)
-	if err != nil {
-		return out, err
-	}
-
-	// Filter out any service nodes due to health checks
-	// We copy the slice to avoid modifying the result if it comes from the cache
-	nodes := make(structs.CheckServiceNodes, len(out.Nodes))
-	copy(nodes, out.Nodes)
-	out.Nodes = nodes.Filter(cfg.OnlyPassing)
-	return out, nil
+	return structs.IndexedCheckServiceNodes{}, nil
 }
 
 // serviceLookup is used to handle a service query
