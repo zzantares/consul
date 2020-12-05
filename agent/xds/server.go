@@ -112,7 +112,6 @@ type Server struct {
 	// there has been no recent DiscoveryRequest).
 	AuthCheckFrequency time.Duration
 	CheckFetcher       HTTPCheckFetcher
-	CfgFetcher         ConfigFetcher
 }
 
 // Initialize will finish configuring the Server for first use.
