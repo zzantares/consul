@@ -25,10 +25,13 @@ import (
 	"github.com/hashicorp/consul/agent/rpcclient/health"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/token"
-	"github.com/hashicorp/consul/agent/xds"
+
 	"github.com/hashicorp/consul/api/watch"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/tlsutil"
+
+	// TODO(m1) removing this eliminates the problem
+	_ "github.com/hashicorp/consul/agent/xds"
 )
 
 const (
@@ -312,9 +315,6 @@ func (a *Agent) Failed() <-chan struct{} {
 }
 
 func (a *Agent) listenAndServeGRPC() error {
-	_ = &xds.Server{
-		// TODO(m1): removing this stops the panic
-	}
 	return nil
 }
 

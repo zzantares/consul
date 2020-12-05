@@ -1,13 +1,6 @@
 package xds
 
 import (
-	envoyrbac "github.com/envoyproxy/go-control-plane/envoy/config/rbac/v2"
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/filter/network/http_connection_manager/v2"
+	_ "github.com/envoyproxy/go-control-plane/envoy/config/rbac/v2"
 )
-
-type rbacPermission struct {
-}
-
-// TODO(m1) removing this line also eliminates the problem
-func (p *rbacPermission) Flatten() *envoyrbac.Permission {
-	return nil
-}
