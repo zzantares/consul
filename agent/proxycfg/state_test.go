@@ -1536,10 +1536,8 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 			state.ctx, state.cancel = context.WithCancel(context.Background())
 
 			// ensure the initial watch setup did not error
-			require.NoError(t, state.initWatches())
-
-			// get the initial configuration snapshot
 			snap := state.initialConfigSnapshot()
+			require.NoError(t, state.initWatches(&snap))
 
 			//--------------------------------------------------------------------
 			//

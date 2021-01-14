@@ -105,6 +105,12 @@ func TestManager_BasicLifecycle(t *testing.T) {
 			},
 		)
 	}
+
+	upstreams := structs.TestUpstreams(t)
+	for i := range upstreams {
+		upstreams[i].DestinationNamespace = structs.IntentionDefaultNamespace
+	}
+
 	webProxy := &structs.NodeService{
 		Kind:    structs.ServiceKindConnectProxy,
 		ID:      "web-sidecar-proxy",
@@ -119,7 +125,7 @@ func TestManager_BasicLifecycle(t *testing.T) {
 			Config: map[string]interface{}{
 				"foo": "bar",
 			},
-			Upstreams: structs.TestUpstreams(t),
+			Upstreams: upstreams,
 		},
 	}
 
@@ -222,6 +228,10 @@ func TestManager_BasicLifecycle(t *testing.T) {
 						WatchedGatewayEndpoints: map[string]map[string]structs.CheckServiceNodes{
 							"db": {},
 						},
+						UpstreamConfig: map[string]structs.Upstream{
+							upstreams[0].Identifier(): upstreams[0],
+							upstreams[1].Identifier(): upstreams[1],
+						},
 					},
 					PreparedQueryEndpoints: map[string]structs.CheckServiceNodes{},
 					WatchedServiceChecks:   map[structs.ServiceID][]structs.CheckType{},
@@ -271,6 +281,10 @@ func TestManager_BasicLifecycle(t *testing.T) {
 						WatchedGateways: nil, // Clone() clears this out
 						WatchedGatewayEndpoints: map[string]map[string]structs.CheckServiceNodes{
 							"db": {},
+						},
+						UpstreamConfig: map[string]structs.Upstream{
+							upstreams[0].Identifier(): upstreams[0],
+							upstreams[1].Identifier(): upstreams[1],
 						},
 					},
 					PreparedQueryEndpoints: map[string]structs.CheckServiceNodes{},

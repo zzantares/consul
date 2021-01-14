@@ -35,6 +35,9 @@ type ConfigSnapshotUpstreams struct {
 	// TargetID -> CheckServiceNodes) and is used to determine the backing
 	// endpoints of a mesh gateway.
 	WatchedGatewayEndpoints map[string]map[string]structs.CheckServiceNodes
+
+	// UpstreamConfig enables fast lookups for upstream config
+	UpstreamConfig map[string]structs.Upstream
 }
 
 type configSnapshotConnectProxy struct {

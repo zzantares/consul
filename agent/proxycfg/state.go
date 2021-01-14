@@ -175,13 +175,14 @@ func newState(ns *structs.NodeService, token string) (*state, error) {
 func (s *state) Watch() (<-chan ConfigSnapshot, error) {
 	s.ctx, s.cancel = context.WithCancel(context.Background())
 
-	err := s.initWatches()
+	snap := s.initialConfigSnapshot()
+	err := s.initWatches(&snap)
 	if err != nil {
 		s.cancel()
 		return nil, err
 	}
 
-	go s.run()
+	go s.run(&snap)
 
 	return s.snapCh, nil
 }
@@ -195,10 +196,10 @@ func (s *state) Close() error {
 }
 
 // initWatches sets up the watches needed for the particular service
-func (s *state) initWatches() error {
+func (s *state) initWatches(snap *ConfigSnapshot) error {
 	switch s.kind {
 	case structs.ServiceKindConnectProxy:
-		return s.initWatchesConnectProxy()
+		return s.initWatchesConnectProxy(snap)
 	case structs.ServiceKindTerminatingGateway:
 		return s.initWatchesTerminatingGateway()
 	case structs.ServiceKindMeshGateway:
@@ -243,7 +244,7 @@ func (s *state) watchConnectProxyService(ctx context.Context, correlationId stri
 
 // initWatchesConnectProxy sets up the watches needed based on current proxy registration
 // state.
-func (s *state) initWatchesConnectProxy() error {
+func (s *state) initWatchesConnectProxy(snap *ConfigSnapshot) error {
 	// Watch for root changes
 	err := s.cache.Notify(s.ctx, cachetype.ConnectCARootName, &structs.DCSpecificRequest{
 		Datacenter:   s.source.Datacenter,
@@ -295,11 +296,37 @@ func (s *state) initWatchesConnectProxy() error {
 	// default the namespace to the namespace of this proxy service
 	currentNamespace := s.proxyID.NamespaceOrDefault()
 
+	if s.proxyCfg.TransparentProxy {
+		// When in transparent proxy we will infer upstreams from intentions with this source
+		err := s.cache.Notify(s.ctx, cachetype.IntentionMatchName, &structs.IntentionQueryRequest{
+			Datacenter:   s.source.Datacenter,
+			QueryOptions: structs.QueryOptions{Token: s.token},
+			Match: &structs.IntentionQueryMatch{
+				Type: structs.IntentionMatchSource,
+				Entries: []structs.IntentionMatchEntry{
+					{
+						Namespace: s.proxyID.NamespaceOrEmpty(),
+						Name:      s.proxyCfg.DestinationServiceName,
+					},
+				},
+			},
+		}, serviceIntentionsIDPrefix+"source", s.ch)
+		if err != nil {
+			return err
+		}
+	}
+
 	// Watch for updates to service endpoints for all upstreams
 	for _, u := range s.proxyCfg.Upstreams {
-		dc := s.source.Datacenter
-		if u.Datacenter != "" {
-			dc = u.Datacenter
+		snap.ConnectProxy.UpstreamConfig[u.Identifier()] = u
+		dc := u.Datacenter
+		if dc == "" {
+			// TODO(freddy) This is a quick way to allow upstreams in other DCs
+			//				TBD what to do about prepared query upstreams in TransparentProxy mode.
+			if s.proxyCfg.TransparentProxy {
+				continue
+			}
+			dc = s.source.Datacenter
 		}
 
 		ns := currentNamespace
@@ -547,6 +574,7 @@ func (s *state) initialConfigSnapshot() ConfigSnapshot {
 		snap.ConnectProxy.WatchedGatewayEndpoints = make(map[string]map[string]structs.CheckServiceNodes)
 		snap.ConnectProxy.WatchedServiceChecks = make(map[structs.ServiceID][]structs.CheckType)
 		snap.ConnectProxy.PreparedQueryEndpoints = make(map[string]structs.CheckServiceNodes)
+		snap.ConnectProxy.UpstreamConfig = make(map[string]structs.Upstream)
 	case structs.ServiceKindTerminatingGateway:
 		snap.TerminatingGateway.WatchedServices = make(map[structs.ServiceName]context.CancelFunc)
 		snap.TerminatingGateway.WatchedIntentions = make(map[structs.ServiceName]context.CancelFunc)
@@ -582,14 +610,12 @@ func (s *state) initialConfigSnapshot() ConfigSnapshot {
 	return snap
 }
 
-func (s *state) run() {
+func (s *state) run(snap *ConfigSnapshot) {
 	// Close the channel we return from Watch when we stop so consumers can stop
 	// watching and clean up their goroutines. It's important we do this here and
 	// not in Close since this routine sends on this chan and so might panic if it
 	// gets closed from another goroutine.
 	defer close(s.snapCh)
-
-	snap := s.initialConfigSnapshot()
 
 	// This turns out to be really fiddly/painful by just using time.Timer.C
 	// directly in the code below since you can't detect when a timer is stopped
@@ -603,7 +629,7 @@ func (s *state) run() {
 		case <-s.ctx.Done():
 			return
 		case u := <-s.ch:
-			if err := s.handleUpdate(u, &snap); err != nil {
+			if err := s.handleUpdate(u, snap); err != nil {
 				s.logger.Error("watch error",
 					"id", u.CorrelationID,
 					"error", err,
@@ -709,6 +735,62 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 			snap.ConnectProxy.Intentions = resp.Matches[0]
 		}
 		snap.ConnectProxy.IntentionsSet = true
+
+	case strings.HasPrefix(u.CorrelationID, serviceIntentionsIDPrefix):
+		resp, ok := u.Result.(*structs.IndexedIntentionMatches)
+		if !ok {
+			return fmt.Errorf("invalid type for response: %T", u.Result)
+		}
+		svcMap := make(map[string]struct{})
+		currentNamespace := s.proxyID.NamespaceOrDefault()
+
+		if len(resp.Matches) > 0 {
+			for _, ixn := range resp.Matches[0] {
+				dst := ixn.DestinationServiceName()
+				svcMap[dst.String()] = struct{}{}
+
+				ns := currentNamespace
+				if ixn.DestinationNS != "" {
+					ns = ixn.DestinationNS
+				}
+				// TODO(freddy) Need to handle wildcard destinations, these could be in the form of "*/*" or "ns/*".
+				//				For these we'll need to query ServiceList, and create discovery chain watches from the results
+				err := s.cache.Notify(s.ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
+					Datacenter:          s.source.Datacenter,
+					QueryOptions:        structs.QueryOptions{Token: s.token},
+					Name:                ixn.DestinationName,
+					EvaluateInNamespace: ns,
+					// OverrideProtocol:       cfg.Protocol, TODO(freddy) Need to fetch this
+					// OverrideConnectTimeout: cfg.ConnectTimeout(), TODO(freddy) Need to fetch this
+				}, "discovery-chain:"+dst.String(), s.ch)
+				if err != nil {
+					return err
+				}
+			}
+		}
+
+		// Clean up data from services that were not in the update
+		// TODO(freddy) This will need to be different when we have a mix of servicelist and intention watches
+		for sn := range snap.ConnectProxy.WatchedUpstreams {
+			if _, ok := svcMap[sn]; !ok {
+				delete(snap.ConnectProxy.WatchedUpstreams, sn)
+			}
+		}
+		for sn := range snap.ConnectProxy.WatchedUpstreamEndpoints {
+			if _, ok := svcMap[sn]; !ok {
+				delete(snap.ConnectProxy.WatchedUpstreamEndpoints, sn)
+			}
+		}
+		for sn := range snap.ConnectProxy.WatchedGateways {
+			if _, ok := svcMap[sn]; !ok {
+				delete(snap.ConnectProxy.WatchedGateways, sn)
+			}
+		}
+		for sn := range snap.ConnectProxy.WatchedGatewayEndpoints {
+			if _, ok := svcMap[sn]; !ok {
+				delete(snap.ConnectProxy.WatchedGatewayEndpoints, sn)
+			}
+		}
 
 	case strings.HasPrefix(u.CorrelationID, "upstream:"+preparedQueryIDPrefix):
 		resp, ok := u.Result.(*structs.PreparedQueryExecuteResponse)

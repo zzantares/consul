@@ -653,6 +653,12 @@ func TestConfigSnapshot(t testing.T) *ConfigSnapshot {
 		t, "db", "default", "dc1",
 		connect.TestClusterID+".consul", "dc1", nil)
 
+	upstreams := structs.TestUpstreams(t)
+	upstreamMap := make(map[string]structs.Upstream)
+	for _, u := range upstreams {
+		upstreamMap[u.Identifier()] = u
+	}
+
 	return &ConfigSnapshot{
 		Kind:    structs.ServiceKindConnectProxy,
 		Service: "web-sidecar-proxy",
@@ -667,12 +673,13 @@ func TestConfigSnapshot(t testing.T) *ConfigSnapshot {
 			Config: map[string]interface{}{
 				"foo": "bar",
 			},
-			Upstreams: structs.TestUpstreams(t),
+			Upstreams: upstreams,
 		},
 		Roots: roots,
 		ConnectProxy: configSnapshotConnectProxy{
 			ConfigSnapshotUpstreams: ConfigSnapshotUpstreams{
-				Leaf: leaf,
+				UpstreamConfig: upstreamMap,
+				Leaf:           leaf,
 				DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
 					"db": dbChain,
 				},
@@ -1314,18 +1321,35 @@ func setupTestVariationConfigEntriesAndSnapshot(
 	}
 
 	dbChain := discoverychain.TestCompileConfigEntries(t, "db", "default", "dc1", connect.TestClusterID+".consul", "dc1", compileSetup, entries...)
+	cacheChain := discoverychain.TestCompileConfigEntries(t, "geo-cache", "default", "dc1", connect.TestClusterID+".consul", "dc1", compileSetup, entries...)
+	cacheNodes := TestUpstreamNodes(t)
+	for _, svc := range cacheNodes {
+		svc.Service.Service = "geo-cache"
+	}
 
 	snap := ConfigSnapshotUpstreams{
 		Leaf: leaf,
 		DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
-			"db": dbChain,
+			"db":        dbChain,
+			"geo-cache": cacheChain,
 		},
 		WatchedUpstreamEndpoints: map[string]map[string]structs.CheckServiceNodes{
 			"db": {
 				"db.default.dc1": TestUpstreamNodes(t),
 			},
+			"geo-cache": {
+				"geo-cache.default.dc1": TestUpstreamNodes(t),
+			},
 		},
 	}
+
+	upstreams := structs.TestUpstreams(t)
+	upstreamMap := make(map[string]structs.Upstream)
+	for _, u := range upstreams {
+		u.DestinationType = ""
+		upstreamMap[u.Identifier()] = u
+	}
+	snap.UpstreamConfig = upstreamMap
 
 	switch variation {
 	case "default":
