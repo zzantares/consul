@@ -129,15 +129,16 @@ func (s *ServiceConfigEntry) GetModifyIndex() uint64 {
 }
 
 type ProxyConfigEntry struct {
-	Kind        string
-	Name        string
-	Namespace   string                 `json:",omitempty"`
-	Config      map[string]interface{} `json:",omitempty"`
-	MeshGateway MeshGatewayConfig      `json:",omitempty" alias:"mesh_gateway"`
-	Expose      ExposeConfig           `json:",omitempty"`
-	Meta        map[string]string      `json:",omitempty"`
-	CreateIndex uint64
-	ModifyIndex uint64
+	Kind             string
+	Name             string
+	Namespace        string                 `json:",omitempty"`
+	Config           map[string]interface{} `json:",omitempty"`
+	MeshGateway      MeshGatewayConfig      `json:",omitempty" alias:"mesh_gateway"`
+	TransparentProxy bool                   `json:",omitempty" alias:"transparent_proxy"`
+	Expose           ExposeConfig           `json:",omitempty"`
+	Meta             map[string]string      `json:",omitempty"`
+	CreateIndex      uint64
+	ModifyIndex      uint64
 }
 
 func (p *ProxyConfigEntry) GetKind() string {

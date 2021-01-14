@@ -367,6 +367,7 @@ func (c *ConfigEntry) ResolveServiceConfig(args *structs.ServiceConfigRequest, r
 				reply.ProxyConfig = mapCopy.(map[string]interface{})
 				reply.MeshGateway = proxyConf.MeshGateway
 				reply.Expose = proxyConf.Expose
+				reply.TransparentProxy = proxyConf.TransparentProxy
 			}
 
 			reply.Index = index

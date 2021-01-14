@@ -1647,6 +1647,7 @@ func (b *Builder) serviceProxyVal(v *ServiceProxy) *structs.ConnectProxyConfig {
 		Upstreams:              b.upstreamsVal(v.Upstreams),
 		MeshGateway:            b.meshGatewayConfVal(v.MeshGateway),
 		Expose:                 b.exposeConfVal(v.Expose),
+		TransparentProxy:       b.boolVal(v.TransparentProxy),
 	}
 }
 
