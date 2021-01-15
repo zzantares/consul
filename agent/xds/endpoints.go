@@ -3,6 +3,7 @@ package xds
 import (
 	"errors"
 	"fmt"
+	"github.com/davecgh/go-spew/spew"
 
 	envoy "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
@@ -45,47 +46,45 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 	resources := make([]proto.Message, 0,
 		len(cfgSnap.ConnectProxy.PreparedQueryEndpoints)+len(cfgSnap.ConnectProxy.WatchedUpstreamEndpoints))
 
-	for _, u := range cfgSnap.Proxy.Upstreams {
-		id := u.Identifier()
+	for id, chain := range cfgSnap.ConnectProxy.DiscoveryChain {
+		// Newfangled discovery chain plumbing.
+		es := s.endpointsFromDiscoveryChain(
+			id,
+			chain,
+			cfgSnap.Datacenter,
+			cfgSnap.ConnectProxy.UpstreamConfig[id],
+			cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id],
+			cfgSnap.ConnectProxy.WatchedGatewayEndpoints[id],
+		)
+		resources = append(resources, es...)
+	}
 
-		var chain *structs.CompiledDiscoveryChain
-		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
-			chain = cfgSnap.ConnectProxy.DiscoveryChain[id]
+	for _, u := range cfgSnap.Proxy.Upstreams {
+		if u.DestinationType != structs.UpstreamDestTypePreparedQuery || u.Config["envoy_cluster_json"] == "" {
+			continue
 		}
 
-		if chain == nil {
-			// We ONLY want this branch for prepared queries.
+		dc := u.Datacenter
+		if dc == "" {
+			dc = cfgSnap.Datacenter
+		}
+		clusterName := connect.UpstreamSNI(&u, "", dc, cfgSnap.Roots.TrustDomain)
 
-			dc := u.Datacenter
-			if dc == "" {
-				dc = cfgSnap.Datacenter
-			}
-			clusterName := connect.UpstreamSNI(&u, "", dc, cfgSnap.Roots.TrustDomain)
-
-			endpoints, ok := cfgSnap.ConnectProxy.PreparedQueryEndpoints[id]
-			if ok {
-				la := makeLoadAssignment(
-					clusterName,
-					[]loadAssignmentEndpointGroup{
-						{Endpoints: endpoints},
-					},
-					cfgSnap.Datacenter,
-				)
-				resources = append(resources, la)
-			}
-
-		} else {
-			// Newfangled discovery chain plumbing.
-			es := s.endpointsFromDiscoveryChain(
-				u,
-				chain,
+		endpoints, ok := cfgSnap.ConnectProxy.PreparedQueryEndpoints[u.Identifier()]
+		if ok {
+			fmt.Println("got endpoints for", u.Identifier())
+			la := makeLoadAssignment(
+				clusterName,
+				[]loadAssignmentEndpointGroup{
+					{Endpoints: endpoints},
+				},
 				cfgSnap.Datacenter,
-				cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id],
-				cfgSnap.ConnectProxy.WatchedGatewayEndpoints[id],
 			)
-			resources = append(resources, es...)
+			resources = append(resources, la)
 		}
 	}
+
+	spew.Dump(resources)
 
 	return resources, nil
 }
@@ -262,8 +261,11 @@ func (s *Server) endpointsFromServicesAndResolvers(
 }
 
 func (s *Server) endpointsFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
-	var resources []proto.Message
-	createdClusters := make(map[string]bool)
+	var (
+		resources       = make([]proto.Message, 0)
+		createdClusters = make(map[string]bool)
+	)
+
 	for _, upstreams := range cfgSnap.IngressGateway.Upstreams {
 		for _, u := range upstreams {
 			id := u.Identifier()
@@ -275,9 +277,10 @@ func (s *Server) endpointsFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSna
 			}
 
 			es := s.endpointsFromDiscoveryChain(
-				u,
+				id,
 				cfgSnap.IngressGateway.DiscoveryChain[id],
 				cfgSnap.Datacenter,
+				u,
 				cfgSnap.IngressGateway.WatchedUpstreamEndpoints[id],
 				cfgSnap.IngressGateway.WatchedGatewayEndpoints[id],
 			)
@@ -299,9 +302,10 @@ func makeEndpoint(host string, port int) *envoyendpoint.LbEndpoint {
 }
 
 func (s *Server) endpointsFromDiscoveryChain(
-	upstream structs.Upstream,
+	id string,
 	chain *structs.CompiledDiscoveryChain,
 	datacenter string,
+	upstream structs.Upstream,
 	upstreamEndpoints, gatewayEndpoints map[string]structs.CheckServiceNodes,
 ) []proto.Message {
 	var resources []proto.Message
@@ -314,7 +318,7 @@ func (s *Server) endpointsFromDiscoveryChain(
 	if err != nil {
 		// Don't hard fail on a config typo, just warn. The parse func returns
 		// default config if there is an error so it's safe to continue.
-		s.Logger.Warn("failed to parse", "upstream", upstream.Identifier(),
+		s.Logger.Warn("failed to parse", "upstream", id,
 			"error", err)
 	}
 
@@ -329,7 +333,7 @@ func (s *Server) endpointsFromDiscoveryChain(
 			}
 		} else {
 			s.Logger.Warn("ignoring escape hatch setting, because a discovery chain is configued for",
-				"discovery chain", chain.ServiceName, "upstream", upstream.Identifier(),
+				"discovery chain", chain.ServiceName, "upstream", id,
 				"envoy_cluster_json", chain.ServiceName)
 		}
 	}

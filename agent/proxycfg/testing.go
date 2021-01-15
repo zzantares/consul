@@ -1321,7 +1321,6 @@ func setupTestVariationConfigEntriesAndSnapshot(
 	}
 
 	dbChain := discoverychain.TestCompileConfigEntries(t, "db", "default", "dc1", connect.TestClusterID+".consul", "dc1", compileSetup, entries...)
-	cacheChain := discoverychain.TestCompileConfigEntries(t, "geo-cache", "default", "dc1", connect.TestClusterID+".consul", "dc1", compileSetup, entries...)
 	cacheNodes := TestUpstreamNodes(t)
 	for _, svc := range cacheNodes {
 		svc.Service.Service = "geo-cache"
@@ -1330,8 +1329,7 @@ func setupTestVariationConfigEntriesAndSnapshot(
 	snap := ConfigSnapshotUpstreams{
 		Leaf: leaf,
 		DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
-			"db":        dbChain,
-			"geo-cache": cacheChain,
+			"db": dbChain,
 		},
 		WatchedUpstreamEndpoints: map[string]map[string]structs.CheckServiceNodes{
 			"db": {
