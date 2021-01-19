@@ -46,32 +46,25 @@ func routesForConnectProxy(
 ) ([]proto.Message, error) {
 
 	var resources []proto.Message
-	for _, u := range upstreams {
-		upstreamID := u.Identifier()
-
-		var chain *structs.CompiledDiscoveryChain
-		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
-			chain = chains[upstreamID]
+	for id, chain := range chains {
+		if chain.IsDefault() {
+			continue
 		}
 
-		if chain == nil || chain.IsDefault() {
-			// TODO(rb): make this do the old school stuff too
-		} else {
-			virtualHost, err := makeUpstreamRouteForDiscoveryChain(cInfo, upstreamID, chain, []string{"*"})
-			if err != nil {
-				return nil, err
-			}
-
-			route := &envoy.RouteConfiguration{
-				Name:         upstreamID,
-				VirtualHosts: []*envoyroute.VirtualHost{virtualHost},
-				// ValidateClusters defaults to true when defined statically and false
-				// when done via RDS. Re-set the sane value of true to prevent
-				// null-routing traffic.
-				ValidateClusters: makeBoolValue(true),
-			}
-			resources = append(resources, route)
+		virtualHost, err := makeUpstreamRouteForDiscoveryChain(cInfo, id, chain, []string{"*"})
+		if err != nil {
+			return nil, err
 		}
+
+		route := &envoy.RouteConfiguration{
+			Name:         id,
+			VirtualHosts: []*envoyroute.VirtualHost{virtualHost},
+			// ValidateClusters defaults to true when defined statically and false
+			// when done via RDS. Re-set the sane value of true to prevent
+			// null-routing traffic.
+			ValidateClusters: makeBoolValue(true),
+		}
+		resources = append(resources, route)
 	}
 
 	// TODO(rb): make sure we don't generate an empty result

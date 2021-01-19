@@ -57,33 +57,34 @@ func (s *Server) clustersFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnapsh
 
 	clusters = append(clusters, appCluster)
 
-	for _, u := range cfgSnap.Proxy.Upstreams {
-		id := u.Identifier()
-
-		if u.DestinationType == structs.UpstreamDestTypePreparedQuery {
-			upstreamCluster, err := s.makeUpstreamClusterForPreparedQuery(u, cfgSnap)
-			if err != nil {
-				return nil, err
-			}
-			clusters = append(clusters, upstreamCluster)
-
-		} else {
-			chain := cfgSnap.ConnectProxy.DiscoveryChain[id]
-			chainEndpoints, ok := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
-			if !ok {
-				// this should not happen
-				return nil, fmt.Errorf("no endpoint map for upstream %q", id)
-			}
-
-			upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(u, chain, chainEndpoints, cfgSnap)
-			if err != nil {
-				return nil, err
-			}
-
-			for _, cluster := range upstreamClusters {
-				clusters = append(clusters, cluster)
-			}
+	// TODO (freddy) Fix clusters test case "custom-upstream-default-chain"
+	for id, chain := range cfgSnap.ConnectProxy.DiscoveryChain {
+		chainEndpoints, ok := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
+		if !ok {
+			// this should not happen
+			return nil, fmt.Errorf("no endpoint map for upstream %q", id)
 		}
+
+		upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(cfgSnap.ConnectProxy.UpstreamConfig[id], chain, chainEndpoints, cfgSnap)
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cluster := range upstreamClusters {
+			clusters = append(clusters, cluster)
+		}
+	}
+
+	for _, u := range cfgSnap.Proxy.Upstreams {
+		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
+			continue
+		}
+
+		upstreamCluster, err := s.makeUpstreamClusterForPreparedQuery(u, cfgSnap)
+		if err != nil {
+			return nil, err
+		}
+		clusters = append(clusters, upstreamCluster)
 	}
 
 	cfgSnap.Proxy.Expose.Finalize()

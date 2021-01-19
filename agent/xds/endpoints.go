@@ -3,8 +3,6 @@ package xds
 import (
 	"errors"
 	"fmt"
-	"github.com/davecgh/go-spew/spew"
-
 	envoy "github.com/envoyproxy/go-control-plane/envoy/api/v2"
 	envoycore "github.com/envoyproxy/go-control-plane/envoy/api/v2/core"
 	envoyendpoint "github.com/envoyproxy/go-control-plane/envoy/api/v2/endpoint"
@@ -47,6 +45,11 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 		len(cfgSnap.ConnectProxy.PreparedQueryEndpoints)+len(cfgSnap.ConnectProxy.WatchedUpstreamEndpoints))
 
 	for id, chain := range cfgSnap.ConnectProxy.DiscoveryChain {
+		// Prepared queries get handled in the second loop below
+		if conf, ok := cfgSnap.ConnectProxy.UpstreamConfig[id]; ok && conf.DestinationType == structs.UpstreamDestTypePreparedQuery {
+			continue
+		}
+
 		// Newfangled discovery chain plumbing.
 		es := s.endpointsFromDiscoveryChain(
 			id,
@@ -60,6 +63,7 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 	}
 
 	for _, u := range cfgSnap.Proxy.Upstreams {
+		// TODO (freddy): Fix endpoints test case "connect-proxy-with-default-chain-and-custom-cluster"
 		if u.DestinationType != structs.UpstreamDestTypePreparedQuery || u.Config["envoy_cluster_json"] == "" {
 			continue
 		}
@@ -72,7 +76,6 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 
 		endpoints, ok := cfgSnap.ConnectProxy.PreparedQueryEndpoints[u.Identifier()]
 		if ok {
-			fmt.Println("got endpoints for", u.Identifier())
 			la := makeLoadAssignment(
 				clusterName,
 				[]loadAssignmentEndpointGroup{
@@ -83,8 +86,6 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 			resources = append(resources, la)
 		}
 	}
-
-	spew.Dump(resources)
 
 	return resources, nil
 }
