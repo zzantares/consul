@@ -33,6 +33,11 @@ import (
 	"github.com/hashicorp/go-hclog"
 )
 
+const (
+	TProxyInboundPort  = 15006
+	TProxyOutboundPort = 15001
+)
+
 // listenersFromSnapshot returns the xDS API representation of the "listeners" in the snapshot.
 func (s *Server) listenersFromSnapshot(cInfo connectionInfo, cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	if cfgSnap == nil {
@@ -55,8 +60,7 @@ func (s *Server) listenersFromSnapshot(cInfo connectionInfo, cfgSnap *proxycfg.C
 
 // listenersFromSnapshotConnectProxy returns the "listeners" for a connect proxy service
 func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
-	// One listener for each upstream plus the public one
-	resources := make([]proto.Message, len(cfgSnap.Proxy.Upstreams)+1)
+	resources := make([]proto.Message, 1)
 
 	// Configure public listener
 	var err error
@@ -64,26 +68,47 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 	if err != nil {
 		return nil, err
 	}
-	for i, u := range cfgSnap.Proxy.Upstreams {
-		id := u.Identifier()
 
-		var chain *structs.CompiledDiscoveryChain
-		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
-			chain = cfgSnap.ConnectProxy.DiscoveryChain[id]
-		}
+	// If in TProxy mode, there is one listener and many filter chains based on discovery chains
+	// If not in TPRoxy mode, each discovery chain gets its own listener
 
+	if !cfgSnap.Proxy.TransparentProxy {
 		var upstreamListener proto.Message
-		upstreamListener, err = s.makeUpstreamListenerForDiscoveryChain(
-			&u,
-			u.LocalBindAddress,
-			chain,
-			cfgSnap,
-			nil,
-		)
-		if err != nil {
-			return nil, err
+
+		for id, chain := range cfgSnap.ConnectProxy.DiscoveryChain {
+			upstreamCfg := cfgSnap.ConnectProxy.UpstreamConfig[id]
+			upstreamListener, err = s.makeUpstreamListenerForDiscoveryChain(
+				id,
+				upstreamCfg.LocalBindAddress,
+				upstreamCfg,
+				chain,
+				cfgSnap,
+				nil,
+			)
+			if err != nil {
+				return nil, err
+			}
+			resources = append(resources, upstreamListener)
 		}
-		resources[i+1] = upstreamListener
+
+		for id, u := range cfgSnap.ConnectProxy.UpstreamConfig {
+			if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
+				continue
+			}
+
+			upstreamListener, err = s.makeUpstreamListenerForDiscoveryChain(
+				id,
+				u.LocalBindAddress,
+				u,
+				nil,
+				cfgSnap,
+				nil,
+			)
+			if err != nil {
+				return nil, err
+			}
+			resources = append(resources, upstreamListener)
+		}
 	}
 
 	cfgSnap.Proxy.Expose.Finalize()
@@ -300,8 +325,9 @@ func (s *Server) makeIngressGatewayListeners(address string, cfgSnap *proxycfg.C
 
 			var upstreamListener proto.Message
 			upstreamListener, err := s.makeUpstreamListenerForDiscoveryChain(
-				&u,
+				id,
 				address,
+				u,
 				chain,
 				cfgSnap,
 				tlsContext,
@@ -511,7 +537,7 @@ func (s *Server) injectConnectTLSOnFilterChains(_ connectionInfo, cfgSnap *proxy
 	return nil
 }
 
-func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.ConfigSnapshot) (proto.Message, error) {
+func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.ConfigSnapshot) (*envoy.Listener, error) {
 	var l *envoy.Listener
 	var err error
 
@@ -545,9 +571,12 @@ func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.Conf
 			addr = "0.0.0.0"
 		}
 
-		// Override with bind port if one is set, otherwise default to
-		// proxy service's address
+		// Override with bind port if one is set, or if all inbound traffic is rerouted to single port with tproxy
 		port := cfgSnap.Port
+		if cfgSnap.Proxy.TransparentProxy {
+			port = TProxyInboundPort
+		}
+		// TODO(freddy) Should this be the override for tproxy?
 		if cfg.BindPort != 0 {
 			port = cfg.BindPort
 		}
@@ -557,8 +586,8 @@ func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.Conf
 		opts := listenerFilterOpts{
 			useRDS:     false,
 			protocol:   cfg.Protocol,
-			filterName: "public_listener",
-			routeName:  "public_listener",
+			filterName: PublicListenerName,
+			routeName:  PublicListenerName,
 			cluster:    LocalAppClusterName,
 			statPrefix: "",
 			routePath:  "",
@@ -617,6 +646,10 @@ func (s *Server) makePublicListener(cInfo connectionInfo, cfgSnap *proxycfg.Conf
 
 	if err := s.injectConnectTLSOnFilterChains(cInfo, cfgSnap, l); err != nil {
 		return nil, err
+	}
+
+	if cfgSnap.Proxy.TransparentProxy {
+		l.Transparent = &wrappers.BoolValue{Value: true}
 	}
 
 	return l, err
@@ -958,19 +991,22 @@ func (s *Server) makeMeshGatewayListener(name, addr string, port int, cfgSnap *p
 }
 
 func (s *Server) makeUpstreamListenerForDiscoveryChain(
-	u *structs.Upstream,
+	id string,
 	address string,
+	u structs.Upstream,
 	chain *structs.CompiledDiscoveryChain,
 	cfgSnap *proxycfg.ConfigSnapshot,
 	tlsContext *envoyauth.DownstreamTlsContext,
 ) (proto.Message, error) {
+	if u.LocalBindAddress != "" {
+		address = u.LocalBindAddress
+	}
 	if address == "" {
 		address = "127.0.0.1"
 	}
-	upstreamID := u.Identifier()
-	l := makeListener(upstreamID, address, u.LocalBindPort)
+	l := makeListener(id, address, u.LocalBindPort)
 
-	cfg := getAndModifyUpstreamConfigForListener(s.Logger, u, chain)
+	cfg := getAndModifyUpstreamConfigForListener(s.Logger, &u, chain)
 	if cfg.ListenerJSON != "" {
 		return makeListenerFromUserConfig(cfg.ListenerJSON)
 	}
@@ -989,7 +1025,7 @@ func (s *Server) makeUpstreamListenerForDiscoveryChain(
 		}
 		destination, datacenter, namespace = u.DestinationName, dc, u.DestinationNamespace
 
-		sni := connect.UpstreamSNI(u, "", dc, cfgSnap.Roots.TrustDomain)
+		sni := connect.UpstreamSNI(&u, "", dc, cfgSnap.Roots.TrustDomain)
 		clusterName = CustomizeClusterName(sni, chain)
 
 	} else {
@@ -1021,14 +1057,14 @@ func (s *Server) makeUpstreamListenerForDiscoveryChain(
 	if u.DestinationType == structs.UpstreamDestTypePreparedQuery {
 		// Avoid encoding dc and namespace for prepared queries.
 		// Those are defined in the query itself and are not available here.
-		filterName = upstreamID
+		filterName = id
 	}
 
 	opts := listenerFilterOpts{
 		useRDS:          useRDS,
 		protocol:        cfg.Protocol,
 		filterName:      filterName,
-		routeName:       upstreamID,
+		routeName:       id,
 		cluster:         clusterName,
 		statPrefix:      "upstream.",
 		routePath:       "",

@@ -427,7 +427,7 @@ type loadAssignmentEndpointGroup struct {
 func makeLoadAssignment(clusterName string, endpointGroups []loadAssignmentEndpointGroup, localDatacenter string) *envoy.ClusterLoadAssignment {
 	cla := &envoy.ClusterLoadAssignment{
 		ClusterName: clusterName,
-		Endpoints:   make([]*envoyendpoint.LocalityLbEndpoints, 0, len(endpointGroups)),
+		Endpoints:   make([]*envoyendpoint.LocalityLbEndpoints, 0),
 	}
 
 	if len(endpointGroups) > 1 {
