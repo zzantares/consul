@@ -6,15 +6,26 @@ import (
 	"github.com/hashicorp/consul/agent/structs"
 )
 
-func UpstreamSNI(u *structs.Upstream, subset string, dc string, trustDomain string) string {
-	if u.Datacenter != "" {
-		dc = u.Datacenter
+type UpstreamSNIOpts struct {
+	DestinationType    string
+	Service            string
+	Subset             string
+	Namespace          string
+	LocalDatacenter    string
+	UpstreamDatacenter string
+	TrustDomain        string
+}
+
+func UpstreamSNI(opts UpstreamSNIOpts) string {
+	dc := opts.LocalDatacenter
+	if opts.UpstreamDatacenter != "" {
+		dc = opts.UpstreamDatacenter
 	}
 
-	if u.DestinationType == structs.UpstreamDestTypePreparedQuery {
-		return QuerySNI(u.DestinationName, dc, trustDomain)
+	if opts.DestinationType == structs.UpstreamDestTypePreparedQuery {
+		return QuerySNI(opts.Service, dc, opts.TrustDomain)
 	}
-	return ServiceSNI(u.DestinationName, subset, u.DestinationNamespace, dc, trustDomain)
+	return ServiceSNI(opts.Service, opts.Subset, opts.Namespace, dc, opts.TrustDomain)
 }
 
 func DatacenterSNI(dc string, trustDomain string) string {

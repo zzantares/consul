@@ -376,11 +376,14 @@ func (s *Server) makeUpstreamClusterForPreparedQuery(upstream structs.Upstream, 
 	var c *envoy.Cluster
 	var err error
 
-	dc := upstream.Datacenter
-	if dc == "" {
-		dc = cfgSnap.Datacenter
+	sniOpts := connect.UpstreamSNIOpts{
+		DestinationType:    structs.UpstreamDestTypePreparedQuery,
+		Service:            upstream.DestinationName,
+		LocalDatacenter:    cfgSnap.Datacenter,
+		UpstreamDatacenter: upstream.Datacenter,
+		TrustDomain:        cfgSnap.Roots.TrustDomain,
 	}
-	sni := connect.UpstreamSNI(&upstream, "", dc, cfgSnap.Roots.TrustDomain)
+	sni := connect.UpstreamSNI(sniOpts)
 
 	cfg, err := ParseUpstreamConfig(upstream.Config)
 	if err != nil {

@@ -2,6 +2,7 @@ package xds
 
 import (
 	"bytes"
+	"github.com/hashicorp/consul/agent/structs"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -13,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/agent/proxycfg"
-	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/agent/xds/proxysupport"
 	"github.com/hashicorp/consul/sdk/testutil"
 )

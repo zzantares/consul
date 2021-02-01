@@ -45,8 +45,15 @@ const (
 	// ListenerType is the TypeURL for Listener discovery responses.
 	ListenerType = typePrefix + "Listener"
 
+	// TODO (freddy) rename to inbound listener? would is be confusing that it can be a tproxy listener?
 	// PublicListenerName is the name we give the public listener in Envoy config.
 	PublicListenerName = "public_listener"
+
+	// InboundListenerName is the name we give the inbound Envoy listener when TransparentProxy mode is enabled.
+	InboundListenerName = "inbound_listener"
+
+	// OutboundListenerName is the name we give the outbound Envoy listener when TransparentProxy mode is enabled.
+	OutboundListenerName = "outbound_listener"
 
 	// LocalAppClusterName is the name we give the local application "cluster" in
 	// Envoy config. Note that all cluster names may collide with service names

@@ -1344,7 +1344,7 @@ func setupTestVariationConfigEntriesAndSnapshot(
 	upstreams := structs.TestUpstreams(t)
 	upstreamMap := make(map[string]structs.Upstream)
 	for _, u := range upstreams {
-		u.DestinationType = ""
+		// u.DestinationType = ""
 		upstreamMap[u.Identifier()] = u
 	}
 	snap.UpstreamConfig = upstreamMap

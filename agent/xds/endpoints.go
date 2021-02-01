@@ -68,11 +68,14 @@ func (s *Server) endpointsFromSnapshotConnectProxy(cfgSnap *proxycfg.ConfigSnaps
 			continue
 		}
 
-		dc := u.Datacenter
-		if dc == "" {
-			dc = cfgSnap.Datacenter
+		sniOpts := connect.UpstreamSNIOpts{
+			DestinationType:    u.DestinationType,
+			Service:            u.DestinationName,
+			LocalDatacenter:    cfgSnap.Datacenter,
+			UpstreamDatacenter: u.Datacenter,
+			TrustDomain:        cfgSnap.Roots.TrustDomain,
 		}
-		clusterName := connect.UpstreamSNI(&u, "", dc, cfgSnap.Roots.TrustDomain)
+		clusterName := connect.UpstreamSNI(sniOpts)
 
 		endpoints, ok := cfgSnap.ConnectProxy.PreparedQueryEndpoints[u.Identifier()]
 		if ok {

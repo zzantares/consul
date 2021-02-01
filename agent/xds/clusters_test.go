@@ -81,6 +81,16 @@ func TestClustersFromSnapshot(t *testing.T) {
 						Name:        "myservice",
 						IncludeType: false,
 					})
+				snap.ConnectProxy.UpstreamConfig = map[string]structs.Upstream{
+					"db": {
+						Config: map[string]interface{}{
+							"envoy_cluster_json": customAppClusterJSON(t, customClusterJSONOptions{
+								Name:        "myservice",
+								IncludeType: false,
+							}),
+						},
+					},
+				}
 			},
 		},
 		{
