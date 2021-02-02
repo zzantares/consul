@@ -148,6 +148,7 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		addrs := make([]string, 0)
 		endpoints := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
 
+		// TODO (freddy) addrs should be a slice of addresses and ports, that way there can be a filter chain for each unique pair
 		for _, t := range chain.Targets {
 			for _, e := range endpoints[t.ID] {
 				addr, _ := e.BestAddress(false)

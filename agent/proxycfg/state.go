@@ -297,6 +297,8 @@ func (s *state) initWatchesConnectProxy(snap *ConfigSnapshot) error {
 	currentNamespace := s.proxyID.NamespaceOrDefault()
 
 	if s.proxyCfg.TransparentProxy {
+		// TODO(freddy): Also need to watch for whether we're in default allow or default deny this is in the snapshot
+		//				 Currently this will only return explicit allow intentions, but default case allows everything
 		// When in transparent proxy we will infer upstreams from intentions with this source
 		err := s.cache.Notify(s.ctx, cachetype.IntentionMatchName, &structs.IntentionQueryRequest{
 			Datacenter:   s.source.Datacenter,
@@ -746,6 +748,11 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 
 		if len(resp.Matches) > 0 {
 			for _, ixn := range resp.Matches[0] {
+				// We only want to watch services with allow intentions
+				if ixn.Action == structs.IntentionActionDeny {
+					continue
+				}
+
 				dst := ixn.DestinationServiceName()
 				svcMap[dst.String()] = struct{}{}
 
@@ -754,14 +761,20 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 					ns = ixn.DestinationNS
 				}
 				// TODO(freddy) Need to handle wildcard destinations, these could be in the form of "*/*" or "ns/*".
-				//				For these we'll need to query ServiceList, and create discovery chain watches from the results
+				//				For these we can:
+				//					- Spin up a ServiceList watch for each
+				//					- When those watches return, spin up disco chain watch for each service returned
 				err := s.cache.Notify(s.ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
 					Datacenter:          s.source.Datacenter,
 					QueryOptions:        structs.QueryOptions{Token: s.token},
 					Name:                ixn.DestinationName,
 					EvaluateInNamespace: ns,
-					// OverrideProtocol:       cfg.Protocol, TODO(freddy) Need to fetch this
-					// OverrideConnectTimeout: cfg.ConnectTimeout(), TODO(freddy) Need to fetch this
+
+					// TODO (freddy) These two fields are populated from upstream config, need to see if:
+					//				 If an upstream config is present, use it
+					//				 If upstream config becomes centralized, this could be available locally if resolved in service manager
+					// OverrideProtocol:       cfg.Protocol,
+					// OverrideConnectTimeout: cfg.ConnectTimeout(),
 				}, "discovery-chain:"+dst.String(), s.ch)
 				if err != nil {
 					return err

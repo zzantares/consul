@@ -28,6 +28,7 @@ func TestUpstreamSNI(t *testing.T) {
 		return u
 	}
 
+	// TODO (freddy) fixme
 	t.Run("service", func(t *testing.T) {
 		// empty namespace, empty subset, empty dc
 		require.Equal(t, "api.default.foo."+testTrustDomainSuffix1,

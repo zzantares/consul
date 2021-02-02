@@ -174,12 +174,14 @@ type ConnectConfiguration struct {
 
 // ProxyConfigEntry is the top-level struct for global proxy configuration defaults.
 type ProxyConfigEntry struct {
-	Kind             string
-	Name             string
-	Config           map[string]interface{}
-	MeshGateway      MeshGatewayConfig `json:",omitempty" alias:"mesh_gateway"`
-	Expose           ExposeConfig      `json:",omitempty"`
-	TransparentProxy bool              `json:",omitempty" alias:"transparent_proxy"`
+	Kind        string
+	Name        string
+	Config      map[string]interface{}
+	MeshGateway MeshGatewayConfig `json:",omitempty" alias:"mesh_gateway"`
+	Expose      ExposeConfig      `json:",omitempty"`
+
+	// TODO (freddy) Add to service defaults as well
+	TransparentProxy bool `json:",omitempty" alias:"transparent_proxy"`
 
 	Meta           map[string]string `json:",omitempty"`
 	EnterpriseMeta `hcl:",squash" mapstructure:",squash"`
