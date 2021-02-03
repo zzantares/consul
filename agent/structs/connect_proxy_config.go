@@ -320,6 +320,7 @@ func (u *Upstream) Validate() error {
 		return fmt.Errorf("upstream destination name cannot be empty")
 	}
 
+	// TODO (freddy) Empty LocalBindPort could be allowed in TProxy mode
 	if u.LocalBindPort == 0 {
 		return fmt.Errorf("upstream local bind port cannot be zero")
 	}

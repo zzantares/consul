@@ -149,6 +149,8 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		endpoints := cfgSnap.ConnectProxy.WatchedUpstreamEndpoints[id]
 
 		// TODO (freddy) addrs should be a slice of addresses and ports, that way there can be a filter chain for each unique pair
+		//				 Though if there is only a single port, we could do the same thing that's being done now except also add port to match criteria
+		//				When multiple ports are detected we need separate chains because we can only match on a single DestinationPort
 		for _, t := range chain.Targets {
 			for _, e := range endpoints[t.ID] {
 				addr, _ := e.BestAddress(false)
@@ -202,6 +204,9 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 
 	// TODO (freddy) How would a combination of explicit and implicit upstreams be used?
 	//  			 migration to tproxy from existing service mesh setup?
+	// TODO (freddy) Need to deduplicate these listeners and the filter chains used by TProxy. For example:
+	// 				cache is an explicit upstream (captured here) AND there's an intention to cache in tproxy mode (captured above)
+	// 				Explicit upstream should likely win out here.
 	for id, u := range cfgSnap.ConnectProxy.UpstreamConfig {
 		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
 			continue
@@ -216,6 +221,10 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		address := "127.0.0.1"
 		if u.LocalBindAddress != "" {
 			address = u.LocalBindAddress
+		}
+		// This is the case where upstream config is centralized but no port was specified
+		if u.LocalBindPort == 0 {
+			continue
 		}
 		upstreamListener := makeListener(id, address, u.LocalBindPort)
 
