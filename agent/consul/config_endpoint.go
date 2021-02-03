@@ -388,6 +388,9 @@ func (c *ConfigEntry) ResolveServiceConfig(args *structs.ServiceConfigRequest, r
 					}
 					reply.ProxyConfig["protocol"] = serviceConf.Protocol
 				}
+				if !serviceConf.TransparentProxy {
+					reply.TransparentProxy = serviceConf.TransparentProxy
+				}
 			}
 
 			// Extract the global protocol from proxyConf for upstream configs.
