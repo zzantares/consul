@@ -1477,7 +1477,7 @@ func TestCache_ExpiryLoop_ExitsWhenStopped(t *testing.T) {
 	chDone := make(chan struct{})
 	go func() {
 		close(chStart)
-		c.runExpiryLoop()
+		c.runEvictionLoop()
 		close(chDone)
 	}()
 

@@ -27,6 +27,7 @@ import (
 	"github.com/armon/go-metrics/prometheus"
 	"golang.org/x/time/rate"
 
+	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/lib"
 	"github.com/hashicorp/consul/lib/ttlcache"
 )
@@ -119,6 +120,10 @@ type Cache struct {
 	entries           map[string]cacheEntry
 	entriesExpiryHeap *ttlcache.ExpiryHeap
 
+	// forceEvictionCh is used to cause the runEvictionLoop to evict
+	// a cache entry for the key sent through the chan.
+	forceEvictionCh chan string
+
 	// stopped is used as an atomic flag to signal that the Cache has been
 	// discarded so background fetches and expiry processing should stop.
 	stopped uint32
@@ -207,7 +212,7 @@ func New(options Options) *Cache {
 	}
 
 	// Start the expiry watcher
-	go c.runExpiryLoop()
+	go c.runEvictionLoop()
 
 	return c
 }
@@ -655,6 +660,8 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 			newEntry.State = result.State
 		}
 
+		var errIsFatal bool
+
 		// Error handling
 		if err == nil {
 			labels := []metrics.Label{{Name: "result_not_modified", Value: strconv.FormatBool(result.NotModified)}}
@@ -688,9 +695,18 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 				newEntry.RefreshLostContact = time.Time{}
 			}
 		} else {
+			// ACL not found errors are considered fatal because they often indicate
+			// that a token that previously was valid has been removed and this cache
+			// entry will not be used again. In that case we want to prevent any
+			// potential background refresh from occurring and spamming the logs
+			// with these errors.
+			errIsFatal = acl.IsErrNotFound(err)
+
 			// TODO(kit): Add tEntry.Name to label on fetch_error and deprecate second write
-			metrics.IncrCounter([]string{"consul", "cache", "fetch_error"}, 1)
-			metrics.IncrCounter([]string{"consul", "cache", tEntry.Name, "fetch_error"}, 1)
+			metrics.IncrCounterWithLabels([]string{"consul", "cache", "fetch_error"}, 1,
+				[]metrics.Label{{Name: "fatal", Value: strconv.FormatBool(errIsFatal)}})
+			metrics.IncrCounterWithLabels([]string{"consul", "cache", tEntry.Name, "fetch_error"}, 1,
+				[]metrics.Label{{Name: "fatal", Value: strconv.FormatBool(errIsFatal)}})
 
 			// Increment attempt counter
 			attempt++
@@ -704,28 +720,35 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 			}
 		}
 
-		// Create a new waiter that will be used for the next fetch.
-		newEntry.Waiter = make(chan struct{})
-
 		// Set our entry
-		c.entriesLock.Lock()
+		
 
-		// If this is a new entry (not in the heap yet), then setup the
-		// initial expiry information and insert. If we're already in
-		// the heap we do nothing since we're reusing the same entry.
-		if newEntry.Expiry == nil || newEntry.Expiry.Index() == ttlcache.NotIndexed {
-			newEntry.Expiry = c.entriesExpiryHeap.Add(key, tEntry.Opts.LastGetTTL)
+		if errIsFatal {
+			// send to a channel that runEvictionLoop will monitor
+			// to force cache eviction
+			c.forceEvictionCh <- newEntry.Expiry
+		} else {
+			c.entriesLock.Lock()
+			// Create a new waiter that will be used for the next fetch.
+			newEntry.Waiter = make(chan struct{})
+
+			// If this is a new entry (not in the heap yet), then setup the
+			// initial expiry information and insert. If we're already in
+			// the heap we do nothing since we're reusing the same entry.
+			if newEntry.Expiry == nil || newEntry.Expiry.Index() == ttlcache.NotIndexed {
+				newEntry.Expiry = c.entriesExpiryHeap.Add(key, tEntry.Opts.LastGetTTL)
+			}
+
+			c.entries[key] = newEntry
+			c.entriesLock.Unlock()
 		}
-
-		c.entries[key] = newEntry
-		c.entriesLock.Unlock()
 
 		// Trigger the old waiter
 		close(entry.Waiter)
 
 		// If refresh is enabled, run the refresh in due time. The refresh
 		// below might block, but saves us from spawning another goroutine.
-		if tEntry.Opts.Refresh {
+		if !errIsFatal && tEntry.Opts.Refresh {
 			// Check if cache was stopped
 			if atomic.LoadUint32(&c.stopped) == 1 {
 				return
@@ -768,9 +791,22 @@ func backOffWait(failures uint) time.Duration {
 	return 0
 }
 
-// runExpiryLoop is a blocking function that watches the expiration
+// evictCacheEntry will remove the specifed entry from the cache
+// and the expiry heap. This method is only safe if the entriesLock
+// is held when this is called.
+func (c *Cache) evictCacheEntry(entry *ttlcache.Entry) {
+	if closer, ok := c.entries[entry.Key()].State.(io.Closer); ok {
+		closer.Close()
+	}
+
+	// Entry expired! Remove it.
+	delete(c.entries, entry.Key())
+	c.entriesExpiryHeap.Remove(entry.Index())
+}
+
+// runEvictionLoop is a blocking function that watches the expiration
 // heap and invalidates entries that have expired.
-func (c *Cache) runExpiryLoop() {
+func (c *Cache) runEvictionLoop() {
 	for {
 		c.entriesLock.RLock()
 		timer := c.entriesExpiryHeap.Next()
@@ -784,23 +820,26 @@ func (c *Cache) runExpiryLoop() {
 			timer.Stop()
 			continue
 
+		case key := <-c.forceEvictionCh:
+			c.entriesLock.Lock()
+			// force evict the entry with the given key
+			entry := c.entriesExpiryHeap.Find(key)
+
+			c.evictCacheEntry(entry)
+
+			c.entriesLock.Unlock()
+
+			// Set some metrics
+			metrics.IncrCounter([]string{"consul", "cache", "evict_forced"}, 1)
+			metrics.SetGauge([]string{"consul", "cache", "entries_count"}, float32(len(c.entries)))
 		case <-timer.Wait():
 			c.entriesLock.Lock()
-
-			entry := timer.Entry
-			if closer, ok := c.entries[entry.Key()].State.(io.Closer); ok {
-				closer.Close()
-			}
-
-			// Entry expired! Remove it.
-			delete(c.entries, entry.Key())
-			c.entriesExpiryHeap.Remove(entry.Index())
+			c.evictCacheEntry(timer.Entry)
+			c.entriesLock.Unlock()
 
 			// Set some metrics
 			metrics.IncrCounter([]string{"consul", "cache", "evict_expired"}, 1)
 			metrics.SetGauge([]string{"consul", "cache", "entries_count"}, float32(len(c.entries)))
-
-			c.entriesLock.Unlock()
 		}
 	}
 }

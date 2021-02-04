@@ -96,6 +96,17 @@ func (h *ExpiryHeap) Update(idx int, expiry time.Duration) {
 	}
 }
 
+// Find the entry in the heap with the given key
+func (h *ExpiryHeap) Find(key string) *Entry {
+	for _, entry := range h.entries {
+		if entry.key == key {
+			return entry
+		}
+	}
+
+	return nil
+}
+
 // Remove the entry at idx from the heap.
 //
 // Must be synchronized by the caller.
