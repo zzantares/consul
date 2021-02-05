@@ -99,9 +99,9 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 				Name: wellknown.OriginalDestination,
 			},
 		}
-
-		resources = append(resources, outboundListener)
 	}
+
+	var hasChains bool
 
 	for id, chain := range cfgSnap.ConnectProxy.DiscoveryChain {
 		upstreamCfg := cfgSnap.ConnectProxy.UpstreamConfig[id]
@@ -111,6 +111,9 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		if cfg.ListenerJSON != "" {
 			upstreamListener, err := makeListenerFromUserConfig(cfg.ListenerJSON)
 			if err != nil {
+				// TODO (freddy) Should we continue the trend of not hard failing ?
+				//  			 Issue would be when a new upstream config is broken, but existing ones aren't
+				//				 Though if there's an error here, existing traffic wouldn't
 				return nil, err
 			}
 			resources = append(resources, upstreamListener)
@@ -192,14 +195,18 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 			PrefixRanges: ranges,
 		}
 		outboundListener.FilterChains = append(outboundListener.FilterChains, filterChain)
+		hasChains = true
 	}
 
 	// These are be stable sorted to avoid draining filter chains if the list is provided out of order
-	if cfgSnap.Proxy.TransparentProxy && outboundListener != nil {
+	if outboundListener != nil && hasChains {
 		sort.SliceStable(outboundListener.FilterChains, func(i, j int) bool {
 			return outboundListener.FilterChains[i].FilterChainMatch.PrefixRanges[0].AddressPrefix <
 				outboundListener.FilterChains[j].FilterChainMatch.PrefixRanges[0].AddressPrefix
 		})
+
+		// Only create the outbound listener when there are upstreams and filter chains are present
+		resources = append(resources, outboundListener)
 	}
 
 	// TODO (freddy) How would a combination of explicit and implicit upstreams be used?
