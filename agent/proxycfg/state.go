@@ -760,21 +760,41 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 				if ixn.DestinationNS != "" {
 					ns = ixn.DestinationNS
 				}
+
+				id := dst.Name
+				if ns != structs.IntentionDefaultNamespace {
+					id = fmt.Sprintf("%s/%s", ns, dst.Name)
+				}
+
+				var (
+					cfg reducedUpstreamConfig
+					err error
+				)
+				u, ok := snap.ConnectProxy.UpstreamConfig[id]
+				if ok {
+					cfg, err = parseReducedUpstreamConfig(u.Config)
+					if err != nil {
+						// Don't hard fail on a config typo, just warn. We'll fall back on
+						// the plain discovery chain if there is an error so it's safe to
+						// continue.
+						s.logger.Warn("failed to parse upstream config",
+							"upstream", u.Identifier(),
+							"error", err,
+						)
+					}
+				}
+
 				// TODO(freddy) Need to handle wildcard destinations, these could be in the form of "*/*" or "ns/*".
 				//				For these we can:
 				//					- Spin up a ServiceList watch for each
 				//					- When those watches return, spin up disco chain watch for each service returned
-				err := s.cache.Notify(s.ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
-					Datacenter:          s.source.Datacenter,
-					QueryOptions:        structs.QueryOptions{Token: s.token},
-					Name:                ixn.DestinationName,
-					EvaluateInNamespace: ns,
-
-					// TODO (freddy) These two fields are populated from upstream config, need to see if:
-					//				 If an upstream config is present, use it
-					//				 If upstream config becomes centralized, this could be available locally if resolved in service manager
-					// OverrideProtocol:       cfg.Protocol,
-					// OverrideConnectTimeout: cfg.ConnectTimeout(),
+				err = s.cache.Notify(s.ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
+					Datacenter:             s.source.Datacenter,
+					QueryOptions:           structs.QueryOptions{Token: s.token},
+					Name:                   ixn.DestinationName,
+					EvaluateInNamespace:    ns,
+					OverrideProtocol:       cfg.Protocol,
+					OverrideConnectTimeout: cfg.ConnectTimeout(),
 				}, "discovery-chain:"+dst.String(), s.ch)
 				if err != nil {
 					return err
