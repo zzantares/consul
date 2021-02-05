@@ -25,6 +25,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
+	"golang.org/x/sync/singleflight"
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/consul/acl"
@@ -123,6 +124,9 @@ type Cache struct {
 	// forceEvictionCh is used to cause the runEvictionLoop to evict
 	// a cache entry for the key sent through the chan.
 	forceEvictionCh chan string
+
+	// TODO (name this better)
+	singleFlight singleflight.Group
 
 	// stopped is used as an atomic flag to signal that the Cache has been
 	// discarded so background fetches and expiry processing should stop.
@@ -399,24 +403,19 @@ func (c *Cache) getWithIndex(ctx context.Context, r getOptions) (interface{}, Re
 
 	key := makeEntryKey(r.TypeEntry.Name, r.Info.Datacenter, r.Info.Token, r.Info.Key)
 
-	// First time through
-	first := true
-
 	// timeoutCh for watching our timeout
 	var timeoutCh <-chan time.Time
 
-RETRY_GET:
 	// Get the current value
 	c.entriesLock.RLock()
 	_, entryValid, entry := c.getEntryLocked(r.TypeEntry, key, r.Info)
 	c.entriesLock.RUnlock()
 
+	// whatever in the cache is new enough to return
 	if entryValid {
 		meta := ResultMeta{Index: entry.Index}
-		if first {
-			metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, "hit"}, 1)
-			meta.Hit = true
-		}
+		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, "hit"}, 1)
+		meta.Hit = true
 
 		// If refresh is enabled, calculate age based on whether the background
 		// routine is still connected.
@@ -452,28 +451,14 @@ RETRY_GET:
 		return entry.Value, meta, nil
 	}
 
-	// If this isn't our first time through and our last value has an error, then
-	// we return the error. This has the behavior that we don't sit in a retry
-	// loop getting the same error for the entire duration of the timeout.
-	// Instead, we make one effort to fetch a new value, and if there was an
-	// error, we return. Note that the invariant is that if both entry.Value AND
-	// entry.Error are non-nil, the error _must_ be more recent than the Value. In
-	// other words valid fetches should reset the error. See
-	// https://github.com/hashicorp/consul/issues/4480.
-	if !first && entry.Error != nil {
-		return entry.Value, ResultMeta{Index: entry.Index}, entry.Error
+	// We increment two different counters for cache misses depending on
+	// whether we're missing because we didn't have the data at all,
+	// or if we're missing because we're blocking on a set index.
+	missKey := "miss_block"
+	if r.Info.MinIndex == 0 {
+		missKey = "miss_new"
 	}
-
-	if first {
-		// We increment two different counters for cache misses depending on
-		// whether we're missing because we didn't have the data at all,
-		// or if we're missing because we're blocking on a set index.
-		missKey := "miss_block"
-		if r.Info.MinIndex == 0 {
-			missKey = "miss_new"
-		}
-		metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, missKey}, 1)
-	}
+	metrics.IncrCounter([]string{"consul", "cache", r.TypeEntry.Name, missKey}, 1)
 
 	// Set our timeout channel if we must
 	if r.Info.Timeout > 0 && timeoutCh == nil {
@@ -484,17 +469,16 @@ RETRY_GET:
 	// value we have is too old. We need to wait for new data.
 	waiterCh := c.fetch(key, r, true, 0, false)
 
-	// No longer our first time through
-	first = false
-
 	select {
 	case <-ctx.Done():
 		return nil, ResultMeta{}, ctx.Err()
-	case <-waiterCh:
-		// Our fetch returned, retry the get from the cache.
-		r.Info.MustRevalidate = false
-		goto RETRY_GET
+	case result := <-waiterCh:
+		if result.Err != nil || result.Val == nil {
+			return nil, ResultMeta{}, result.Err
+		}
 
+		entry := result.Val.(cacheEntry)
+		return entry.Value, ResultMeta{Index: entry.Index}, entry.Error
 	case <-timeoutCh:
 		// Timeout on the cache read, just return whatever we have.
 		return entry.Value, ResultMeta{Index: entry.Index}, nil
@@ -513,7 +497,7 @@ func makeEntryKey(t, dc, token, key string) string {
 // If allowNew is true then the fetch should create the cache entry
 // if it doesn't exist. If this is false, then fetch will do nothing
 // if the entry doesn't exist. This latter case is to support refreshing.
-func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ignoreExisting bool) <-chan struct{} {
+func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ignoreExisting bool) <-chan singleflight.Result {
 	// We acquire a write lock because we may have to set Fetching to true.
 	c.entriesLock.Lock()
 	defer c.entriesLock.Unlock()
@@ -522,7 +506,10 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 	// This handles the case where a fetch succeeded after checking for its existence in
 	// getWithIndex. This ensures that we don't miss updates.
 	if ok && entryValid && !ignoreExisting {
-		ch := make(chan struct{})
+		ch := make(chan singleflight.Result, 1)
+		ch <- singleflight.Result{
+			Val: entry,
+		}
 		close(ch)
 		return ch
 	}
@@ -531,23 +518,19 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 	// return immediately. We return an immediately-closed channel so nothing
 	// blocks.
 	if !ok && !allowNew {
-		ch := make(chan struct{})
+		ch := make(chan singleflight.Result, 1)
+		ch <- singleflight.Result{
+			Err: fmt.Errorf("no existing cached entry but request was made that doesn't allow creating one"),
+		}
 		close(ch)
 		return ch
-	}
-
-	// If we already have an entry and it is actively fetching, then return
-	// the currently active waiter.
-	if ok && entry.Fetching {
-		return entry.Waiter
 	}
 
 	// If we don't have an entry, then create it. The entry must be marked
 	// as invalid so that it isn't returned as a valid value for a zero index.
 	if !ok {
 		entry = cacheEntry{
-			Valid:  false,
-			Waiter: make(chan struct{}),
+			Valid: false,
 			FetchRateLimiter: rate.NewLimiter(
 				c.options.EntryFetchRate,
 				c.options.EntryFetchMaxBurst,
@@ -555,16 +538,24 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 		}
 	}
 
-	// Set that we're fetching to true, which makes it so that future
-	// identical calls to fetch will return the same waiter rather than
-	// perform multiple fetches.
-	entry.Fetching = true
-	c.entries[key] = entry
-	metrics.SetGauge([]string{"consul", "cache", "entries_count"}, float32(len(c.entries)))
+	if !entry.Fetching {
+		// Set that we're fetching to true, which makes it so that future
+		// identical calls to fetch will return the same waiter rather than
+		// perform multiple fetches.
+		entry.Fetching = true
+		c.entries[key] = entry
+		metrics.SetGauge([]string{"consul", "cache", "entries_count"}, float32(len(c.entries)))
+	}
 
 	tEntry := r.TypeEntry
 	// The actual Fetch must be performed in a goroutine.
-	go func() {
+
+	// we can't use single flight because there will be a race condition between another
+	// fetch caller gaining the lock and looking at the cache entry and when a previously
+	// running single flighted call is finishing. This has the potential to incur extra
+	// unnecessary RPCs to the servers. Also when a background refresh routine is happening
+	// we wont be able to re-single flight the same key with that library.
+	return c.singleFlight.DoChan(key, func() (interface{}, error) {
 		// If we have background refresh and currently are in "disconnected" state,
 		// waiting for a response might mean we mark our results as stale for up to
 		// 10 minutes (max blocking timeout) after connection is restored. To reduce
@@ -721,7 +712,6 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 		}
 
 		// Set our entry
-		
 
 		if errIsFatal {
 			// send to a channel that runEvictionLoop will monitor
@@ -771,9 +761,7 @@ func (c *Cache) fetch(key string, r getOptions, allowNew bool, attempt uint, ign
 			r.Info.MinIndex = 0
 			c.fetch(key, r, false, attempt, true)
 		}
-	}()
-
-	return entry.Waiter
+	})
 }
 
 func backOffWait(failures uint) time.Duration {
