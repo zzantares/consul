@@ -82,7 +82,7 @@ func (c *StreamingHealthServices) Fetch(opts cache.FetchOptions, req cache.Reque
 		return req
 	}
 
-	materializer, err := newMaterializer(c.deps, newReqFn, srvReq.Filter)
+	materializer, err := newMaterializer(c.deps, newReqFn, srvReq)
 	if err != nil {
 		return cache.FetchResult{}, err
 	}
@@ -100,9 +100,9 @@ func (c *StreamingHealthServices) Fetch(opts cache.FetchOptions, req cache.Reque
 func newMaterializer(
 	deps MaterializerDeps,
 	newRequestFn func(uint64) pbsubscribe.SubscribeRequest,
-	filter string,
+	req *structs.ServiceSpecificRequest,
 ) (*submatview.Materializer, error) {
-	view, err := newHealthView(filter)
+	view, err := newHealthView(req)
 	if err != nil {
 		return nil, err
 	}
@@ -139,8 +139,8 @@ func (s *streamingHealthState) Fetch(opts cache.FetchOptions) (cache.FetchResult
 	return result, err
 }
 
-func newHealthView(filterExpr string) (*healthView, error) {
-	fe, err := newFilterEvaluator(filterExpr)
+func newHealthView(req *structs.ServiceSpecificRequest) (*healthView, error) {
+	fe, err := newFilterEvaluator(req)
 	if err != nil {
 		return nil, err
 	}
@@ -192,11 +192,50 @@ type filterEvaluator interface {
 	Evaluate(datum interface{}) (bool, error)
 }
 
-func newFilterEvaluator(expr string) (filterEvaluator, error) {
-	if expr == "" {
-		return noopFilterEvaluator{}, nil
+func newFilterEvaluator(req *structs.ServiceSpecificRequest) (filterEvaluator, error) {
+	var evaluators []filterEvaluator
+
+	typ := reflect.TypeOf(structs.CheckServiceNode{})
+	if req.Filter != "" {
+		e, err := bexpr.CreateEvaluatorForType(req.Filter, nil, typ)
+		if err != nil {
+			return nil, err
+		}
+		evaluators = append(evaluators, e)
 	}
-	return bexpr.CreateEvaluatorForType(expr, nil, reflect.TypeOf(structs.CheckServiceNode{}))
+
+	if req.ServiceTag != "" {
+		// Handle backwards compat with old field
+		req.ServiceTags = []string{req.ServiceTag}
+	}
+	if req.TagFilter {
+		for _, tag := range req.ServiceTags {
+			expr := fmt.Sprintf(`"%s" in Service.Tags`, tag)
+			e, err := bexpr.CreateEvaluatorForType(expr, nil, typ)
+			if err != nil {
+				return nil, err
+			}
+			evaluators = append(evaluators, e)
+		}
+	}
+
+	for key, value := range req.NodeMetaFilters {
+		expr := fmt.Sprintf(`"%s" in Node.Meta.%s`, value, key)
+		e, err := bexpr.CreateEvaluatorForType(expr, nil, typ)
+		if err != nil {
+			return nil, err
+		}
+		evaluators = append(evaluators, e)
+	}
+
+	switch len(evaluators) {
+	case 0:
+		return noopFilterEvaluator{}, nil
+	case 1:
+		return evaluators[0], nil
+	default:
+		return &multiFilterEvaluator{evaluators: evaluators}, nil
+	}
 }
 
 // noopFilterEvaluator may be used in place of a bexpr.Evaluator. The Evaluate
@@ -204,6 +243,20 @@ func newFilterEvaluator(expr string) (filterEvaluator, error) {
 type noopFilterEvaluator struct{}
 
 func (noopFilterEvaluator) Evaluate(_ interface{}) (bool, error) {
+	return true, nil
+}
+
+type multiFilterEvaluator struct {
+	evaluators []filterEvaluator
+}
+
+func (m multiFilterEvaluator) Evaluate(data interface{}) (bool, error) {
+	for _, e := range m.evaluators {
+		match, err := e.Evaluate(data)
+		if !match || err != nil {
+			return match, err
+		}
+	}
 	return true, nil
 }
 

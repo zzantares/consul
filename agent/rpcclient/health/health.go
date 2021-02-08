@@ -70,7 +70,7 @@ func (c *Client) getServiceNodes(
 		panic("wrong response type for cachetype.HealthServicesName")
 	}
 
-	return filterTags(filterNodeMeta(value, req), req), md, nil
+	return *value, md, nil
 }
 
 func filterTags(out *structs.IndexedCheckServiceNodes, req structs.ServiceSpecificRequest) structs.IndexedCheckServiceNodes {
