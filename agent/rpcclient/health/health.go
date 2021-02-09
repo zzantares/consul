@@ -50,7 +50,6 @@ func (c *Client) getServiceNodes(
 ) (structs.IndexedCheckServiceNodes, cache.ResultMeta, error) {
 	var out structs.IndexedCheckServiceNodes
 
-	req.ServiceName = strings.ToLower(req.ServiceName)
 	if !req.QueryOptions.UseCache {
 		err := c.NetRPC.RPC("Health.ServiceNodes", &req, &out)
 		return out, cache.ResultMeta{}, err
