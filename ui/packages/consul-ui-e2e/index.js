@@ -31,7 +31,7 @@ const consul = (args) => {
     )
   });
 }
-const CONSUL_HTTP_ADDR = 'http://localhost:8500';
+const CONSUL_HTTP_ADDR = process.env.CONSUL_HTTP_ADDR || 'http://localhost:8500';
 const headless = false;
 const scenarios = {};
 new Yadda.FeatureFileSearch('../consul-ui/tests/acceptance').each(function(file) {
