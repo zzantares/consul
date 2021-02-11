@@ -24,7 +24,7 @@ const consul = (args) => {
     )
   });
 }
-const CONSUL_HTTP = 'http://localhost:8500';
+const CONSUL_HTTP_ADDR = 'http://localhost:8500';
 const headless = false;
 let page, browser, child;
 const scenarios = {};
@@ -34,9 +34,9 @@ new Yadda.FeatureFileSearch('./features').each(function(file) {
 
   const yadda = Yadda.createInstance(library);
   feature.scenarios.forEach(scenario => {
-    ['/ui', '/consul'].forEach(
+    ['/consul', '/ui'].forEach(
       (contentPath) => {
-        const root = `${CONSUL_HTTP}${contentPath}`;
+        const root = `${CONSUL_HTTP_ADDR}${contentPath}`;
         scenarios[`${scenario.title} with the '${contentPath}' content-path`] = (context, done) => {
           try {
             return yadda.run(

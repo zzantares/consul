@@ -1,8 +1,15 @@
-const { strictEqual } = require("assert");
+const { strictEqual } = require('assert');
 const Yadda = require('yadda');
 const English = Yadda.localisation.English;
+const debug = require('./debug/index.js');
 
-module.exports = English.library().
+const scenario = English.library();
+const currentURL = async (step) => {
+  let url = await step.page.url()
+  return url.replace(step.root, '');
+}
+debug(scenario, () => {}, currentURL);
+module.exports = scenario.
   given(
     '$number $model model[s]? with the value "$value"',
     async function(number, model, value) {
@@ -35,10 +42,6 @@ module.exports = English.library().
   ).then(
     'the url should be $url',
     async function(url) {
-      const currentURL = async (step) => {
-        let url = await this.page.url()
-        return url.replace(this.root, '');
-      }
       const assert = {
         equal: (actual, expected, message) => {
           this.t.equal(actual, expected, message);
@@ -48,7 +51,7 @@ module.exports = English.library().
       if (url === "''") {
         url = '';
       }
-      let current = await currentURL() || '';
+      let current = await currentURL(this) || '';
       assert.equal(current, url, `Expected the url to be ${url} was ${current}`);
     }
   );
