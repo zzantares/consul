@@ -4,6 +4,9 @@
   "description": "Consul UI e2e runner",
   "main": "index.js",
   "license": "MIT",
+  "scripts": {
+    "start": "node index.js"
+  },
   "dependencies": {
     "yadda": "^2.1.0",
     "playwright": "^1.7.1",
