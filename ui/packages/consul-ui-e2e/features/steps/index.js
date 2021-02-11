@@ -1,4 +1,3 @@
-const { strictEqual } = require('assert');
 const Yadda = require('yadda');
 const English = Yadda.localisation.English;
 const debug = require('./debug/index.js');
@@ -14,13 +13,11 @@ module.exports = scenario.
     '$number $model model[s]? with the value "$value"',
     async function(number, model, value) {
       try {
-        await this.consul(
-          [
-            'agent',
-            '-dev',
-            `-ui-content-path=${this.contentPath}`
-          ]
-        )
+        switch(model) {
+          case 'datacenter':
+            this.hcl.push(`${model} = "${value}"`);
+            break;
+        }
       } catch(e) {
         console.log(e);
       }
@@ -29,7 +26,16 @@ module.exports = scenario.
     'I visit the $name page',
     async function(name) {
       try {
-        await this.page.goto(`${this.root}/dc1/services`);
+        const args = [
+            'agent',
+            '-dev',
+            `-ui-content-path`,
+            `${this.contentPath}`
+        ].concat(
+          this.hcl.reduce((prev, item) => prev.concat(['-hcl', `${item}`]), [])
+        );
+        await this.consul(args);
+        await this.page.goto(`${this.root}`);
         await new Promise(
           (resolve) => {
             setTimeout(resolve, 1000)
