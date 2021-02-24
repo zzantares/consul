@@ -569,6 +569,7 @@ func (s *state) initialConfigSnapshot() ConfigSnapshot {
 
 	switch s.kind {
 	case structs.ServiceKindConnectProxy:
+		snap.ConnectProxy.WatchedDiscoveryChains = make(map[string]context.CancelFunc)
 		snap.ConnectProxy.DiscoveryChain = make(map[string]*structs.CompiledDiscoveryChain)
 		snap.ConnectProxy.WatchedUpstreams = make(map[string]map[string]context.CancelFunc)
 		snap.ConnectProxy.WatchedUpstreamEndpoints = make(map[string]map[string]structs.CheckServiceNodes)
@@ -788,14 +789,7 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 				//				For these we can:
 				//					- Spin up a ServiceList watch for each
 				//					- When those watches return, spin up disco chain watch for each service returned
-				err = s.cache.Notify(s.ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
-					Datacenter:             s.source.Datacenter,
-					QueryOptions:           structs.QueryOptions{Token: s.token},
-					Name:                   ixn.DestinationName,
-					EvaluateInNamespace:    ns,
-					OverrideProtocol:       cfg.Protocol,
-					OverrideConnectTimeout: cfg.ConnectTimeout(),
-				}, "discovery-chain:"+dst.String(), s.ch)
+				err = s.watchDiscoveryChain(snap, cfg, dst.String(), ixn.DestinationName, ns)
 				if err != nil {
 					return err
 				}
@@ -822,6 +816,14 @@ func (s *state) handleUpdateConnectProxy(u cache.UpdateEvent, snap *ConfigSnapsh
 		for sn := range snap.ConnectProxy.WatchedGatewayEndpoints {
 			if _, ok := svcMap[sn]; !ok {
 				delete(snap.ConnectProxy.WatchedGatewayEndpoints, sn)
+			}
+		}
+		for sn, cancelFn := range snap.ConnectProxy.WatchedDiscoveryChains {
+			fmt.Println(sn)
+			if _, ok := svcMap[sn]; !ok {
+				cancelFn()
+				delete(snap.ConnectProxy.WatchedDiscoveryChains, sn)
+				delete(snap.ConnectProxy.DiscoveryChain, sn)
 			}
 		}
 
@@ -1556,7 +1558,8 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 		for _, service := range services.Services {
 			u := makeUpstream(service)
 
-			err := s.watchIngressDiscoveryChain(snap, u)
+			err := s.watchDiscoveryChain(snap,
+				reducedUpstreamConfig{}, u.Identifier(), u.DestinationName, u.DestinationNamespace)
 			if err != nil {
 				return err
 			}
@@ -1572,10 +1575,10 @@ func (s *state) handleUpdateIngressGateway(u cache.UpdateEvent, snap *ConfigSnap
 		snap.IngressGateway.Hosts = hosts
 		snap.IngressGateway.HostsSet = true
 
-		for id, cancelFn := range snap.IngressGateway.WatchedDiscoveryChains {
+		for id, cancelFn := range snap.ConnectProxy.WatchedDiscoveryChains {
 			if _, ok := watchedSvcs[id]; !ok {
 				cancelFn()
-				delete(snap.IngressGateway.WatchedDiscoveryChains, id)
+				delete(snap.ConnectProxy.WatchedDiscoveryChains, id)
 			}
 		}
 
@@ -1606,25 +1609,27 @@ func makeUpstream(g *structs.GatewayService) structs.Upstream {
 	return upstream
 }
 
-func (s *state) watchIngressDiscoveryChain(snap *ConfigSnapshot, u structs.Upstream) error {
-	if _, ok := snap.IngressGateway.WatchedDiscoveryChains[u.Identifier()]; ok {
+func (s *state) watchDiscoveryChain(snap *ConfigSnapshot, cfg reducedUpstreamConfig, id, name, namespace string) error {
+	if _, ok := snap.ConnectProxy.WatchedDiscoveryChains[id]; ok {
 		return nil
 	}
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	err := s.cache.Notify(ctx, cachetype.CompiledDiscoveryChainName, &structs.DiscoveryChainRequest{
-		Datacenter:           s.source.Datacenter,
-		QueryOptions:         structs.QueryOptions{Token: s.token},
-		Name:                 u.DestinationName,
-		EvaluateInDatacenter: s.source.Datacenter,
-		EvaluateInNamespace:  u.DestinationNamespace,
-	}, "discovery-chain:"+u.Identifier(), s.ch)
+		Datacenter:             s.source.Datacenter,
+		QueryOptions:           structs.QueryOptions{Token: s.token},
+		Name:                   name,
+		EvaluateInDatacenter:   s.source.Datacenter,
+		EvaluateInNamespace:    namespace,
+		OverrideProtocol:       cfg.Protocol,
+		OverrideConnectTimeout: cfg.ConnectTimeout(),
+	}, "discovery-chain:"+id, s.ch)
 	if err != nil {
 		cancel()
 		return err
 	}
 
-	snap.IngressGateway.WatchedDiscoveryChains[u.Identifier()] = cancel
+	snap.ConnectProxy.WatchedDiscoveryChains[id] = cancel
 	return nil
 }
 

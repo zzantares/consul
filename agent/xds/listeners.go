@@ -113,7 +113,6 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 			if err != nil {
 				// TODO (freddy) Should we continue the trend of not hard failing ?
 				//  			 Issue would be when a new upstream config is broken, but existing ones aren't
-				//				 Though if there's an error here, existing traffic wouldn't
 				return nil, err
 			}
 			resources = append(resources, upstreamListener)

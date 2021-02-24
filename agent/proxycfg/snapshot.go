@@ -17,6 +17,13 @@ type ConfigSnapshotUpstreams struct {
 	// targeted by this upstream. We then instantiate watches for those targets.
 	DiscoveryChain map[string]*structs.CompiledDiscoveryChain
 
+	// WatchedDiscoveryChains is a map of upstream.Identifier() -> CancelFunc's
+	// in order to cancel any watches when the proxy's configuration is
+	// changed. Ingress gateways and transparent proxies need this because
+	// discovery chain watches are added and removed through the lifecycle
+	// of single proxycfg.state instance.
+	WatchedDiscoveryChains map[string]context.CancelFunc
+
 	// WatchedUpstreams is a map of upstream.Identifier() -> (map of TargetID ->
 	// CancelFunc's) in order to cancel any watches when the configuration is
 	// changed.
@@ -60,6 +67,7 @@ func (c *configSnapshotConnectProxy) IsEmpty() bool {
 	return c.Leaf == nil &&
 		!c.IntentionsSet &&
 		len(c.DiscoveryChain) == 0 &&
+		len(c.WatchedDiscoveryChains) == 0 &&
 		len(c.WatchedUpstreams) == 0 &&
 		len(c.WatchedUpstreamEndpoints) == 0 &&
 		len(c.WatchedGateways) == 0 &&
@@ -285,12 +293,6 @@ type configSnapshotIngressGateway struct {
 	// to. This is constructed from the ingress-gateway config entry, and uses
 	// the GatewayServices RPC to retrieve them.
 	Upstreams map[IngressListenerKey]structs.Upstreams
-
-	// WatchedDiscoveryChains is a map of upstream.Identifier() -> CancelFunc's
-	// in order to cancel any watches when the ingress gateway configuration is
-	// changed. Ingress gateways need this because discovery chain watches are
-	// added and removed through the lifecycle of single proxycfg.state instance.
-	WatchedDiscoveryChains map[string]context.CancelFunc
 }
 
 func (c *configSnapshotIngressGateway) IsEmpty() bool {
