@@ -321,6 +321,7 @@ func (u *Upstream) Validate() error {
 	}
 
 	// TODO (freddy) Empty LocalBindPort could be allowed in TProxy mode
+	// TODO (freddy) Also want to not blow up if inheriting upstream config without a port from a config entry
 	if u.LocalBindPort == 0 {
 		return fmt.Errorf("upstream local bind port cannot be zero")
 	}

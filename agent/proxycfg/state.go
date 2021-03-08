@@ -1718,6 +1718,7 @@ func (s *state) Changed(ns *structs.NodeService, token string) bool {
 	if err != nil {
 		s.logger.Warn("Failed to parse proxy config and will treat the new service as unchanged")
 	}
+	fmt.Println("!! new and old TransparentProxy:", proxyCfg.TransparentProxy, s.proxyCfg.TransparentProxy)
 
 	return ns.Kind != s.kind ||
 		s.proxyID != ns.CompoundServiceID() ||

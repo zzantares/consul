@@ -2,6 +2,7 @@ package proxycfg
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 
 	"github.com/hashicorp/consul/agent/cache"
@@ -128,6 +129,7 @@ func (m *Manager) Run() error {
 			// Stopped
 			return nil
 		}
+		fmt.Println("!! got a local state update")
 	}
 }
 
@@ -176,8 +178,11 @@ func (m *Manager) ensureProxyServiceLocked(ns *structs.NodeService, token string
 	sid := ns.CompoundServiceID()
 	state, ok := m.proxies[sid]
 
+	fmt.Println("!! ensureProxyServiceLocked for", ns.CompoundServiceName())
+
 	if ok {
 		if !state.Changed(ns, token) {
+			fmt.Println("State did not change. TransparentProxy:", ns.Proxy.TransparentProxy)
 			// No change
 			return nil
 		}
