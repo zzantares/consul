@@ -1134,7 +1134,7 @@ func (s *NodeService) IsGateway() bool {
 
 // Validate validates the node service configuration.
 //
-// NOTE(mitchellh): This currently only validates fields for a ConnectProxy.
+// NOTE(mitchellh):
 // Historically validation has been directly in the Catalog.Register RPC.
 // ConnectProxy validation was moved here for easier table testing, but
 // other validation still exists in Catalog.Register.
@@ -1165,7 +1165,7 @@ func (s *NodeService) Validate() error {
 			bindAddrs    = make(map[string]struct{})
 		)
 		for _, u := range s.Proxy.Upstreams {
-			if err := u.Validate(); err != nil {
+			if err := u.Validate(s.Proxy.TransparentProxy); err != nil {
 				result = multierror.Append(result, err)
 				continue
 			}

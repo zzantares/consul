@@ -64,7 +64,8 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 	resources := make([]proto.Message, 1)
 
 	/*
-		TODO (freddy) Rename to makeInboundListener and pass address, port, and name
+			TODO (freddy) Rename to makeInboundListener and pass address, port, and name
+		                  Current overrides below override the name but not things like the stats prefix.
 	*/
 	publicListener, err := s.makePublicListener(cInfo, cfgSnap)
 	if err != nil {
@@ -74,7 +75,6 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 	// Override some settings if we are capturing inbound traffic
 	// This needs a different name as the public_listener because otherwise Envoy errors when there's a new addr/port.
 	if cfgSnap.Proxy.TransparentProxy {
-		// TODO (freddy) This overrides the name but not things like the stats prefix.
 		var (
 			addr = "0.0.0.0"
 			port = TProxyInboundPort
@@ -90,7 +90,6 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 	var outboundListener *envoy.Listener
 
 	if cfgSnap.Proxy.TransparentProxy {
-		// TODO (freddy) should get this bind address from proxy cfg?
 		// TODO (freddy) is there any scenario where this wouldn't work as localhost?
 		outboundListener = makeListener(OutboundListenerName, "127.0.0.1", TProxyOutboundPort)
 		outboundListener.FilterChains = make([]*envoylistener.FilterChain, 0)
@@ -111,8 +110,6 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 		if cfg.ListenerJSON != "" {
 			upstreamListener, err := makeListenerFromUserConfig(cfg.ListenerJSON)
 			if err != nil {
-				// TODO (freddy) Should we continue the trend of not hard failing ?
-				//  			 Issue would be when a new upstream config is broken, but existing ones aren't
 				return nil, err
 			}
 			resources = append(resources, upstreamListener)
@@ -212,7 +209,7 @@ func (s *Server) listenersFromSnapshotConnectProxy(cInfo connectionInfo, cfgSnap
 	//  			 migration to tproxy from existing service mesh setup?
 	// TODO (freddy) Need to deduplicate these listeners and the filter chains used by TProxy. For example:
 	// 				cache is an explicit upstream (captured here) AND there's an intention to cache in tproxy mode (captured above)
-	// 				Explicit upstream should likely win out here.
+	// 				Explicit upstream with nonzero port should likely win out here.
 	for id, u := range cfgSnap.ConnectProxy.UpstreamConfig {
 		if u.DestinationType != structs.UpstreamDestTypePreparedQuery {
 			continue

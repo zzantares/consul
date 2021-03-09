@@ -308,7 +308,7 @@ func (t *Upstream) UnmarshalJSON(data []byte) (err error) {
 }
 
 // Validate sanity checks the struct is valid
-func (u *Upstream) Validate() error {
+func (u *Upstream) Validate(transparentProxy bool) error {
 	switch u.DestinationType {
 	case UpstreamDestTypePreparedQuery:
 	case UpstreamDestTypeService, "":
@@ -320,9 +320,9 @@ func (u *Upstream) Validate() error {
 		return fmt.Errorf("upstream destination name cannot be empty")
 	}
 
-	// TODO (freddy) Empty LocalBindPort could be allowed in TProxy mode
-	// TODO (freddy) Also want to not blow up if inheriting upstream config without a port from a config entry
-	if u.LocalBindPort == 0 {
+	// TODO (freddy) what if transparentProxy mode is off accidentally, and a service-defaults upstream is configured?
+	// 				This would error when validated on servers during anti-entropy sync. (after config is resolved)
+	if u.LocalBindPort == 0 && !transparentProxy {
 		return fmt.Errorf("upstream local bind port cannot be zero")
 	}
 	return nil
