@@ -400,13 +400,6 @@ func New(bd BaseDeps) (*Agent, error) {
 	// TODO: pass in a fully populated apiServers into Agent.New
 	a.apiServers = NewAPIServers(a.logger)
 
-	a.httpHandlers = &HTTPHandlers{
-		agent:     &a,
-		denylist:  NewDenylist(a.config.HTTPBlockEndpoints),
-		endpoints: getEndpoints(&a),
-	}
-	a.configReloaders = append(a.configReloaders, a.httpHandlers.ReloadConfig)
-
 	return &a, nil
 }
 
@@ -787,6 +780,14 @@ func (a *Agent) startListeners(addrs []net.Addr) ([]net.Listener, error) {
 func (a *Agent) listenHTTP() ([]apiServer, error) {
 	var ln []net.Listener
 	var servers []apiServer
+
+	// TODO: move to Agent.New
+	a.httpHandlers = &HTTPHandlers{
+		agent:     a,
+		denylist:  NewDenylist(a.config.HTTPBlockEndpoints),
+		endpoints: getEndpoints(a),
+	}
+	a.configReloaders = append(a.configReloaders, a.httpHandlers.ReloadConfig)
 
 	start := func(proto string, addrs []net.Addr) error {
 		listeners, err := a.startListeners(addrs)
