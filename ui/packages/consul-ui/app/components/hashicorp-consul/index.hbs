@@ -125,6 +125,7 @@
               <a href={{href-to 'dc.intentions' @dc.Name}}>Intentions</a>
           </li>
 {{/if}}
+{{#if (or (can 'read acls') (not (can "use acls")))}}
           <li class="acls-separator" role="separator">
             Access Controls
 {{#if (not (can "use acls"))}}
@@ -133,9 +134,11 @@
             ></span>
 {{/if}}
           </li>
+{{#if (or (can 'read acls') (not (can "use acls")))}}
           <li data-test-main-nav-tokens class={{if (is-href 'dc.acls.tokens' @dc.Name) 'is-active'}}>
               <a href={{href-to 'dc.acls.tokens' @dc.Name}}>Tokens</a>
           </li>
+{{/if}}
 {{#if (can "read acls")}}
           <li data-test-main-nav-policies class={{if (is-href 'dc.acls.policies' @dc.Name) 'is-active'}}>
               <a href={{href-to 'dc.acls.policies' @dc.Name}}>Policies</a>
@@ -156,6 +159,7 @@
           <li data-test-main-nav-auth-methods class={{if (is-href 'dc.acls.auth-methods' @dc.Name) 'is-active'}}>
               <span>Auth Methods</span>
           </li>
+{{/if}}
 {{/if}}
       </ul>
   {{/if}}
