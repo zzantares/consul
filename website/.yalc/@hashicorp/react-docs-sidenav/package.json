@@ -1,0 +1,22 @@
+{
+  "name": "@hashicorp/react-docs-sidenav",
+  "description": "Sidebar used for navigation HashiCorp docs",
+  "version": "8.0.4+a35842ca",
+  "author": "HashiCorp",
+  "contributors": ["Jeff Escalante"],
+  "dependencies": {
+    "@hashicorp/react-link-wrap": "^3.0.1",
+    "fuzzysearch": "1.0.3"
+  },
+  "license": "MPL-2.0",
+  "peerDependencies": {
+    "@hashicorp/mktg-global-styles": ">=3.x",
+    "@hashicorp/nextjs-scripts": ">=17.x",
+    "react": ">=16.x"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "gitHead": "c47c50a8419f6278073505ebbe25c9fbe4faab07",
+  "yalcSig": "a35842cae8d7dbcab598ad99fd6a42fe"
+}

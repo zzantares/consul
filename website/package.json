@@ -9,12 +9,13 @@
     "@hashicorp/react-alert-banner": "5.0.0",
     "@hashicorp/react-button": "4.0.0",
     "@hashicorp/react-call-to-action": "1.0.3",
-    "@hashicorp/react-content": "7.0.0",
-    "@hashicorp/react-docs-page": "12.0.0",
     "@hashicorp/react-callouts": "^7.0.0",
+    "@hashicorp/react-content": "7.0.0",
+    "@hashicorp/react-docs-page": "file:.yalc/@hashicorp/react-docs-page",
+    "@hashicorp/react-docs-sidenav": "file:.yalc/@hashicorp/react-docs-sidenav",
     "@hashicorp/react-featured-slider": "1.1.10",
     "@hashicorp/react-hashi-stack-menu": "1.2.1-canary.0",
-    "@hashicorp/react-head": "1.1.6",
+    "@hashicorp/react-head": "^3.0.2",
     "@hashicorp/react-image": "3.0.3",
     "@hashicorp/react-inline-svg": "5.0.0",
     "@hashicorp/react-markdown-page": "^0.2.0",
@@ -29,7 +30,7 @@
     "@hashicorp/react-use-cases": "2.0.1",
     "@hashicorp/react-vertical-text-block-list": "4.0.1",
     "next": "10.0.6",
-    "next-mdx-remote": "2.1.0",
+    "next-mdx-remote": "^3.0.0-alpha.0",
     "next-remote-watch": "0.3.0",
     "nuka-carousel": "4.7.5",
     "react": "16.13.1",
@@ -37,9 +38,12 @@
     "react-dom": "16.13.1"
   },
   "devDependencies": {
+    "@types/node": "^15.0.1",
+    "@types/react": "^17.0.4",
     "dart-linkcheck": "2.0.15",
     "husky": "4.3.7",
-    "prettier": "2.2.1"
+    "prettier": "2.2.1",
+    "typescript": "^4.2.4"
   },
   "husky": {
     "hooks": {
