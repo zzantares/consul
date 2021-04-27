@@ -9,6 +9,11 @@
       "signature": "73f1f6d7fed3ef3116158d09a8ce8fa2",
       "file": true,
       "replaced": "12.0.0"
+    },
+    "@hashicorp/react-markdown-page": {
+      "signature": "b77e2119733fa23ace5ad96b1419a694",
+      "file": true,
+      "replaced": "^0.2.0"
     }
   }
 }
