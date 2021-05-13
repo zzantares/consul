@@ -830,7 +830,7 @@ func (l *State) Metadata() map[string]string {
 
 // LoadMetadata loads node metadata fields from the agent config and
 // updates them on the local agent.
-func (l *State) LoadMetadata(data map[string]string) error {
+func (l *State) LoadMetadata(data map[string]string) {
 	l.Lock()
 	defer l.Unlock()
 
@@ -838,7 +838,6 @@ func (l *State) LoadMetadata(data map[string]string) error {
 		l.metadata[k] = v
 	}
 	l.TriggerSyncChanges()
-	return nil
 }
 
 // UnloadMetadata resets the local metadata state

@@ -1,6 +1,7 @@
 package local_test
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -2318,5 +2319,54 @@ func (f *fakeRPC) RPC(method string, args interface{}, reply interface{}) error 
 }
 
 func (f *fakeRPC) ResolveTokenToIdentity(_ string) (structs.ACLIdentity, error) {
+	return nil, nil
+}
+
+func TestState_SyncChanges_DoesNotHoldLockWithCallingRPC(t *testing.T) {
+	timeout := 10 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	t.Cleanup(cancel)
+
+	state := local.NewState(local.Config{}, hclog.New(nil), new(token.Store))
+	rpc := &slowRPC{chDone: ctx.Done(), chStarted: make(chan struct{})}
+	state.Delegate = rpc
+	state.TriggerSyncChanges = func() {}
+
+	state.LoadMetadata(map[string]string{"key": "meta"})
+
+	go func() {
+		if err := state.SyncChanges(); err != nil {
+			t.Errorf("sync changes failed: %v", err)
+		}
+	}()
+
+	<-rpc.chStarted
+	start := time.Now()
+
+	state.LoadMetadata(map[string]string{"key": "value"})
+	err := state.AddServiceWithChecks(&structs.NodeService{ID: "service-ud"}, nil, "the-token")
+	require.NoError(t, err)
+	err = state.AddCheck(&structs.HealthCheck{CheckID: "check-id"}, "the-token")
+	require.NoError(t, err)
+
+	if time.Since(start) > timeout-time.Second {
+		t.Fatalf("SyncChanges blocked state changes")
+	}
+}
+
+type slowRPC struct {
+	chDone    <-chan struct{}
+	chStarted chan struct{}
+}
+
+func (f *slowRPC) RPC(method string, _ interface{}, _ interface{}) error {
+	f.chStarted <- struct{}{}
+	select {
+	case <-f.chDone:
+	}
+	return nil
+}
+
+func (f *slowRPC) ResolveTokenToIdentity(_ string) (structs.ACLIdentity, error) {
 	return nil, nil
 }

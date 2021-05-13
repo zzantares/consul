@@ -525,9 +525,7 @@ func (a *Agent) Start(ctx context.Context) error {
 	if err := a.loadChecks(c, nil); err != nil {
 		return err
 	}
-	if err := a.loadMetadata(c); err != nil {
-		return err
-	}
+	a.loadMetadata(c)
 
 	var intentionDefaultAllow bool
 	switch a.config.ACLDefaultPolicy {
@@ -3433,18 +3431,13 @@ func (a *Agent) snapshotCheckState() map[structs.CheckID]*structs.HealthCheck {
 
 // loadMetadata loads node metadata fields from the agent config and
 // updates them on the local agent.
-func (a *Agent) loadMetadata(conf *config.RuntimeConfig) error {
+func (a *Agent) loadMetadata(conf *config.RuntimeConfig) {
 	meta := map[string]string{}
 	for k, v := range conf.NodeMeta {
 		meta[k] = v
 	}
 	meta[structs.MetaSegmentKey] = conf.SegmentName
-	return a.State.LoadMetadata(meta)
-}
-
-// unloadMetadata resets the local metadata state
-func (a *Agent) unloadMetadata() {
-	a.State.UnloadMetadata()
+	a.State.LoadMetadata(meta)
 }
 
 // serviceMaintCheckID returns the ID of a given service's maintenance check
@@ -3599,7 +3592,7 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 	if err := a.unloadChecks(); err != nil {
 		return fmt.Errorf("Failed unloading checks: %s", err)
 	}
-	a.unloadMetadata()
+	a.State.UnloadMetadata()
 
 	// Reload tokens - should be done before all the other loading
 	// to ensure the correct tokens are available for attaching to
@@ -3617,9 +3610,7 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 	if err := a.loadChecks(newCfg, snap); err != nil {
 		return fmt.Errorf("Failed reloading checks: %s", err)
 	}
-	if err := a.loadMetadata(newCfg); err != nil {
-		return fmt.Errorf("Failed reloading metadata: %s", err)
-	}
+	a.loadMetadata(newCfg)
 
 	if err := a.reloadWatches(newCfg); err != nil {
 		return fmt.Errorf("Failed reloading watches: %v", err)
