@@ -2323,6 +2323,7 @@ func (f *fakeRPC) ResolveTokenToIdentity(_ string) (structs.ACLIdentity, error) 
 }
 
 func TestState_SyncChanges_DoesNotHoldLockWithCallingRPC(t *testing.T) {
+	t.Skip("TODO: enable")
 	timeout := 10 * time.Second
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	t.Cleanup(cancel)
