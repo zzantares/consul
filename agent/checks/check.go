@@ -819,9 +819,9 @@ func NewStatusHandler(inner CheckNotifier, logger hclog.Logger, successBeforePas
 		logger:                 logger,
 		inner:                  inner,
 		successBeforePassing:   successBeforePassing,
-		successCounter:         successBeforePassing,
+		successCounter:         0,
 		failuresBeforeCritical: failuresBeforeCritical,
-		failuresCounter:        failuresBeforeCritical,
+		failuresCounter:        0,
 	}
 }
 
