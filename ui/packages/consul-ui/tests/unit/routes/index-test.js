@@ -1,12 +1,11 @@
-import { module } from 'qunit';
+import { module, test } from 'qunit';
 import { setupTest } from 'ember-qunit';
 // import Service from '@ember/service';
-import test from 'ember-sinon-qunit/test-support/test';
 
-module('Unit | Route | index', function(hooks) {
+module('Unit | Route | index', function (hooks) {
   setupTest(hooks);
 
-  test('it exists', function(assert) {
+  test('it exists', function (assert) {
     let route = this.owner.lookup('route:index');
     assert.ok(route);
   });

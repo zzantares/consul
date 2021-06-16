@@ -6,6 +6,7 @@ import { setup } from 'qunit-dom';
 
 import { registerWaiter } from '@ember/test';
 import * as FlashMessage from './helpers/flash-message';
+import setupSinon from 'ember-sinon-qunit';
 import start from 'ember-exam/test-support/start';
 
 import ClientConnections from 'consul-ui/services/client/connections';
@@ -39,5 +40,5 @@ application.inject('component:copy-button', 'clipboard', 'service:clipboard/loca
 setApplication(application);
 
 setup(QUnit.assert);
-
+setupSinon();
 start();
