@@ -1,8 +1,12 @@
 import Application from '../app';
 import config from '../config/environment';
+import * as QUnit from 'qunit';
 import { setApplication } from '@ember/test-helpers';
+import { setup } from 'qunit-dom';
+import { start } from 'ember-qunit';
+
 import { registerWaiter } from '@ember/test';
-import './helpers/flash-message';
+import * as FlashMessage from './helpers/flash-message';
 import start from 'ember-exam/test-support/start';
 
 import ClientConnections from 'consul-ui/services/client/connections';
@@ -34,5 +38,7 @@ ClientConnections.reopen({
 const application = Application.create(config.APP);
 application.inject('component:copy-button', 'clipboard', 'service:clipboard/local-storage');
 setApplication(application);
+
+setup(QUnit.assert);
 
 start();

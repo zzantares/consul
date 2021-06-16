@@ -63,9 +63,6 @@ module.exports = function(environment, $ = process.env) {
       // Here you can pass flags/options to your application instance
       // when it is created
     },
-    resizeServiceDefaults: {
-      injectionFactories: ['view', 'controller', 'component'],
-    },
   };
 
   // The following 'environment variables' are set at build-time and compiled
