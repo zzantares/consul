@@ -3,7 +3,6 @@ import config from '../config/environment';
 import * as QUnit from 'qunit';
 import { setApplication } from '@ember/test-helpers';
 import { setup } from 'qunit-dom';
-import { start } from 'ember-qunit';
 
 import { registerWaiter } from '@ember/test';
 import * as FlashMessage from './helpers/flash-message';
@@ -12,24 +11,24 @@ import start from 'ember-exam/test-support/start';
 import ClientConnections from 'consul-ui/services/client/connections';
 
 let activeRequests = 0;
-registerWaiter(function() {
+registerWaiter(function () {
   return activeRequests === 0;
 });
 ClientConnections.reopen({
-  addVisibilityChange: function() {
+  addVisibilityChange: function () {
     // for the moment don't listen for tab hiding during testing
     // TODO: make this controllable from testing so we can fake a tab hide
   },
-  purge: function() {
+  purge: function () {
     const res = this._super(...arguments);
     activeRequests = 0;
     return res;
   },
-  acquire: function() {
+  acquire: function () {
     activeRequests++;
     return this._super(...arguments);
   },
-  release: function() {
+  release: function () {
     const res = this._super(...arguments);
     activeRequests--;
     return res;
