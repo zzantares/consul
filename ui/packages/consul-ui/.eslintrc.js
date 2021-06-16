@@ -9,17 +9,15 @@ module.exports = {
     },
   },
   plugins: ['ember', 'qunit'],
-  extends: [
-    'eslint:recommended',
-    'plugin:ember/recommended',
-    'plugin:prettier/recommended',
-  ],
+  extends: ['eslint:recommended', 'plugin:ember/recommended', 'plugin:prettier/recommended'],
   env: {
     browser: true,
   },
   rules: {
     'prefer-const': 'error',
     'no-unused-vars': ['error', { vars: 'all', args: 'none' }],
+    'ember/no-classic-classes': ['warn'],
+    'ember/no-mixins': ['warn'],
     'ember/no-new-mixins': ['warn'],
     'ember/no-jquery': 'warn',
     'ember/no-global-jquery': 'warn',
