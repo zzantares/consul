@@ -8,7 +8,7 @@ module.exports = {
       legacyDecorators: true,
     },
   },
-  plugins: ['ember'],
+  plugins: ['ember', 'qunit'],
   extends: [
     'eslint:recommended',
     'plugin:ember/recommended',
@@ -18,10 +18,12 @@ module.exports = {
     browser: true,
   },
   rules: {
-    'no-unused-vars': ['error', { args: 'none' }],
+    'prefer-const': 'error',
+    'no-unused-vars': ['error', { vars: 'all', args: 'none' }],
     'ember/no-new-mixins': ['warn'],
     'ember/no-jquery': 'warn',
     'ember/no-global-jquery': 'warn',
+    'qunit/no-only': 'error',
   },
   overrides: [
     // node files
