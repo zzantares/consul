@@ -22,7 +22,6 @@ export default class AuthMethod extends Model {
   @attr('string') MaxTokenTTL;
   @attr('number') CreateIndex;
   @attr('number') ModifyIndex;
-  @attr() Datacenters; // string[]
   @attr() meta; // {}
 
   @computed('MaxTokenTTL')

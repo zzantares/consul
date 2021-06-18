@@ -24,7 +24,7 @@ ${env('CONSUL_NSPACES_ENABLE', false) ? `
 `}
             "Description": "${fake.lorem.sentence()}",
 ${i%2 ? `
-            "DisplayName": "${fake.hacker.noun()}-${i}",
+            "DisplayName": "display-${fake.hacker.noun()}-${i}",
 ` : `
             "DisplayName": "",
 `}

@@ -4,30 +4,34 @@
   as |item|
 >
   <BlockSlot @name="header">
-  {{#if (not-eq item.DisplayName '')}}
-    <a data-test-auth-method href={{href-to "dc.acls.auth-methods.show" item.Name}}>
-      {{item.DisplayName}}
+    <a data-test-method-name href={{href-to "dc.acls.auth-methods.show" item.Name}}>
+      {{item.MethodName}}
     </a>
-  {{else}}
-    <a data-test-auth-method href={{href-to "dc.acls.auth-methods.show" item.Name}}>
-      {{item.Name}}
-    </a>
-  {{/if}}
   </BlockSlot>
   <BlockSlot @name="details">
     <Consul::AuthMethod::Type @item={{item}} />
-  {{#if (not-eq item.DisplayName '')}}
-    <span data-test-display-name>{{item.Name}}</span>
+  {{#if (not-eq item.MethodName item.Name)}}
+    <dl class="name">
+      <dt>
+        Name
+      </dt>
+      <dd data-test-name>{{item.Name}}</dd>
+    </dl>
   {{/if}}
   {{#if (eq item.TokenLocality 'global')}}
-    <span class="locality">creates global tokens</span>
+    <dl class="locality">
+      <dt>
+        <span>Locality</span>
+      </dt>
+      <dd>creates global tokens</dd>
+    </dl>
   {{/if}}
   {{#if item.MaxTokenTTL}}
     <dl class="ttl">
-      <dt>
-        <Tooltip>
-          Maximum Time to Live: the maximum life of any token created by this auth method
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        Maximum Time to Live: the maximum life of any token created by this auth method
       </dt>
       <dd>{{item.MaxTokenTTL}}</dd>
     </dl>

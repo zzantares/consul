@@ -1,4 +1,101 @@
+<Route
+  @name={{routeName}}
+as |route|>
 
-<div class="tab-section">
-  <Consul::AuthMethod::View @item={{item}} />
-</div>
+  <div class="tab-section">
+
+    <Consul::AuthMethod::View @item={{this.item}} />
+
+  {{#if (contains this.item.Type (array 'oidc' 'jwt'))}}
+      <hr />
+
+      <h2>Claim Mappings</h2>
+  {{#if this.item.Config.ClaimMappings}}
+      <p>
+        Use this if the claim you are capturing is singular. When mapped, the values can be any of a number, string, or boolean and will all be stringified when returned.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each (entries this.item.Config.ClaimMappings) as |entry|}}
+          <tr>
+            <td>{{get entry 0}}</td>
+            <td>{{get entry 1}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+  {{else}}
+      <EmptyState>
+        <BlockSlot @name="header">
+          <h3>No claim mappings</h3>
+        </BlockSlot>
+        <BlockSlot @name="body">
+          <p>
+            Use this if the claim you are capturing is singular. When mapped, the values can be any of a number, string, or boolean and will all be stringified when returned.
+          </p>
+        </BlockSlot>
+        <BlockSlot @name="actions">
+          <li class="docs-link">
+          {{#if (eq this.item.Type 'jwt')}}
+            <a href="{{env 'CONSUL_DOCS_URL'}}/security/acl/auth-methods/jwt#claimmappings" rel="noopener noreferrer" target="_blank">Read the documentation</a>
+          {{else}}
+            <a href="{{env 'CONSUL_DOCS_URL'}}/security/acl/auth-methods/oidc#claimmappings" rel="noopener noreferrer" target="_blank">Read the documentation</a>
+          {{/if}}
+          </li>
+        </BlockSlot>
+      </EmptyState>
+  {{/if}}
+
+      <hr />
+
+      <h2>List Claim Mappings</h2>
+  {{#if this.item.Config.ListClaimMappings}}
+      <p>
+        Use this if the claim you are capturing is list-like (such as groups). When mapped, the values can be any of a number, string, or boolean and will all be stringified when returned.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Value</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{#each (entries this.item.Config.ListClaimMappings) as |entry|}}
+          <tr>
+            <td>{{get entry 0}}</td>
+            <td>{{get entry 1}}</td>
+          </tr>
+          {{/each}}
+        </tbody>
+      </table>
+  {{else}}
+      <EmptyState>
+        <BlockSlot @name="header">
+          <h3>No list claim mappings</h3>
+        </BlockSlot>
+        <BlockSlot @name="body">
+          <p>
+            Use this if the claim you are capturing is list-like (such as groups). When mapped, the values can be any of a number, string, or boolean and will all be stringified when returned.
+          </p>
+        </BlockSlot>
+        <BlockSlot @name="actions">
+          <li class="docs-link">
+          {{#if (eq this.item.Type 'jwt')}}
+            <a href="{{env 'CONSUL_DOCS_URL'}}/security/acl/auth-methods/jwt#listclaimmappings" rel="noopener noreferrer" target="_blank">Read the documentation</a>
+          {{else}}
+            <a href="{{env 'CONSUL_DOCS_URL'}}/security/acl/auth-methods/oidc#listclaimmappings" rel="noopener noreferrer" target="_blank">Read the documentation</a>
+          {{/if}}
+          </li>
+        </BlockSlot>
+      </EmptyState>
+  {{/if}}
+  {{/if}}
+  </div>
+</Route>

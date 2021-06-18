@@ -14,11 +14,6 @@ export default class ShowRoute extends SingleRoute {
       return hash({
         ...model,
         ...{
-          item: this.repo.findBySlug({
-            id: params.id,
-            dc: dc.Name,
-            ns: nspace,
-          }),
           bindingRules: this.bindingRuleRepo.findAllByDatacenter({
             ns: nspace,
             dc: dc.Name,

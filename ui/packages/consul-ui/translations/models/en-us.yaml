@@ -23,6 +23,7 @@ auth-method:
     OIDCDiscoveryCACert: OIDC discovery CA cert
     OIDCClientID: Client ID
     OIDCClientSecret: Client secret
+    RedirectURI: Redirect URI
     AllowedRedirectURIs: Allowed redirect URIs
     OIDCScopes: OIDC scopes
     VerboseOIDCLogging: Verbose OIDC logging

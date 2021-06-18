@@ -7,7 +7,7 @@ export default class IndexRoute extends Route {
 
   queryParams = {
     sortBy: 'sort',
-    source: 'source',
+    locality: 'locality',
     kind: 'kind',
     searchproperty: {
       as: 'searchproperty',

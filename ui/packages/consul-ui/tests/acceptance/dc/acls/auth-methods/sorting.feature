@@ -21,7 +21,7 @@ Feature: dc / acls / auth-methods / sorting
     Then I see 4 authMethod models
     When I click selected on the sort
     When I click options.1.button on the sort
-    Then I see name on the authMethods vertically like yaml
+    Then I see methodName on the authMethods vertically like yaml
     ---
     - "system-D"
     - "system-C"
@@ -30,7 +30,7 @@ Feature: dc / acls / auth-methods / sorting
     ---
     When I click selected on the sort
     When I click options.0.button on the sort
-    Then I see name on the authMethods vertically like yaml
+    Then I see methodName on the authMethods vertically like yaml
     ---
     - "system-A"
     - "system-B"

@@ -89,7 +89,7 @@ as |key value|}}
       <search.Select
         class="type-locality"
         @position="left"
-        @onchange={{action @filter.source.change}}
+        @onchange={{action @filter.locality.change}}
         @multiple={{true}}
       as |components|>
         <BlockSlot @name="selected">
@@ -100,7 +100,7 @@ as |key value|}}
         <BlockSlot @name="options">
       {{#let components.Optgroup components.Option as |Optgroup Option|}}
         {{#each (array "local" "global") as |option|}}
-          <Option class="{{option}}" @value={{option}} @selected={{contains option @filter.types}}>
+          <Option class="{{option}}" @value={{option}} @selected={{contains option @filter.locality.value}}>
             {{t (concat "components.consul.auth-method.search-bar.locality.options." option)}}
           </Option>
         {{/each}}

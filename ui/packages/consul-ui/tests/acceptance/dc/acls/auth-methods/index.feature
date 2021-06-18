@@ -33,16 +33,16 @@ Feature: dc / acls / auth-methods / index: ACL Auth Methods List
     s: kube
     ---
     And I see 1 authMethod model
-    And I see 1 authMethod model with the name "minikube"
+    And I see 1 authMethod model with the methodName "minikube"
     Then I fill in with yaml
     ---
     s: agent
     ---
     And I see 1 authMethod model
-    And I see 1 authMethod model with the name "agent"
+    And I see 1 authMethod model with the methodName "agent"
     Then I fill in with yaml
     ---
     s: ode
     ---
     And I see 1 authMethod model
-    And I see 1 authMethod model with the name "mininode"
+    And I see 1 authMethod model with the methodName "mininode"

@@ -1,47 +1,42 @@
 ${
 	[1].map(i => {
+    const namespaceRules = env(
+      'CONSUL_NAMESPACE_RULE_COUNT',
+      Math.floor((Math.random() * 10) + 1)
+    );
+    const claimMappings = env(
+      'CONSUL_CLAIM_MAPPING_COUNT',
+      Math.floor((Math.random() * 10) + 1)
+    );
+    const listClaimMappings = env(
+      'CONSUL_LIST_CLAIM_MAPPING_COUNT',
+      Math.floor((Math.random() * 10) + 1)
+    );
+
     const type = `${fake.helpers.randomize(['kubernetes', 'jwt', 'oidc'])}`;
+
     const cert = `-----BEGIN CERTIFICATE-----
-MIIH/TCCBeWgAwIBAgIQaBYE3/M08XHYCnNVmcFBcjANBgkqhkiG9w0BAQsFADBy
-MQswCQYDVQQGEwJVUzEOMAwGA1UECAwFVGV4YXMxEDAOBgNVBAcMB0hvdXN0b24x
-ETAPBgNVBAoMCFNTTCBDb3JwMS4wLAYDVQQDDCVTU0wuY29tIEVWIFNTTCBJbnRl
-cm1lZGlhdGUgQ0EgUlNBIFIzMB4XDTIwMDQwMTAwNTgzM1oXDTIxMDcxNjAwNTgz
-M1owgb0xCzAJBgNVBAYTAlVTMQ4wDAYDVQQIDAVUZXhhczEQMA4GA1UEBwwHSG91
-c3RvbjERMA8GA1UECgwIU1NMIENvcnAxFjAUBgNVBAUTDU5WMjAwODE2MTQyNDMx
-FDASBgNVBAMMC3d3dy5zc2wuY29tMR0wGwYDVQQPDBRQcml2YXRlIE9yZ2FuaXph
-dGlvbjEXMBUGCysGAQQBgjc8AgECDAZOZXZhZGExEzARBgsrBgEEAYI3PAIBAxMC
-VVMwggEiMA0GCSqGSIb3DQEBAQUAA4IBDwAwggEKAoIBAQDHheRkbb1FCc7xRKst
-wK0JIGaKY8t7JbS2bQ2b6YIJDgnHuIYHqBrCUV79oelikkokRkFvcvpaKinFHDQH
-UpWEI6RUERYmSCg3O8Wi42uOcV2B5ZabmXCkwdxY5Ecl51BbM8UnGdoAGbdNmiRm
-SmTjcs+lhMxg4fFY6lBpiEVFiGUjGRR+61R67Lz6U4KJeLNcCm07QwFYKBmpi08g
+MIICnDCCAkOgAwIBAgIRAOnKNzSoGq53Rq/G5tbm85swCgYIKoZIzj0EAwIwgbkx
+CzAJBgNVBAYTAlVTMQswCQYDVQQIEwJDQTEWMBQGA1UEBxMNU2FuIEZyYW5jaXNj
+bzEaMBgGA1UECRMRMTAxIFNlY29uZCBTdHJlZXQxDjAMBgNVBBETBTk0MTA1MRcw
+FQYDVQQKEw5IYXNoaUNvcnAgSW5jLjFAMD4GA1UEAxM3Q29uc3VsIEFnZW50IENB
+IDE4NTU3MTQ5MTMzMTA0NzczNDYwMjQyMDcxODI5NjUzMzQzNTQ0MzAeFw0yMDEw
+MjgyMjI3NTZaFw0yMTEwMjgyMjI3NTZaMBwxGjAYBgNVBAMTEWNsaWVudC5kYzEu
+Y29uc3VsMFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEMtVdDd8tDZBaOaDFFzWD
+0hTxO7soxUuz1dWaO8FGhIS07dfSBjYumEOgfNtfOzAILvkBd4gS8DrQZ2Rbks86
+iKOBxzCBxDAOBgNVHQ8BAf8EBAMCBaAwHQYDVR0lBBYwFAYIKwYBBQUHAwIGCCsG
+AQUFBwMBMAwGA1UdEwEB/wQCMAAwKQYDVR0OBCIEIEJWUjlDw7H2fbRpGG8fpqCq
+GEX80iDpQqXOU0wg6fEPMCsGA1UdIwQkMCKAIAu+td60D/Er7Xjtyg0B6XflfKYm
+IdXjPfiFy8SGeKS2MC0GA1UdEQQmMCSCEWNsaWVudC5kYzEuY29uc3Vsgglsb2Nh
+bGhvc3SHBH8AAAEwCgYIKoZIzj0EAwIDRwAwRAIgYAZTf8VcZ4nQl4lbm579BfXy
+6YpYz/DdfkEODUBxUyYCIDXhfmxtL/gTSkIh1E+fV7H7ZmqPKgTDH1XBV2zYnj/C
 -----END CERTIFICATE-----`;
+
     let sourceType;
 
     if (type !== 'kubernetes') {
       sourceType = `${fake.helpers.randomize(['JWTValidationPubKeys', 'JWKSURL', 'OIDCDiscoveryURL'])}`;
     }
-
-    const claimMappings = {
-      "http://example.com/example-1": `${fake.hacker.noun()}`,
-      "http://example.com/example-2": `${fake.hacker.noun()}`
-    }
-    const listClaimMappings = {
-      "http://example.com/example-1": `${fake.hacker.noun()}`
-    }
-    const namespaceRules = `[
-      {
-          "Selector": "${fake.hacker.noun()} in list.group",
-          "BindNamespace": "dc-1"
-      },
-      {
-          "Selector": "serviceaccount.namespace!=${fake.hacker.noun()}",
-          "BindNamespace": "dc-2"
-      },
-      {
-          "Selector": "serviceaccount.namespace==${fake.hacker.noun()}",
-          "BindNamespace": "dc-3"
-      }
-    ]`;
 
     let config = {};
     switch(type) {
@@ -61,11 +56,27 @@ SmTjcs+lhMxg4fFY6lBpiEVFiGUjGRR+61R67Lz6U4KJeLNcCm07QwFYKBmpi08g
           BoundAudiences: ["aud_example_0", "aud_example_1"],
           OIDCScopes: ["scope_01", "scope_02", "scope_03"],
           JWTSupportedAlgs: ["RS256", "RS257"],
-          VerboseOIDCLogging: true,
+          VerboseOIDCLogging: fake.random.boolean(),
           AllowedRedirectURIs: ["http://example.com/example-1", "http://example.com/example-2", "http://example.com/example-3"],
-          ClaimMappings: claimMappings,
-          ListClaimMappings: listClaimMappings
         };
+        if(claimMappings > 0) {
+          config = {
+            ...config,
+            ClaimMappings: range(claimMappings).reduce((prev, item) => ({
+              ...prev,
+              [`http://${fake.internet.domainName()}/${fake.system.fileName()}`]: `${fake.hacker.noun()}`,
+            }), {}),
+          };
+        }
+        if(listClaimMappings > 0) {
+          config = {
+            ...config,
+            ListClaimMappings: range(listClaimMappings).reduce((prev, item) => ({
+              ...prev,
+              [`http://${fake.internet.domainName()}/${fake.system.fileName()}`]: `${fake.hacker.noun()}`,
+            }), {}),
+          };
+        }
         break;
       case 'jwt':
         config = {
@@ -75,9 +86,25 @@ SmTjcs+lhMxg4fFY6lBpiEVFiGUjGRR+61R67Lz6U4KJeLNcCm07QwFYKBmpi08g
           ExpirationLeeway: `${fake.random.number({min: 0, max: 60})}`,
           NotBeforeLeeway: `${fake.random.number({min: 0, max: 60})}`,
           ClockSkewLeeway: `${fake.random.number({min: 0, max: 60})}`,
-          ClaimMappings: claimMappings,
-          ListClaimMappings: listClaimMappings
         };
+        if(claimMappings > 0) {
+          config = {
+            ...config,
+            ClaimMappings: range(claimMappings).reduce((prev, item) => ({
+              ...prev,
+              [`http://${fake.internet.domainName()}/${fake.system.fileName()}`]: `${fake.hacker.noun()}`,
+            }), {}),
+          };
+        }
+        if(listClaimMappings > 0) {
+          config = {
+            ...config,
+            ListClaimMappings: range(listClaimMappings).reduce((prev, item) => ({
+              ...prev,
+              [`http://${fake.internet.domainName()}/${fake.system.fileName()}`]: `${fake.hacker.noun()}`,
+            }), {}),
+          };
+        }
         break;
     }
 
@@ -105,7 +132,16 @@ SmTjcs+lhMxg4fFY6lBpiEVFiGUjGRR+61R67Lz6U4KJeLNcCm07QwFYKBmpi08g
       "DisplayName": "${fake.hacker.noun()}",
       "MaxTokenTTL": "${fake.random.number({min: 0, max: 60})}m${fake.random.number({min: 0, max: 60})}s",
       "TokenLocality": "${fake.helpers.randomize(['local', 'global', ''])}",
-      "NamespaceRules": ${namespaceRules},
+${namespaceRules > 0 ? `
+      "NamespaceRules": [
+${range(namespaceRules).map(item => `
+      {
+          "Selector": "${fake.helpers.randomize(['serviceaccount.namespace==', 'serviceaccount.namespace!='])}${fake.hacker.noun()}",
+          "BindNamespace": "${fake.hacker.noun()}-nspace"
+      }
+`)}
+      ],
+` : ``}
       "Config": ${JSON.stringify(config)},
       "CreateIndex": ${fake.random.number()},
       "ModifyIndex": 10

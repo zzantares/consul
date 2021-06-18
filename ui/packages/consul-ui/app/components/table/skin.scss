@@ -24,3 +24,9 @@
 %table td:first-child {
   @extend %tbody-th;
 }
+%table-non-interactive tr {
+  cursor: default;
+}
+%table-non-interactive tr:hover {
+  box-shadow: none;
+}

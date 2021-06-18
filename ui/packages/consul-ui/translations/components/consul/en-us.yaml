@@ -64,7 +64,7 @@ auth-method:
     kind:
       name: Type
     locality:
-      name: Source
+      name: Locality
       options:
         local: Creates local tokens
         global: Creates global tokens

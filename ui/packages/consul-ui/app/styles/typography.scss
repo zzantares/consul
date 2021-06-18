@@ -50,6 +50,8 @@ pre code,
 %form-element-error > strong {
   @extend %p3;
 }
+/* TODO: can this just be %main-content code? */
+%main-content dd code,
 %main-content p code {
   @extend %inline-code;
 }

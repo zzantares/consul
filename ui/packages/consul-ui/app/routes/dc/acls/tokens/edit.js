@@ -16,7 +16,6 @@ export default class EditRoute extends SingleRoute.extend(WithTokenActions) {
       return hash({
         ...model,
         ...{
-          routeName: this.routeName,
           token: this.settings.findBySlug('token'),
         },
       });
