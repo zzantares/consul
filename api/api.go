@@ -76,6 +76,10 @@ const (
 	// HTTPNamespaceEnvVar defines an environment variable name which sets
 	// the HTTP Namespace to be used by default. This can still be overridden.
 	HTTPNamespaceEnvName = "CONSUL_NAMESPACE"
+
+	// HTTPPArtitionEnvName defines an environment variable name which sets
+	// the HTTP Partition to be used by default. This can still be overridden.
+	HTTPPartitionEnvName = "CONSUL_PARTITION"
 )
 
 // QueryOptions are used to parameterize a query
@@ -83,6 +87,10 @@ type QueryOptions struct {
 	// Namespace overrides the `default` namespace
 	// Note: Namespaces are available only in Consul Enterprise
 	Namespace string
+
+	// Partition overrides the `default` partition
+	// Note: Partitions are available only in Consul Enterprise
+	Partition string
 
 	// Providing a datacenter overwrites the DC provided
 	// by the Config
@@ -190,6 +198,10 @@ type WriteOptions struct {
 	// Namespace overrides the `default` namespace
 	// Note: Namespaces are available only in Consul Enterprise
 	Namespace string
+
+	// Partition overrides the `default` partition
+	// Note: Partitions are available only in Consul Enterprise
+	Partition string
 
 	// Providing a datacenter overwrites the DC provided
 	// by the Config
@@ -313,6 +325,10 @@ type Config struct {
 	// Namespace is the name of the namespace to send along for the request
 	// when no other Namespace is present in the QueryOptions
 	Namespace string
+
+	// Partition is the name of the partition to send along for the request
+	// when no other Partition is present in the QueryOptions
+	Partition string
 
 	TLSConfig TLSConfig
 }
@@ -464,6 +480,10 @@ func defaultConfig(logger hclog.Logger, transportFn func() *http.Transport) *Con
 
 	if v := os.Getenv(HTTPNamespaceEnvName); v != "" {
 		config.Namespace = v
+	}
+
+	if v := os.Getenv(HTTPPartitionEnvName); v != "" {
+		config.Partition = v
 	}
 
 	return config
@@ -732,6 +752,9 @@ func (r *request) setQueryOptions(q *QueryOptions) {
 	if q.Namespace != "" {
 		r.params.Set("ns", q.Namespace)
 	}
+	if q.Partition != "" {
+		r.params.Set("partition", q.Partition)
+	}
 	if q.Datacenter != "" {
 		r.params.Set("dc", q.Datacenter)
 	}
@@ -834,6 +857,9 @@ func (r *request) setWriteOptions(q *WriteOptions) {
 	if q.Namespace != "" {
 		r.params.Set("ns", q.Namespace)
 	}
+	if q.Partition != "" {
+		r.params.Set("partition", q.Partition)
+	}
 	if q.Datacenter != "" {
 		r.params.Set("dc", q.Datacenter)
 	}
@@ -908,6 +934,9 @@ func (c *Client) newRequest(method, path string) *request {
 	if c.config.Namespace != "" {
 		r.params.Set("ns", c.config.Namespace)
 	}
+	if c.config.Partition != "" {
+		r.params.Set("partition", c.config.Partition)
+	}
 	if c.config.WaitTime != 0 {
 		r.params.Set("wait", durToMsec(r.config.WaitTime))
 	}
@@ -939,7 +968,7 @@ func (c *Client) query(endpoint string, out interface{}, q *QueryOptions) (*Quer
 	if err != nil {
 		return nil, err
 	}
-	defer closeResponseBody(resp)
+	defer resp.Body.Close()
 
 	qm := &QueryMeta{}
 	parseQueryMeta(resp, qm)
@@ -961,7 +990,7 @@ func (c *Client) write(endpoint string, in, out interface{}, q *WriteOptions) (*
 	if err != nil {
 		return nil, err
 	}
-	defer closeResponseBody(resp)
+	defer resp.Body.Close()
 
 	wm := &WriteMeta{RequestTime: rtt}
 	if out != nil {
@@ -1055,7 +1084,7 @@ func encodeBody(obj interface{}) (io.Reader, error) {
 func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *http.Response, error) {
 	if e != nil {
 		if resp != nil {
-			closeResponseBody(resp)
+			resp.Body.Close()
 		}
 		return d, nil, e
 	}
@@ -1063,14 +1092,6 @@ func requireOK(d time.Duration, resp *http.Response, e error) (time.Duration, *h
 		return d, nil, generateUnexpectedResponseCodeError(resp)
 	}
 	return d, resp, nil
-}
-
-// closeResponseBody reads resp.Body until EOF, and then closes it. The read
-// is necessary to ensure that the http.Client's underlying RoundTripper is able
-// to re-use the TCP connection. See godoc on net/http.Client.Do.
-func closeResponseBody(resp *http.Response) error {
-	_, _ = io.Copy(ioutil.Discard, resp.Body)
-	return resp.Body.Close()
 }
 
 func (req *request) filterQuery(filter string) {
@@ -1087,14 +1108,14 @@ func (req *request) filterQuery(filter string) {
 func generateUnexpectedResponseCodeError(resp *http.Response) error {
 	var buf bytes.Buffer
 	io.Copy(&buf, resp.Body)
-	closeResponseBody(resp)
+	resp.Body.Close()
 	return fmt.Errorf("Unexpected response code: %d (%s)", resp.StatusCode, buf.Bytes())
 }
 
 func requireNotFoundOrOK(d time.Duration, resp *http.Response, e error) (bool, time.Duration, *http.Response, error) {
 	if e != nil {
 		if resp != nil {
-			closeResponseBody(resp)
+			resp.Body.Close()
 		}
 		return false, d, nil, e
 	}

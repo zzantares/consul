@@ -733,6 +733,7 @@ func TestAPI_SetQueryOptions(t *testing.T) {
 	r := c.newRequest("GET", "/v1/kv/foo")
 	q := &QueryOptions{
 		Namespace:         "operator",
+		Partition:         "asdf",
 		Datacenter:        "foo",
 		AllowStale:        true,
 		RequireConsistent: true,
@@ -745,6 +746,9 @@ func TestAPI_SetQueryOptions(t *testing.T) {
 	r.setQueryOptions(q)
 
 	if r.params.Get("ns") != "operator" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("partition") != "asdf" {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.params.Get("dc") != "foo" {
@@ -794,11 +798,15 @@ func TestAPI_SetWriteOptions(t *testing.T) {
 	r := c.newRequest("GET", "/v1/kv/foo")
 	q := &WriteOptions{
 		Namespace:  "operator",
+		Partition:  "asdf",
 		Datacenter: "foo",
 		Token:      "23456",
 	}
 	r.setWriteOptions(q)
 	if r.params.Get("ns") != "operator" {
+		t.Fatalf("bad: %v", r.params)
+	}
+	if r.params.Get("partition") != "asdf" {
 		t.Fatalf("bad: %v", r.params)
 	}
 	if r.params.Get("dc") != "foo" {
