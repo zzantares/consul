@@ -368,6 +368,10 @@ func (f fakeGRPCConnPool) ClientConn(_ string) (*grpc.ClientConn, error) {
 	return nil, nil
 }
 
+func (f fakeGRPCConnPool) ClientConnLeader() (*grpc.ClientConn, error) {
+	return nil, nil
+}
+
 func TestAgent_ReconnectConfigWanDisabled(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow for testing.Short")
@@ -5118,9 +5122,10 @@ func TestAgent_AutoEncrypt(t *testing.T) {
 		Datacenter: "dc1",
 		Agent:      "test-client",
 	}
+	expectedCN := connect.AgentCN("test-client", connect.TestClusterID)
 	x509Cert, err := x509.ParseCertificate(aeCert.Certificate[0])
 	require.NoError(t, err)
-	require.Empty(t, x509Cert.Subject.CommonName)
+	require.Equal(t, expectedCN, x509Cert.Subject.CommonName)
 	require.Len(t, x509Cert.URIs, 1)
 	require.Equal(t, id.URI(), x509Cert.URIs[0])
 }
