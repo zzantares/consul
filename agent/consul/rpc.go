@@ -802,8 +802,15 @@ func (s *Server) raftApplyWithEncoder(
 // a snapshot.
 type queryFn func(memdb.WatchSet, *state.Store) error
 
+type queryMeta interface {
+	GetIndex() uint64
+	SetIndex(uint64)
+	SetLastContact(time.Duration)
+	SetKnownLeader(bool)
+}
+
 // blockingQuery is used to process a potentially blocking query operation.
-func (s *Server) blockingQuery(queryOpts structs.QueryOptionsCompat, queryMeta structs.QueryMetaCompat, fn queryFn) error {
+func (s *Server) blockingQuery(queryOpts structs.QueryOptionsCompat, queryMeta queryMeta, fn queryFn) error {
 	var cancel func()
 	var ctx context.Context = &lib.StopChannelContext{StopCh: s.shutdownCh}
 
@@ -907,7 +914,7 @@ RUN_QUERY:
 }
 
 // setQueryMeta is used to populate the QueryMeta data for an RPC call
-func (s *Server) setQueryMeta(m structs.QueryMetaCompat) {
+func (s *Server) setQueryMeta(m queryMeta) {
 	if s.IsLeader() {
 		m.SetLastContact(0)
 		m.SetKnownLeader(true)

@@ -2,8 +2,6 @@ package pbcommon
 
 import (
 	"time"
-
-	"github.com/hashicorp/consul/agent/structs"
 )
 
 // IsRead is always true for QueryOption
@@ -97,10 +95,6 @@ func (q *QueryMeta) SetIndex(index uint64) {
 // SetConsistencyLevel is needed to implement the structs.QueryMetaCompat interface
 func (q *QueryMeta) SetConsistencyLevel(consistencyLevel string) {
 	q.ConsistencyLevel = consistencyLevel
-}
-
-func (q *QueryMeta) GetBackend() structs.QueryBackend {
-	return structs.QueryBackend(0)
 }
 
 // WriteRequest only applies to writes, always false

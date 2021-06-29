@@ -494,7 +494,7 @@ func (d *testServerDelegate) datacenterSupportsFederationStates() bool {
 // This is just enough to exercise the logic.
 func (d *testServerDelegate) blockingQuery(
 	queryOpts structs.QueryOptionsCompat,
-	queryMeta structs.QueryMetaCompat,
+	queryMeta queryMeta,
 	fn queryFn,
 ) error {
 	minQueryIndex := queryOpts.GetMinQueryIndex()
