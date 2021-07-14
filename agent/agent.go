@@ -135,6 +135,7 @@ type delegate interface {
 
 	// TODO: replace this method with consul.ACLResolver
 	ResolveTokenToIdentity(token string) (structs.ACLIdentity, error)
+	UseLegacyACLs() bool
 
 	// ResolveTokenAndDefaultMeta returns an acl.Authorizer which authorizes
 	// actions based on the permissions granted to the token.
@@ -143,7 +144,6 @@ type delegate interface {
 	ResolveTokenAndDefaultMeta(token string, entMeta *structs.EnterpriseMeta, authzContext *acl.AuthorizerContext) (acl.Authorizer, error)
 
 	RPC(method string, args interface{}, reply interface{}) error
-	UseLegacyACLs() bool
 	SnapshotRPC(args *structs.SnapshotRequest, in io.Reader, out io.Writer, replyFn structs.SnapshotReplyFn) error
 	Shutdown() error
 	Stats() map[string]map[string]string
