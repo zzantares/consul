@@ -721,7 +721,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 	case "service":
 		n := len(queryParts)
 		if n < 1 {
-			return invalid()
+			return errNoData
 		}
 
 		if !d.parseDatacenterAndEnterpriseMeta(querySuffixes, cfg, &datacenter, &entMeta) {
@@ -767,7 +767,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 
 	case "connect":
 		if len(queryParts) < 1 {
-			return invalid()
+			return errNoData
 		}
 
 		if !d.parseDatacenterAndEnterpriseMeta(querySuffixes, cfg, &datacenter, &entMeta) {
@@ -822,7 +822,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 
 	case "ingress":
 		if len(queryParts) < 1 {
-			return invalid()
+			return errNoData
 		}
 
 		if !d.parseDatacenterAndEnterpriseMeta(querySuffixes, cfg, &datacenter, &entMeta) {
@@ -842,7 +842,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 
 	case "node":
 		if len(queryParts) < 1 {
-			return invalid()
+			return errNoData
 		}
 
 		if !d.parseDatacenter(querySuffixes, &datacenter) {
@@ -856,7 +856,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 	case "query":
 		// ensure we have a query name
 		if len(queryParts) < 1 {
-			return invalid()
+			return errNoData
 		}
 
 		if !d.parseDatacenter(querySuffixes, &datacenter) {
@@ -872,7 +872,7 @@ func (d *DNSServer) dispatch(remoteAddr net.Addr, req, resp *dns.Msg, maxRecursi
 		// <address>.addr.<suffixes>.<domain> - addr must be the second label, datacenter is optional
 
 		if len(queryParts) != 1 {
-			return invalid()
+			return errNoData
 		}
 
 		switch len(queryParts[0]) / 2 {
