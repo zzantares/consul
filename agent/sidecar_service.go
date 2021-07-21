@@ -18,7 +18,7 @@ func sidecarServiceID(serviceID string) string {
 // config.
 //
 // It assumes the ns has been validated already which means the nested
-// SidecarService is also already validated.It also assumes that any check
+// SidecarService is also already validated. It also assumes that any check
 // definitions within the sidecar service definition have been validated if
 // necessary. If no sidecar service is defined in ns, then nil is returned with
 // nil error.
@@ -44,6 +44,16 @@ func (a *Agent) sidecarServiceFromNodeService(ns *structs.NodeService, token str
 
 	// for now at least these must be identical
 	sidecar.EnterpriseMeta = ns.EnterpriseMeta
+
+	// If a sidecar's namespace is not defined, use outer service's namespace.
+	// Applicable only to Consul Enterprise.
+	if namespace := ns.EnterpriseMeta.NamespaceOrEmpty(); namespace != "" {
+		for i := range sidecar.Proxy.Upstreams {
+			if sidecar.Proxy.Upstreams[i].DestinationNamespace == "" {
+				sidecar.Proxy.Upstreams[i].DestinationNamespace = namespace
+			}
+		}
+	}
 
 	// Set some meta we can use to disambiguate between service instances we added
 	// later and are responsible for deregistering.
