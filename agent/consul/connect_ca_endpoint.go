@@ -3,6 +3,7 @@ package consul
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-hclog"
@@ -39,10 +40,26 @@ const (
 	csrLimitWait = 500 * time.Millisecond
 )
 
+type connectCABackend interface {
+	ForwardRPC(method string, info structs.RPCInfo, reply interface{}) (bool, error)
+	ResolveToken(token string) (acl.Authorizer, error)
+	State() *state.Store
+	getCARoots(ws memdb.WatchSet, state *state.Store) (*structs.IndexedCARoots, error)
+	blockingQuery(queryOpts structs.QueryOptionsCompat, queryMeta structs.QueryMetaCompat, fn queryFn) error
+	CAManager() *CAManager
+	Config() ConnectCAConfig
+}
+
+type ConnectCAConfig struct {
+	Datacenter        string
+	PrimaryDatacenter string
+	ConnectEnabled    bool
+}
+
 // ConnectCA manages the Connect CA.
 type ConnectCA struct {
 	// srv is a pointer back to the server.
-	srv *Server
+	srv connectCABackend
 
 	logger hclog.Logger
 }
@@ -52,7 +69,7 @@ func (s *ConnectCA) ConfigurationGet(
 	args *structs.DCSpecificRequest,
 	reply *structs.CAConfiguration) error {
 	// Exit early if Connect hasn't been enabled.
-	if !s.srv.config.ConnectEnabled {
+	if !s.srv.Config().ConnectEnabled {
 		return ErrConnectNotEnabled
 	}
 
@@ -69,7 +86,7 @@ func (s *ConnectCA) ConfigurationGet(
 		return acl.ErrPermissionDenied
 	}
 
-	state := s.srv.fsm.State()
+	state := s.srv.State()
 	_, config, err := state.CAConfig(nil)
 	if err != nil {
 		return err
@@ -84,7 +101,7 @@ func (s *ConnectCA) ConfigurationSet(
 	args *structs.CARequest,
 	reply *interface{}) error {
 	// Exit early if Connect hasn't been enabled.
-	if !s.srv.config.ConnectEnabled {
+	if !s.srv.Config().ConnectEnabled {
 		return ErrConnectNotEnabled
 	}
 
@@ -101,7 +118,7 @@ func (s *ConnectCA) ConfigurationSet(
 		return acl.ErrPermissionDenied
 	}
 
-	return s.srv.caManager.UpdateConfiguration(args)
+	return s.srv.CAManager().UpdateConfiguration(args)
 }
 
 // Roots returns the currently trusted root certificates.
@@ -114,7 +131,7 @@ func (s *ConnectCA) Roots(
 	}
 
 	// Exit early if Connect hasn't been enabled.
-	if !s.srv.config.ConnectEnabled {
+	if !s.srv.Config().ConnectEnabled {
 		return ErrConnectNotEnabled
 	}
 
@@ -136,8 +153,7 @@ func (s *ConnectCA) Roots(
 func (s *ConnectCA) Sign(
 	args *structs.CASignRequest,
 	reply *structs.IssuedCert) error {
-	// Exit early if Connect hasn't been enabled.
-	if !s.srv.config.ConnectEnabled {
+	if !s.srv.Config().ConnectEnabled {
 		return ErrConnectNotEnabled
 	}
 
@@ -181,9 +197,9 @@ func (s *ConnectCA) Sign(
 
 		// Verify that the DC in the service URI matches us. We might relax this
 		// requirement later but being restrictive for now is safer.
-		if serviceID.Datacenter != s.srv.config.Datacenter {
+		if serviceID.Datacenter != s.srv.Config().Datacenter {
 			return fmt.Errorf("SPIFFE ID in CSR from a different datacenter: %s, "+
-				"we are %s", serviceID.Datacenter, s.srv.config.Datacenter)
+				"we are %s", serviceID.Datacenter, s.srv.Config().Datacenter)
 		}
 	} else if isAgent {
 		structs.DefaultEnterpriseMeta().FillAuthzContext(&authzContext)
@@ -192,7 +208,7 @@ func (s *ConnectCA) Sign(
 		}
 	}
 
-	cert, err := s.srv.caManager.SignCertificate(csr, spiffeID)
+	cert, err := s.srv.CAManager().SignCertificate(csr, spiffeID)
 	if err != nil {
 		return err
 	}
@@ -204,8 +220,7 @@ func (s *ConnectCA) Sign(
 func (s *ConnectCA) SignIntermediate(
 	args *structs.CASignRequest,
 	reply *string) error {
-	// Exit early if Connect hasn't been enabled.
-	if !s.srv.config.ConnectEnabled {
+	if !s.srv.Config().ConnectEnabled {
 		return ErrConnectNotEnabled
 	}
 
@@ -214,7 +229,7 @@ func (s *ConnectCA) SignIntermediate(
 	}
 
 	// Verify we are allowed to serve this request
-	if s.srv.config.PrimaryDatacenter != s.srv.config.Datacenter {
+	if s.srv.Config().PrimaryDatacenter != s.srv.Config().Datacenter {
 		return ErrNotPrimaryDatacenter
 	}
 
@@ -227,7 +242,7 @@ func (s *ConnectCA) SignIntermediate(
 		return acl.ErrPermissionDenied
 	}
 
-	provider, _ := s.srv.caManager.getCAProvider()
+	provider, _ := s.srv.CAManager().getCAProvider()
 	if provider == nil {
 		return fmt.Errorf("internal error: CA provider is nil")
 	}
@@ -246,3 +261,30 @@ func (s *ConnectCA) SignIntermediate(
 
 	return nil
 }
+
+type caBackend struct {
+	*Server
+	once sync.Once
+	cfg  ConnectCAConfig
+}
+
+func (c *caBackend) State() *state.Store {
+	return c.Server.fsm.State()
+}
+
+func (c *caBackend) CAManager() *CAManager {
+	return c.Server.caManager
+}
+
+func (c *caBackend) Config() ConnectCAConfig {
+	c.once.Do(func() {
+		c.cfg = ConnectCAConfig{
+			Datacenter:        c.config.Datacenter,
+			PrimaryDatacenter: c.config.PrimaryDatacenter,
+			ConnectEnabled:    c.config.ConnectEnabled,
+		}
+	})
+	return c.cfg
+}
+
+var _ connectCABackend = (*caBackend)(nil)
