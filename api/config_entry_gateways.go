@@ -36,6 +36,8 @@ type IngressGatewayConfigEntry struct {
 type GatewayTLSConfig struct {
 	// Indicates that TLS should be enabled for this gateway service
 	Enabled bool
+
+	SdsUrl string
 }
 
 // IngressListener manages the configuration for a listener on a specific port.

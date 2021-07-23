@@ -6,9 +6,10 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/mitchellh/copystructure"
+
 	memdb "github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-uuid"
-	"github.com/mitchellh/copystructure"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/structs"

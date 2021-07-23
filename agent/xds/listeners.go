@@ -504,6 +504,9 @@ func (s *ResourceGenerator) makeIngressGatewayListeners(address string, cfgSnap 
 				CommonTlsContext:         makeCommonTLSContextFromLeaf(cfgSnap, cfgSnap.Leaf()),
 				RequireClientCertificate: &wrappers.BoolValue{Value: false},
 			}
+			if cfgSnap.IngressGateway.SdsUrl != "" {
+				tlsContext.CommonTlsContext = makeCommonTLSContextFromSDS(fmt.Sprintf("%s/cert", listenerKey.RouteName()), fmt.Sprintf("%s/ca", listenerKey.RouteName()), "sds-endpoint")
+			}
 		}
 
 		if listenerKey.Protocol == "tcp" {
@@ -1726,6 +1729,52 @@ func makeEnvoyHTTPFilter(name string, cfg proto.Message) (*envoy_http_v3.HttpFil
 		Name:       name,
 		ConfigType: &envoy_http_v3.HttpFilter_TypedConfig{TypedConfig: any},
 	}, nil
+}
+
+func makeCommonTLSContextFromSDS(secretName, caName, sdsCluster string) *envoy_tls_v3.CommonTlsContext {
+	sdsGRPCService := &envoy_core_v3.GrpcService{
+		TargetSpecifier: &envoy_core_v3.GrpcService_EnvoyGrpc_{
+			EnvoyGrpc: &envoy_core_v3.GrpcService_EnvoyGrpc{
+				ClusterName: sdsCluster,
+			},
+		},
+	}
+	return &envoy_tls_v3.CommonTlsContext{
+		TlsCertificateSdsSecretConfigs: []*envoy_tls_v3.SdsSecretConfig{
+			{
+				Name: secretName,
+				SdsConfig: &envoy_core_v3.ConfigSource{
+					ResourceApiVersion: envoy_core_v3.ApiVersion_V3,
+					ConfigSourceSpecifier: &envoy_core_v3.ConfigSource_ApiConfigSource{
+						ApiConfigSource: &envoy_core_v3.ApiConfigSource{
+							ApiType:             envoy_core_v3.ApiConfigSource_GRPC,
+							TransportApiVersion: envoy_core_v3.ApiVersion_V3,
+							GrpcServices: []*envoy_core_v3.GrpcService{
+								sdsGRPCService,
+							},
+						},
+					},
+				},
+			},
+		},
+		ValidationContextType: &envoy_tls_v3.CommonTlsContext_ValidationContextSdsSecretConfig{
+			ValidationContextSdsSecretConfig: &envoy_tls_v3.SdsSecretConfig{
+				Name: caName,
+				SdsConfig: &envoy_core_v3.ConfigSource{
+					ResourceApiVersion: envoy_core_v3.ApiVersion_V3,
+					ConfigSourceSpecifier: &envoy_core_v3.ConfigSource_ApiConfigSource{
+						ApiConfigSource: &envoy_core_v3.ApiConfigSource{
+							ApiType:             envoy_core_v3.ApiConfigSource_GRPC,
+							TransportApiVersion: envoy_core_v3.ApiVersion_V3,
+							GrpcServices: []*envoy_core_v3.GrpcService{
+								sdsGRPCService,
+							},
+						},
+					},
+				},
+			},
+		},
+	}
 }
 
 func makeCommonTLSContextFromLeaf(cfgSnap *proxycfg.ConfigSnapshot, leaf *structs.IssuedCert) *envoy_tls_v3.CommonTlsContext {

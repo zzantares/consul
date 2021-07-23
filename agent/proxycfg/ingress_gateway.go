@@ -81,6 +81,7 @@ func (s *handlerIngressGateway) handleUpdate(ctx context.Context, u cache.Update
 
 		snap.IngressGateway.TLSEnabled = gatewayConf.TLS.Enabled
 		snap.IngressGateway.TLSSet = true
+		snap.IngressGateway.SdsUrl = gatewayConf.TLS.SdsUrl
 
 		if err := s.watchIngressLeafCert(ctx, snap); err != nil {
 			return err

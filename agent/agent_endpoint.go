@@ -7,15 +7,17 @@ import (
 	"strings"
 	"time"
 
+	"github.com/mitchellh/hashstructure"
+
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
-	"github.com/mitchellh/hashstructure"
+
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/hashicorp/go-bexpr"
 	"github.com/hashicorp/serf/coordinate"
 	"github.com/hashicorp/serf/serf"
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/hashicorp/consul/acl"
 	cachetype "github.com/hashicorp/consul/agent/cache-types"
@@ -1344,6 +1346,7 @@ func (s *HTTPHandlers) AgentConnectCALeafCert(resp http.ResponseWriter, req *htt
 	args.MinQueryIndex = qOpts.MinQueryIndex
 	args.MaxQueryTime = qOpts.MaxQueryTime
 	args.Token = qOpts.Token
+	args.DNSSAN = []string{"127.0.0.1", "localhost"}
 
 	raw, m, err := s.agent.cache.Get(req.Context(), cachetype.ConnectCALeafName, &args)
 	if err != nil {

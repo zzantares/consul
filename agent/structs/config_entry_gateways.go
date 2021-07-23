@@ -82,6 +82,8 @@ type IngressService struct {
 type GatewayTLSConfig struct {
 	// Indicates that TLS should be enabled for this gateway service
 	Enabled bool
+	// If set SdsUrl will be used to fetch TLS certificates
+	SdsUrl string
 }
 
 func (e *IngressGatewayConfigEntry) GetKind() string {
