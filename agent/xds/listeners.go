@@ -504,8 +504,8 @@ func (s *ResourceGenerator) makeIngressGatewayListeners(address string, cfgSnap 
 				CommonTlsContext:         makeCommonTLSContextFromLeaf(cfgSnap, cfgSnap.Leaf()),
 				RequireClientCertificate: &wrappers.BoolValue{Value: false},
 			}
-			if cfgSnap.IngressGateway.SdsUrl != "" {
-				tlsContext.CommonTlsContext = makeCommonTLSContextFromSDS(fmt.Sprintf("%s/cert", listenerKey.RouteName()), fmt.Sprintf("%s/ca", listenerKey.RouteName()), "sds-endpoint")
+			if cfgSnap.IngressGateway.SdsClusterName != "" {
+				tlsContext.CommonTlsContext = makeCommonTLSContextFromSDS(fmt.Sprintf("%s/cert", listenerKey.RouteName()), fmt.Sprintf("%s/ca", listenerKey.RouteName()), cfgSnap.IngressGateway.SdsClusterName)
 			}
 		}
 

@@ -302,9 +302,9 @@ type configSnapshotIngressGateway struct {
 	ConfigSnapshotUpstreams
 
 	// TLSEnabled is whether this gateway's listeners should have TLS configured.
-	TLSEnabled bool
-	TLSSet     bool
-	SdsUrl     string
+	TLSEnabled     bool
+	TLSSet         bool
+	SdsClusterName string
 
 	// Hosts is the list of extra host entries to add to our leaf cert's DNS SANs.
 	Hosts    []string
