@@ -221,7 +221,8 @@ be created in different Kubernetes namespaces, the last one created will not be 
 #### ServiceIntentions Special Case
 
 `ServiceIntentions` are different from the other custom resources because the
-name of the resource doesn't matter. For other resources, the name of the resource
+name of the resource in Kubernetes is ignored when synced to Consul.
+For other resources, the name of the resource
 determines which service it configures. For example, this resource configures
 the service `web`:
 
@@ -280,7 +281,7 @@ last one created will not be synced.
 
 Consul Enterprise supports multiple configurations for how Kubernetes namespaces are mapped
 to Consul namespaces. The Consul namespace that the custom resource is registered
-into depends on the configuration being used but in general, you should create your
+into depends on the configuration being used. In general, you should create your
 custom resources in the same Kubernetes namespace as the service they're configuring and
 everything will work as expected.
 
@@ -288,8 +289,8 @@ The details on each configuration are:
 
 1. **Mirroring** - The Kubernetes namespace will be "mirrored" into Consul, i.e.
    service `web` in Kubernetes namespace `web-ns` will be registered as service `web`
-   in the Consul namespace `web-ns`. In the same vein, a `ServiceDefaults` custom resource with
-   name `web` in Kubernetes namespace `web-ns` will configure that same service.
+   in the Consul namespace `web-ns`. Similarly, a `ServiceDefaults` custom resource with
+   the name `web` in Kubernetes namespace `web-ns` will configure that same service in Consul.
 
    This is configured via [`connectInject.consulNamespaces`](/docs/k8s/helm#v-connectinject-consulnamespaces):
 
@@ -308,10 +309,10 @@ The details on each configuration are:
    </CodeBlockConfig>
 
 1. **Mirroring with prefix** - The Kubernetes namespace will be "mirrored" into Consul
-   with a prefix added to the Consul namespace, i.e.
+   with a prefix added to the name of the namespace in Consul. For example,
    if the prefix is `k8s-` then service `web` in Kubernetes namespace `web-ns` will be registered as service `web`
-   in the Consul namespace `k8s-web-ns`. In the same vein, a `ServiceDefaults` custom resource with
-   name `web` in Kubernetes namespace `web-ns` will configure that same service.
+   in the Consul namespace `k8s-web-ns`. Similarly, a `ServiceDefaults` custom resource with
+   name `web` in Kubernetes namespace `web-ns` will configure that same service in Consul.
 
    This is configured via [`connectInject.consulNamespaces`](/docs/k8s/helm#v-connectinject-consulnamespaces):
 
@@ -331,15 +332,15 @@ The details on each configuration are:
    </CodeBlockConfig>
 
 1. **Single destination namespace** - The Kubernetes namespace is ignored and all services
-   will be registered into the same Consul namespace, i.e. if the destination Consul
-   namespace is `my-ns` then service `web` in Kubernetes namespace `web-ns` will
+   will be registered into a single Consul namespace. For example, if the destination Consul
+   namespace is `my-ns`, then service `web` in Kubernetes namespace `web-ns` will
    be registered as service `web` in Consul namespace `my-ns`.
 
    In this configuration, the Kubernetes namespace of the custom resource is ignored.
    For example, a `ServiceDefaults` custom resource with the name `web` in Kubernetes
    namespace `admin-ns` will configure the service with name `web` even though that
-   service is running in Kubernetes namespace `web-ns` because the `ServiceDefaults`
-   resource ends up registered into the same Consul namespace `my-ns`.
+   service is running in Kubernetes namespace `web-ns`. This is because the `ServiceDefaults`
+   resource ends up being registered into the Consul namespace `my-ns`.
 
    This is configured via [`connectInject.consulNamespaces`](/docs/k8s/helm#v-connectinject-consulnamespaces):
 
@@ -358,12 +359,13 @@ The details on each configuration are:
    </CodeBlockConfig>
 
    ~> **NOTE:** In this configuration, if two custom resources of the same kind **and** the same name are attempted to
-   be created in two Kubernetes namespaces, the last one created will not be synced.
+   be created in two Kubernetes namespaces, the last resource created will not be synced.
 
-#### ServiceIntentions Special Case (Enterprise)
+#### ServiceIntentions Special Case <EnterpriseAlert inline />
 
 `ServiceIntentions` are different from the other custom resources because the
-name of the resource doesn't matter. For other resources, the name of the resource
+name of the resource in Kubernetes is ignored when synced to Consul.
+For other resources, the name of the resource
 determines which service it configures. For example, this resource configures
 the service `web`:
 
