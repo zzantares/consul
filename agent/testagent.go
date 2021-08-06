@@ -11,7 +11,6 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"strconv"
-	"testing"
 	"text/template"
 	"time"
 
@@ -87,7 +86,7 @@ type TestAgent struct {
 // the test if the Agent could not be started.
 // The caller is responsible for calling Shutdown() to stop the agent and remove
 // temporary directories.
-func NewTestAgent(t *testing.T, hcl string) *TestAgent {
+func NewTestAgent(t TestingT, hcl string) *TestAgent {
 	a := StartTestAgent(t, TestAgent{HCL: hcl})
 	t.Cleanup(func() { a.Shutdown() })
 	return a

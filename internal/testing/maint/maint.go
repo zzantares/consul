@@ -27,6 +27,11 @@ func (m *MainT) Failed() bool {
 	return m.failed
 }
 
+func (m *MainT) Fatalf(format string, args ...interface{}) {
+	m.Logf(format, args...)
+	m.FailNow()
+}
+
 func (m *MainT) Logf(format string, args ...interface{}) {
 	fmt.Printf(format, args...)
 }
