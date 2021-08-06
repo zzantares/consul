@@ -98,7 +98,7 @@ func NewTestAgent(t *testing.T, hcl string) *TestAgent {
 //
 // The caller is responsible for calling Shutdown() to stop the agent and remove
 // temporary directories.
-func StartTestAgent(t *testing.T, a TestAgent) *TestAgent {
+func StartTestAgent(t TestingT, a TestAgent) *TestAgent {
 	t.Helper()
 	retry.RunWith(retry.ThreeTimes(), t, func(r *retry.R) {
 		t.Helper()
@@ -131,9 +131,15 @@ func TestConfigHCL(nodeID string) string {
 	)
 }
 
+type TestingT interface {
+	testutil.TestingTB
+	Helper()
+	Log(args ...interface{})
+}
+
 // Start starts a test agent. It returns an error if the agent could not be started.
 // If no error is returned, the caller must call Shutdown() when finished.
-func (a *TestAgent) Start(t *testing.T) error {
+func (a *TestAgent) Start(t TestingT) error {
 	t.Helper()
 	if a.Agent != nil {
 		return fmt.Errorf("TestAgent already started")

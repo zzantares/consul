@@ -1,17 +1,21 @@
 package testrpc
 
 import (
-	"testing"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/sdk/testutil/retry"
-	"github.com/stretchr/testify/require"
 )
 
 type rpcFn func(string, interface{}, interface{}) error
 
+type TestingT interface {
+	retry.Failer
+	Fatalf(format string, args ...interface{})
+}
+
 // WaitForLeader ensures we have a leader and a node registration.
-func WaitForLeader(t *testing.T, rpc rpcFn, dc string, options ...waitOption) {
+func WaitForLeader(t TestingT, rpc rpcFn, dc string, options ...waitOption) {
 	t.Helper()
 
 	flat := flattenOptions(options)
@@ -38,7 +42,7 @@ func WaitForLeader(t *testing.T, rpc rpcFn, dc string, options ...waitOption) {
 }
 
 // WaitUntilNoLeader ensures no leader is present, useful for testing lost leadership.
-func WaitUntilNoLeader(t *testing.T, rpc rpcFn, dc string, options ...waitOption) {
+func WaitUntilNoLeader(t TestingT, rpc rpcFn, dc string, options ...waitOption) {
 	t.Helper()
 
 	flat := flattenOptions(options)
@@ -88,7 +92,7 @@ func flattenOptions(options []waitOption) waitOption {
 }
 
 // WaitForTestAgent ensures we have a node with serfHealth check registered
-func WaitForTestAgent(t *testing.T, rpc rpcFn, dc string, options ...waitOption) {
+func WaitForTestAgent(t TestingT, rpc rpcFn, dc string, options ...waitOption) {
 	t.Helper()
 
 	flat := flattenOptions(options)
@@ -142,7 +146,7 @@ func WaitForTestAgent(t *testing.T, rpc rpcFn, dc string, options ...waitOption)
 // active root is returned. This is useful because initializing CA happens after
 // raft leadership is gained so WaitForLeader isn't sufficient to be sure that
 // the CA is fully initialized.
-func WaitForActiveCARoot(t *testing.T, rpc rpcFn, dc string, expect *structs.CARoot) {
+func WaitForActiveCARoot(t TestingT, rpc rpcFn, dc string, expect *structs.CARoot) {
 	retry.Run(t, func(r *retry.R) {
 		args := &structs.DCSpecificRequest{
 			Datacenter: dc,
@@ -171,7 +175,7 @@ func WaitForActiveCARoot(t *testing.T, rpc rpcFn, dc string, expect *structs.CAR
 // WaitForServiceIntentions waits until the server can accept config entry
 // kinds of service-intentions meaning any migration bootstrapping from pre-1.9
 // intentions has completed.
-func WaitForServiceIntentions(t *testing.T, rpc rpcFn, dc string) {
+func WaitForServiceIntentions(t TestingT, rpc rpcFn, dc string) {
 	const fakeConfigName = "Sa4ohw5raith4si0Ohwuqu3lowiethoh"
 	retry.Run(t, func(r *retry.R) {
 		args := &structs.ConfigEntryRequest{
@@ -189,7 +193,7 @@ func WaitForServiceIntentions(t *testing.T, rpc rpcFn, dc string) {
 	})
 }
 
-func WaitForACLReplication(t *testing.T, rpc rpcFn, dc string, expectedReplicationType structs.ACLReplicationType, minPolicyIndex, minTokenIndex, minRoleIndex uint64) {
+func WaitForACLReplication(t TestingT, rpc rpcFn, dc string, expectedReplicationType structs.ACLReplicationType, minPolicyIndex, minTokenIndex, minRoleIndex uint64) {
 	retry.Run(t, func(r *retry.R) {
 		args := structs.DCSpecificRequest{
 			Datacenter: dc,

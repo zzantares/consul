@@ -4,7 +4,6 @@ import (
 	"io/ioutil"
 	"os"
 	"strings"
-	"testing"
 )
 
 var noCleanup = strings.ToLower(os.Getenv("TEST_NOCLEANUP")) == "true"
@@ -13,7 +12,7 @@ var noCleanup = strings.ToLower(os.Getenv("TEST_NOCLEANUP")) == "true"
 // If the directory cannot be created t.Fatal is called.
 // The directory will be removed when the test ends. Set TEST_NOCLEANUP env var
 // to prevent the directory from being removed.
-func TempDir(t testing.TB, name string) string {
+func TempDir(t TestingTB, name string) string {
 	if t == nil {
 		panic("argument t must be non-nil")
 	}
@@ -21,7 +20,8 @@ func TempDir(t testing.TB, name string) string {
 	name = strings.Replace(name, "/", "_", -1)
 	d, err := ioutil.TempDir("", name)
 	if err != nil {
-		t.Fatalf("err: %s", err)
+		t.Logf("err: %s", err)
+		t.FailNow()
 	}
 	t.Cleanup(func() {
 		if noCleanup {
@@ -39,7 +39,7 @@ func TempDir(t testing.TB, name string) string {
 // avoid double cleanup.
 // The file will be removed when the test ends.  Set TEST_NOCLEANUP env var
 // to prevent the file from being removed.
-func TempFile(t testing.TB, name string) *os.File {
+func TempFile(t TestingTB, name string) *os.File {
 	if t == nil {
 		panic("argument t must be non-nil")
 	}
@@ -47,7 +47,8 @@ func TempFile(t testing.TB, name string) *os.File {
 	name = strings.Replace(name, "/", "_", -1)
 	f, err := ioutil.TempFile("", name)
 	if err != nil {
-		t.Fatalf("err: %s", err)
+		t.Logf("err: %s", err)
+		t.FailNow()
 	}
 	t.Cleanup(func() {
 		if noCleanup {
