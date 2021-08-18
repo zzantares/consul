@@ -798,13 +798,14 @@ jobs:
       - run: docker build -t consul-dev -f ./build-support/docker/Consul-Dev.dockerfile .
       - run:
           name: Envoy Integration Tests
+          working_directory: test/integration
           command: |
-            subtests=$(ls -d test/integration/connect/envoy/*/ | xargs -n 1 basename | circleci tests split)
+            subtests=$(ls -d connect/envoy/*/ | xargs -n 1 basename | circleci tests split)
             echo "Running $(echo $subtests | wc -w) subtests"
             echo "$subtests"
             subtests_pipe_sepr=$(echo "$subtests" | xargs | sed 's/ /|/g')
             mkdir -p /tmp/test-results/
-            gotestsum -- -timeout=30m -tags integration ./test/integration/connect/envoy -run="TestEnvoy/($subtests_pipe_sepr)"
+            gotestsum -- -timeout=30m -tags integration ./connect/envoy -run="TestEnvoy/($subtests_pipe_sepr)"
           environment:
             GOTESTSUM_JUNITFILE: /tmp/test-results/results.xml
             GOTESTSUM_FORMAT: standard-verbose
