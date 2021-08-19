@@ -29,20 +29,17 @@ const (
 )
 
 func newClientGossipFromConsulConfig(config *Config, logger hclog.InterceptLogger) (*clientGossip, error) {
-	path := filepath.Join(config.DataDir, serfLANSnapshot)
-	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
-		return nil, err
-	}
-
 	c := config.SerfLANConfig
 	c.Init()
 	chEvent := make(chan serf.Event, serfEventBacklog)
 	c.EventCh = chEvent
 	c.ReconnectTimeoutOverride = libserf.NewReconnectOverride(logger)
-	c.SnapshotPath = path
 	serfConfigAddClient(c, config)
 	serfConfigAddFromConsulConfig(c, config)
 	serfConfigAddLogger(c, logger, logging.LAN)
+	if err := serfConfigAddSnapshotPath(c, config.DataDir, serfLANSnapshot); err != nil {
+		return nil, err
+	}
 	addEnterpriseSerfTags(c.Tags)
 
 	serf, err := serf.Create(c)
@@ -59,6 +56,7 @@ type clientGossip struct {
 }
 
 func serfConfigAddFromConsulConfig(conf *serf.Config, cc *Config) {
+	conf.NodeName = cc.NodeName
 	conf.Tags["dc"] = cc.Datacenter
 	conf.Tags["segment"] = cc.Segment
 	conf.Tags["id"] = string(cc.NodeID)
@@ -86,7 +84,6 @@ func serfConfigAddFromConsulConfig(conf *serf.Config, cc *Config) {
 }
 
 func serfConfigAddClient(conf *serf.Config, cc *Config) {
-	conf.NodeName = cc.NodeName
 	conf.Tags["role"] = "node"
 	if cc.AdvertiseReconnectTimeout != 0 {
 		conf.Tags[libserf.ReconnectTimeoutTag] = cc.AdvertiseReconnectTimeout.String()
@@ -102,6 +99,15 @@ func serfConfigAddLogger(conf *serf.Config, logger hclog.InterceptLogger, name s
 		NamedIntercept(logging.Memberlist).
 		NamedIntercept(name).
 		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
+}
+
+func serfConfigAddSnapshotPath(conf *serf.Config, root, relative string) error {
+	path := filepath.Join(root, relative)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	conf.SnapshotPath = path
+	return nil
 }
 
 // lanEventHandler is used to handle events from the lan Serf cluster

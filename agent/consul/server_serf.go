@@ -3,7 +3,6 @@ package consul
 import (
 	"fmt"
 	"net"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -14,9 +13,7 @@ import (
 	"github.com/hashicorp/consul/agent/consul/wanfed"
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/lib"
 	libserf "github.com/hashicorp/consul/lib/serf"
-	"github.com/hashicorp/consul/logging"
 )
 
 const (
@@ -32,20 +29,16 @@ const (
 )
 
 // setupSerf is used to setup and initialize a Serf
-func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, wan bool, wanPort int, listener net.Listener) (*serf.Serf, error) {
+func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, wan bool, listener net.Listener) (*serf.Config, error) {
 	conf.Init()
-
 	serfConfigAddFromConsulConfig(conf, s.config)
 
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["role"] = "consul"
+	conf.NodeName = s.config.NodeName
+
 	if wan {
 		conf.NodeName = fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Datacenter)
-	} else {
-		conf.NodeName = s.config.NodeName
-		if wanPort > 0 {
-			conf.Tags["wan_join_port"] = fmt.Sprintf("%d", wanPort)
-		}
 	}
 
 	addr := listener.Addr().(*net.TCPAddr)
@@ -71,14 +64,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 
 	// feature flag: advertise support for service-intentions
 	conf.Tags["ft_si"] = "1"
-
-	var subLoggerName string
-	if wan {
-		subLoggerName = logging.WAN
-	} else {
-		subLoggerName = logging.LAN
-	}
-	serfConfigAddLogger(conf, s.logger, subLoggerName)
 
 	conf.EventCh = ch
 
@@ -132,13 +117,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 		}
 	}
 
-	if !s.config.DevMode {
-		conf.SnapshotPath = filepath.Join(s.config.DataDir, path)
-	}
-	if err := lib.EnsurePath(conf.SnapshotPath, false); err != nil {
-		return nil, err
-	}
-
 	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
 
 	addEnterpriseSerfTags(conf.Tags)
@@ -146,8 +124,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 	if s.config.OverrideInitialSerfTags != nil {
 		s.config.OverrideInitialSerfTags(conf.Tags)
 	}
-
-	return serf.Create(conf)
+	return conf, nil
 }
 
 // userEventName computes the name of a user event
