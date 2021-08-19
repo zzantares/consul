@@ -2,7 +2,9 @@ package multidc
 
 import (
 	"fmt"
+	"os"
 	"testing"
+	"time"
 
 	docker "github.com/fsouza/go-dockerclient"
 	"github.com/stretchr/testify/require"
@@ -27,11 +29,28 @@ func TestMultiDC_FederationViaMeshGateway(t *testing.T) {
 	netWAN := createNetwork(tc, "wan")
 
 	cIDAgentDC1 := createAgent(tc, AgentOptions{
-		Config:   []string{`datacenter = "dc1"`},
+		// TODO: enable TLS
+		Config: []string{`
+datacenter = "dc1"
+connect {
+  enabled                            = true
+  enable_mesh_gateway_wan_federation = true
+}
+services {
+  name = "mesh-gateway"
+  kind = "mesh-gateway"
+  port = 4431
+  meta {
+    consul-wan-federation = "1"
+  }
+}
+`},
 		Networks: []string{netDC1, netWAN},
 	})
 
 	fmt.Println(cIDAgentDC1)
+	// TODO: remove
+	time.Sleep(15 * time.Second)
 }
 
 func createNetwork(t TC, name string) string {
@@ -135,4 +154,50 @@ func cleanup(t TC) {
 			t.Logf("failed to remove network %v: %v", net.ID, err)
 		}
 	}
+}
+
+type MeshGatewayOptions struct {
+	Image    string
+	Name     string
+	AgentCID string
+	Networks []string
+}
+
+var envoyVersion = os.Getenv("ENVOY_VERSION")
+
+func runMeshGateway(t TC, opts MeshGatewayOptions) {
+	if opts.Image == "" {
+		// TODO: need an image with consul CLI
+		opts.Image = "docker.mirror.hashicorp.services/envoyproxy/envoy:" + envoyVersion
+	}
+
+	cmd := []string{
+		"consul", "connect", "envoy",
+		"-proxy-id", opts.Name,
+		"-envoy-version", envoyVersion,
+		"-admin-bind", "0.0.0.0:19000",
+	}
+
+	con, err := t.client.CreateContainer(docker.CreateContainerOptions{
+		Config: &docker.Config{
+			Cmd:    cmd,
+			Image:  opts.Image,
+			Labels: map[string]string{labelTestName: t.Name()},
+		},
+	})
+	require.NoError(t, err, "container created failed")
+	t.Cleanup(func() {
+		rmOpts := docker.RemoveContainerOptions{ID: con.ID, Force: true}
+		if err := t.client.RemoveContainer(rmOpts); err != nil {
+			t.Logf("failed to remove container %v: %v", con.ID, err)
+		}
+	})
+
+	for _, net := range opts.Networks {
+		err := t.client.ConnectNetwork(net, docker.NetworkConnectionOptions{Container: con.ID})
+		require.NoError(t, err, "connect container %v to network %v", con.ID, net)
+	}
+
+	err = t.client.StartContainer(con.ID, nil)
+	require.NoError(t, err, "container start failed")
 }
