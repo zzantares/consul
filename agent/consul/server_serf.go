@@ -29,17 +29,13 @@ const (
 )
 
 // setupSerf is used to setup and initialize a Serf
-func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, wan bool, listener net.Listener) (*serf.Config, error) {
+func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, listener net.Listener) (*serf.Config, error) {
 	conf.Init()
 	serfConfigAddFromConsulConfig(conf, s.config)
 
 	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
 	conf.Tags["role"] = "consul"
 	conf.NodeName = s.config.NodeName
-
-	if wan {
-		conf.NodeName = fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Datacenter)
-	}
 
 	addr := listener.Addr().(*net.TCPAddr)
 	conf.Tags["port"] = fmt.Sprintf("%d", addr.Port)
@@ -67,43 +63,52 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, wan bool, list
 
 	conf.EventCh = ch
 
-	if wan {
-		conf.Merge = &wanMergeDelegate{}
-	}
-
-	if wan {
-		nt, err := memberlist.NewNetTransport(&memberlist.NetTransportConfig{
-			BindAddrs: []string{conf.MemberlistConfig.BindAddr},
-			BindPort:  conf.MemberlistConfig.BindPort,
-			Logger:    conf.MemberlistConfig.Logger,
-		})
-		if err != nil {
-			return nil, err
-		}
-
-		if s.config.ConnectMeshGatewayWANFederationEnabled {
-			mgwTransport, err := wanfed.NewTransport(
-				s.tlsConfigurator,
-				nt,
-				s.config.Datacenter,
-				s.gatewayLocator.PickGateway,
-			)
-			if err != nil {
-				return nil, err
-			}
-
-			conf.MemberlistConfig.Transport = mgwTransport
-		} else {
-			conf.MemberlistConfig.Transport = nt
-		}
-	}
-
 	// Until Consul supports this fully, we disable automatic resolution.
 	// When enabled, the Serf gossip may just turn off if we are the minority
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 
-	if wan && s.config.ConnectMeshGatewayWANFederationEnabled {
+	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
+
+	addEnterpriseSerfTags(conf.Tags)
+
+	if s.config.OverrideInitialSerfTags != nil {
+		s.config.OverrideInitialSerfTags(conf.Tags)
+	}
+	return conf, nil
+}
+
+func serfConfigAddWAN(conf *serf.Config, s *Server) error {
+	// Override the NodeName and MergeDelegate
+	conf.NodeName = fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Datacenter)
+	conf.Merge = &wanMergeDelegate{}
+
+	nt, err := memberlist.NewNetTransport(&memberlist.NetTransportConfig{
+		BindAddrs: []string{conf.MemberlistConfig.BindAddr},
+		BindPort:  conf.MemberlistConfig.BindPort,
+		Logger:    conf.MemberlistConfig.Logger,
+	})
+	if err != nil {
+		return err
+	}
+
+	if s.config.ConnectMeshGatewayWANFederationEnabled {
+		mgwTransport, err := wanfed.NewTransport(
+			s.tlsConfigurator,
+			nt,
+			s.config.Datacenter,
+			s.gatewayLocator.PickGateway,
+		)
+		if err != nil {
+			return err
+		}
+
+		conf.MemberlistConfig.Transport = mgwTransport
+	} else {
+		conf.MemberlistConfig.Transport = nt
+	}
+
+	if s.config.ConnectMeshGatewayWANFederationEnabled {
 		conf.MemberlistConfig.RequireNodeNames = true
 		conf.MemberlistConfig.DisableTcpPingsForNode = func(nodeName string) bool {
 			_, dc, err := wanfed.SplitNodeName(nodeName)
@@ -116,15 +121,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, wan bool, list
 			return s.config.Datacenter != dc
 		}
 	}
-
-	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
-
-	addEnterpriseSerfTags(conf.Tags)
-
-	if s.config.OverrideInitialSerfTags != nil {
-		s.config.OverrideInitialSerfTags(conf.Tags)
-	}
-	return conf, nil
+	return nil
 }
 
 // userEventName computes the name of a user event

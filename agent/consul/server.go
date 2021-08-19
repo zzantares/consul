@@ -480,7 +480,7 @@ func NewServer(config *Config, flat Deps) (*Server, error) {
 	serfBindPortWAN := -1
 	if config.SerfWANConfig != nil {
 		serfBindPortWAN = config.SerfWANConfig.MemberlistConfig.BindPort
-		serfConf, err := s.setupSerf(config.SerfWANConfig, s.eventChWAN, true, s.Listener)
+		serfConf, err := s.setupSerf(config.SerfWANConfig, s.eventChWAN, s.Listener)
 		if err != nil {
 			s.Shutdown()
 			return nil, fmt.Errorf("Failed to configure WAN Serf: %v", err)
@@ -491,6 +491,10 @@ func NewServer(config *Config, flat Deps) (*Server, error) {
 				s.Shutdown()
 				return nil, err
 			}
+		}
+		if err := serfConfigAddWAN(serfConf, s); err != nil {
+			s.Shutdown()
+			return nil, err
 		}
 		s.serfWAN, err = serf.Create(serfConf)
 		if err != nil {
@@ -520,7 +524,7 @@ func NewServer(config *Config, flat Deps) (*Server, error) {
 	}
 
 	// Initialize the LAN Serf for the default network segment.
-	serfConf, err := s.setupSerf(config.SerfLANConfig, s.eventChLAN, false, s.Listener)
+	serfConf, err := s.setupSerf(config.SerfLANConfig, s.eventChLAN, s.Listener)
 	if err != nil {
 		s.Shutdown()
 		return nil, fmt.Errorf("Failed to setup LAN Serf: %v", err)
