@@ -8,15 +8,25 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+type TC struct {
+	*testing.T
+	client *docker.Client
+}
+
+const labelTestName = "test-name"
+
 func TestMultiDC_FederationViaMeshGateway(t *testing.T) {
 	c, err := docker.NewClientFromEnv()
 	require.NoError(t, err)
 
-	netDC1 := createNetwork(t, c, "dc1")
-	_ = createNetwork(t, c, "dc2")
-	netWAN := createNetwork(t, c, "wan")
+	tc := TC{T: t, client: c}
+	cleanup(tc)
 
-	cIDAgentDC1 := createAgent(t, c, AgentOptions{
+	netDC1 := createNetwork(tc, "dc1")
+	_ = createNetwork(tc, "dc2")
+	netWAN := createNetwork(tc, "wan")
+
+	cIDAgentDC1 := createAgent(tc, AgentOptions{
 		Config:   []string{`datacenter = "dc1"`},
 		Networks: []string{netDC1, netWAN},
 	})
@@ -24,12 +34,15 @@ func TestMultiDC_FederationViaMeshGateway(t *testing.T) {
 	fmt.Println(cIDAgentDC1)
 }
 
-func createNetwork(t *testing.T, c *docker.Client, name string) string {
+func createNetwork(t TC, name string) string {
 	t.Helper()
-	net, err := c.CreateNetwork(docker.CreateNetworkOptions{Name: name})
+	net, err := t.client.CreateNetwork(docker.CreateNetworkOptions{
+		Name:   name,
+		Labels: map[string]string{labelTestName: t.Name()},
+	})
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		if err := c.RemoveNetwork(net.ID); err != nil {
+		if err := t.client.RemoveNetwork(net.ID); err != nil {
 			t.Logf("failed to remove network %v: %v", net.ID, err)
 		}
 	})
@@ -52,7 +65,7 @@ type AgentOptions struct {
 	Networks []string
 }
 
-func createAgent(t *testing.T, c *docker.Client, opts AgentOptions) string {
+func createAgent(t TC, opts AgentOptions) string {
 	t.Helper()
 
 	if opts.Image == "" {
@@ -67,28 +80,59 @@ func createAgent(t *testing.T, c *docker.Client, opts AgentOptions) string {
 		cmd = append(cmd, "-hcl", hcl)
 	}
 
-	con, err := c.CreateContainer(docker.CreateContainerOptions{
+	con, err := t.client.CreateContainer(docker.CreateContainerOptions{
 		Config: &docker.Config{
-			Env:   opts.Environment,
-			Cmd:   cmd,
-			Image: opts.Image,
+			Env:    opts.Environment,
+			Cmd:    cmd,
+			Image:  opts.Image,
+			Labels: map[string]string{labelTestName: t.Name()},
 		},
 	})
 	require.NoError(t, err, "container created failed")
 	t.Cleanup(func() {
 		rmOpts := docker.RemoveContainerOptions{ID: con.ID, Force: true}
-		if err := c.RemoveContainer(rmOpts); err != nil {
+		if err := t.client.RemoveContainer(rmOpts); err != nil {
 			t.Logf("failed to remove container %v: %v", con.ID, err)
 		}
 	})
 
 	for _, net := range opts.Networks {
-		err := c.ConnectNetwork(net, docker.NetworkConnectionOptions{Container: con.ID})
+		err := t.client.ConnectNetwork(net, docker.NetworkConnectionOptions{Container: con.ID})
 		require.NoError(t, err, "connect container %v to network %v", con.ID, net)
 	}
 
-	err = c.StartContainer(con.ID, nil)
+	err = t.client.StartContainer(con.ID, nil)
 	require.NoError(t, err, "container start failed")
 
 	return con.ID
+}
+
+// cleanup removes all containers and networks that have a label matching the
+// test name. Normally tests will clean up after themselves, but if a test panics
+// or is interrupted all cleanup functions may not have run. To prevent subsequent
+// test runs from failing we start each test run by removing any stray resources.
+func cleanup(t TC) {
+	cons, err := t.client.ListContainers(docker.ListContainersOptions{
+		All: true,
+		Filters: map[string][]string{
+			"label": {labelTestName + "=" + t.Name()},
+		},
+	})
+	require.NoError(t, err)
+	for _, con := range cons {
+		rmOpts := docker.RemoveContainerOptions{ID: con.ID, Force: true}
+		if err := t.client.RemoveContainer(rmOpts); err != nil {
+			t.Logf("failed to remove container %v: %v", con.ID, err)
+		}
+	}
+
+	nets, err := t.client.FilteredListNetworks(docker.NetworkFilterOpts{
+		"label": map[string]bool{labelTestName + "=" + t.Name(): true},
+	})
+	require.NoError(t, err)
+	for _, net := range nets {
+		if err := t.client.RemoveNetwork(net.ID); err != nil {
+			t.Logf("failed to remove network %v: %v", net.ID, err)
+		}
+	}
 }
