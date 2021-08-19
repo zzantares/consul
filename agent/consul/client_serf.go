@@ -34,13 +34,13 @@ func newClientGossipFromConsulConfig(config *Config, logger hclog.InterceptLogge
 	chEvent := make(chan serf.Event, serfEventBacklog)
 	c.EventCh = chEvent
 	c.ReconnectTimeoutOverride = libserf.NewReconnectOverride(logger)
-	serfConfigAddClient(c, config)
 	serfConfigAddFromConsulConfig(c, config)
+	serfConfigAddClient(c, config)
 	serfConfigAddLogger(c, logger, logging.LAN)
+	serfConfigAddEnterpriseTags(c.Tags)
 	if err := serfConfigAddSnapshotPath(c, config.DataDir, serfLANSnapshot); err != nil {
 		return nil, err
 	}
-	addEnterpriseSerfTags(c.Tags)
 
 	serf, err := serf.Create(c)
 	if err != nil {

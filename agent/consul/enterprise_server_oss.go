@@ -71,7 +71,7 @@ func (s *Server) validateEnterpriseIntentionNamespace(ns string, _ bool) error {
 	return errors.New("Namespaces is a Consul Enterprise feature")
 }
 
-func addEnterpriseSerfTags(_ map[string]string) {
+func serfConfigAddEnterpriseTags(_ map[string]string) {
 	// do nothing
 }
 

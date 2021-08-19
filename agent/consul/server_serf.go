@@ -10,6 +10,8 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 
+	"github.com/hashicorp/consul/logging"
+
 	"github.com/hashicorp/consul/agent/consul/wanfed"
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/agent/structs"
@@ -28,30 +30,48 @@ const (
 	maxPeerRetries = 6
 )
 
-// setupSerf is used to setup and initialize a Serf
-func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, listener net.Listener) (*serf.Config, error) {
+func (s *Server) setupSerfLAN() (*serf.Serf, error) {
+	conf := s.config.SerfLANConfig
 	conf.Init()
+	conf.EventCh = s.eventChLAN
+	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
 	serfConfigAddFromConsulConfig(conf, s.config)
+	serfConfigAddServer(conf, s.config, s.Listener.Addr().(*net.TCPAddr))
+	serfConfigAddLogger(conf, s.logger, logging.LAN)
+	serfConfigAddEnterpriseTags(conf.Tags)
 
-	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
+	if s.config.SerfWANConfig != nil {
+		wanPort := s.config.SerfWANConfig.MemberlistConfig.BindPort
+		conf.Tags["wan_join_port"] = fmt.Sprintf("%d", wanPort)
+	}
+
+	if !s.config.DevMode {
+		if err := serfConfigAddSnapshotPath(conf, s.config.DataDir, serfLANSnapshot); err != nil {
+			return nil, err
+		}
+	}
+
+	return serf.Create(conf)
+}
+
+func serfConfigAddServer(conf *serf.Config, cc *Config, addr *net.TCPAddr) {
 	conf.Tags["role"] = "consul"
-	conf.NodeName = s.config.NodeName
-
-	addr := listener.Addr().(*net.TCPAddr)
 	conf.Tags["port"] = fmt.Sprintf("%d", addr.Port)
-	if s.config.Bootstrap {
+	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", cc.RaftConfig.ProtocolVersion)
+
+	if cc.Bootstrap {
 		conf.Tags["bootstrap"] = "1"
 	}
-	if s.config.BootstrapExpect != 0 {
-		conf.Tags["expect"] = fmt.Sprintf("%d", s.config.BootstrapExpect)
+	if cc.BootstrapExpect != 0 {
+		conf.Tags["expect"] = fmt.Sprintf("%d", cc.BootstrapExpect)
 	}
-	if s.config.ReadReplica {
+	if cc.ReadReplica {
 		// DEPRECATED - This tag should be removed when we no longer want to support
 		// upgrades from 1.8.x and below
 		conf.Tags["nonvoter"] = "1"
 		conf.Tags["read_replica"] = "1"
 	}
-	if s.config.TLSConfig.CAPath != "" || s.config.TLSConfig.CAFile != "" {
+	if cc.TLSConfig.CAPath != "" || cc.TLSConfig.CAFile != "" {
 		conf.Tags["use_tls"] = "1"
 	}
 
@@ -61,21 +81,36 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, listener net.L
 	// feature flag: advertise support for service-intentions
 	conf.Tags["ft_si"] = "1"
 
-	conf.EventCh = ch
-
 	// Until Consul supports this fully, we disable automatic resolution.
 	// When enabled, the Serf gossip may just turn off if we are the minority
 	// node which is rather unexpected.
 	conf.EnableNameConflictResolution = false
 
-	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
-
-	addEnterpriseSerfTags(conf.Tags)
-
-	if s.config.OverrideInitialSerfTags != nil {
-		s.config.OverrideInitialSerfTags(conf.Tags)
+	if cc.OverrideInitialSerfTags != nil {
+		cc.OverrideInitialSerfTags(conf.Tags)
 	}
-	return conf, nil
+}
+
+func (s *Server) setupSerfWAN() (*serf.Serf, error) {
+	conf := s.config.SerfWANConfig
+	conf.Init()
+	conf.EventCh = s.eventChWAN
+	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(s.logger)
+	serfConfigAddFromConsulConfig(conf, s.config)
+	serfConfigAddServer(conf, s.config, s.Listener.Addr().(*net.TCPAddr))
+	serfConfigAddLogger(conf, s.logger, logging.WAN)
+	serfConfigAddEnterpriseTags(conf.Tags)
+
+	if !s.config.DevMode {
+		if err := serfConfigAddSnapshotPath(conf, s.config.DataDir, serfWANSnapshot); err != nil {
+			return nil, err
+		}
+	}
+
+	if err := serfConfigAddWAN(conf, s); err != nil {
+		return nil, err
+	}
+	return serf.Create(conf)
 }
 
 func serfConfigAddWAN(conf *serf.Config, s *Server) error {
