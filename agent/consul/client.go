@@ -38,18 +38,6 @@ var ClientCounters = []prometheus.CounterDefinition{
 	},
 }
 
-const (
-	// serfEventBacklog is the maximum number of unprocessed Serf Events
-	// that will be held in queue before new serf events block.  A
-	// blocking serf event queue is a bad thing.
-	serfEventBacklog = 256
-
-	// serfEventBacklogWarning is the threshold at which point log
-	// warnings will be emitted indicating a problem when processing serf
-	// events.
-	serfEventBacklogWarning = 200
-)
-
 // Client is Consul client which uses RPC to communicate with the
 // services for service discovery, health checking, and DC forwarding.
 type Client struct {
@@ -73,15 +61,10 @@ type Client struct {
 	// from an agent.
 	rpcLimiter atomic.Value
 
-	// eventCh is used to receive events from the serf cluster in the datacenter
-	eventCh chan serf.Event
-
 	// Logger uses the provided LogOutput
 	logger hclog.InterceptLogger
 
-	// serf is the Serf cluster maintained inside the DC
-	// which contains all the DC nodes
-	serf *serf.Serf
+	*clientGossip
 
 	shutdown     bool
 	shutdownCh   chan struct{}
@@ -108,7 +91,6 @@ func NewClient(config *Config, deps Deps) (*Client, error) {
 	c := &Client{
 		config:          config,
 		connPool:        deps.ConnPool,
-		eventCh:         make(chan serf.Event, serfEventBacklog),
 		logger:          deps.Logger.NamedIntercept(logging.ConsulClient),
 		shutdownCh:      make(chan struct{}),
 		tlsConfigurator: deps.TLSConfigurator,
@@ -137,8 +119,7 @@ func NewClient(config *Config, deps Deps) (*Client, error) {
 		return nil, fmt.Errorf("Failed to create ACL resolver: %v", err)
 	}
 
-	// Initialize the LAN Serf
-	c.serf, err = c.setupSerf(config.SerfLANConfig, c.eventCh, serfLANSnapshot)
+	c.clientGossip, err = newClientGossipFromConsulConfig(config, c.logger)
 	if err != nil {
 		c.Shutdown()
 		return nil, fmt.Errorf("Failed to start lan serf: %v", err)
@@ -176,7 +157,7 @@ func (c *Client) Shutdown() error {
 	c.shutdown = true
 	close(c.shutdownCh)
 
-	if c.serf != nil {
+	if c.clientGossip != nil && c.serf != nil {
 		c.serf.Shutdown()
 	}
 

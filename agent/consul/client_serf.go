@@ -2,6 +2,7 @@ package consul
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -10,29 +11,63 @@ import (
 
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/agent/structs"
-	"github.com/hashicorp/consul/lib"
 	libserf "github.com/hashicorp/consul/lib/serf"
 	"github.com/hashicorp/consul/logging"
 	"github.com/hashicorp/consul/types"
 )
 
-// setupSerf is used to setup and initialize a Serf
-func (c *Client) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (*serf.Serf, error) {
-	conf.Init()
+const (
+	// serfEventBacklog is the maximum number of unprocessed Serf Events
+	// that will be held in queue before new serf events block.  A
+	// blocking serf event queue is a bad thing.
+	serfEventBacklog = 256
 
-	conf.NodeName = c.config.NodeName
-	conf.Tags["role"] = "node"
-	conf.Tags["dc"] = c.config.Datacenter
-	conf.Tags["segment"] = c.config.Segment
-	conf.Tags["id"] = string(c.config.NodeID)
-	conf.Tags["vsn"] = fmt.Sprintf("%d", c.config.ProtocolVersion)
+	// serfEventBacklogWarning is the threshold at which point log
+	// warnings will be emitted indicating a problem when processing serf
+	// events.
+	serfEventBacklogWarning = 200
+)
+
+func newClientGossipFromConsulConfig(config *Config, logger hclog.InterceptLogger) (*clientGossip, error) {
+	path := filepath.Join(config.DataDir, serfLANSnapshot)
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return nil, err
+	}
+
+	c := config.SerfLANConfig
+	c.Init()
+	chEvent := make(chan serf.Event, serfEventBacklog)
+	c.EventCh = chEvent
+	c.ReconnectTimeoutOverride = libserf.NewReconnectOverride(logger)
+	c.SnapshotPath = path
+	serfConfigAddClient(c, config)
+	serfConfigAddFromConsulConfig(c, config)
+	serfConfigAddLogger(c, logger, logging.LAN)
+	addEnterpriseSerfTags(c.Tags)
+
+	serf, err := serf.Create(c)
+	if err != nil {
+		return nil, err
+	}
+
+	return &clientGossip{eventCh: chEvent, serf: serf}, nil
+}
+
+type clientGossip struct {
+	eventCh chan serf.Event
+	serf    *serf.Serf
+}
+
+func serfConfigAddFromConsulConfig(conf *serf.Config, cc *Config) {
+	conf.Tags["dc"] = cc.Datacenter
+	conf.Tags["segment"] = cc.Segment
+	conf.Tags["id"] = string(cc.NodeID)
+	conf.Tags["vsn"] = fmt.Sprintf("%d", cc.ProtocolVersion)
 	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
 	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
-	conf.Tags["build"] = c.config.Build
-	if c.config.AdvertiseReconnectTimeout != 0 {
-		conf.Tags[libserf.ReconnectTimeoutTag] = c.config.AdvertiseReconnectTimeout.String()
-	}
-	if c.acls.ACLsEnabled() {
+	conf.Tags["build"] = cc.Build
+
+	if cc.ACLsEnabled {
 		// we start in legacy mode and then transition to normal
 		// mode once we know the cluster can handle it.
 		conf.Tags["acls"] = string(structs.ACLModeLegacy)
@@ -40,39 +75,33 @@ func (c *Client) setupSerf(conf *serf.Config, ch chan serf.Event, path string) (
 		conf.Tags["acls"] = string(structs.ACLModeDisabled)
 	}
 
-	// We use the Intercept variant here to ensure that serf and memberlist logs
-	// can be streamed via the monitor endpoint
-	serfLogger := c.logger.
-		NamedIntercept(logging.Serf).
-		NamedIntercept(logging.LAN).
-		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
-	memberlistLogger := c.logger.
-		NamedIntercept(logging.Memberlist).
-		NamedIntercept(logging.LAN).
-		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
-
-	conf.MemberlistConfig.Logger = memberlistLogger
-	conf.Logger = serfLogger
-	conf.EventCh = ch
-	conf.ProtocolVersion = protocolVersionMap[c.config.ProtocolVersion]
-	conf.RejoinAfterLeave = c.config.RejoinAfterLeave
+	conf.ProtocolVersion = protocolVersionMap[cc.ProtocolVersion]
+	conf.RejoinAfterLeave = cc.RejoinAfterLeave
 	conf.Merge = &lanMergeDelegate{
-		dc:       c.config.Datacenter,
-		nodeID:   c.config.NodeID,
-		nodeName: c.config.NodeName,
-		segment:  c.config.Segment,
+		dc:       cc.Datacenter,
+		nodeID:   cc.NodeID,
+		nodeName: cc.NodeName,
+		segment:  cc.Segment,
 	}
+}
 
-	conf.SnapshotPath = filepath.Join(c.config.DataDir, path)
-	if err := lib.EnsurePath(conf.SnapshotPath, false); err != nil {
-		return nil, err
+func serfConfigAddClient(conf *serf.Config, cc *Config) {
+	conf.NodeName = cc.NodeName
+	conf.Tags["role"] = "node"
+	if cc.AdvertiseReconnectTimeout != 0 {
+		conf.Tags[libserf.ReconnectTimeoutTag] = cc.AdvertiseReconnectTimeout.String()
 	}
+}
 
-	addEnterpriseSerfTags(conf.Tags)
-
-	conf.ReconnectTimeoutOverride = libserf.NewReconnectOverride(c.logger)
-
-	return serf.Create(conf)
+func serfConfigAddLogger(conf *serf.Config, logger hclog.InterceptLogger, name string) {
+	conf.Logger = logger.
+		NamedIntercept(logging.Serf).
+		NamedIntercept(name).
+		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
+	conf.MemberlistConfig.Logger = logger.
+		NamedIntercept(logging.Memberlist).
+		NamedIntercept(name).
+		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
 }
 
 // lanEventHandler is used to handle events from the lan Serf cluster

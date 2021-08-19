@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/memberlist"
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
@@ -33,10 +32,13 @@ const (
 )
 
 // setupSerf is used to setup and initialize a Serf
-func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, wan bool, wanPort int,
-	segment string, listener net.Listener) (*serf.Serf, error) {
+func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, wan bool, wanPort int, listener net.Listener) (*serf.Serf, error) {
 	conf.Init()
 
+	serfConfigAddFromConsulConfig(conf, s.config)
+
+	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
+	conf.Tags["role"] = "consul"
 	if wan {
 		conf.NodeName = fmt.Sprintf("%s.%s", s.config.NodeName, s.config.Datacenter)
 	} else {
@@ -45,15 +47,7 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 			conf.Tags["wan_join_port"] = fmt.Sprintf("%d", wanPort)
 		}
 	}
-	conf.Tags["role"] = "consul"
-	conf.Tags["dc"] = s.config.Datacenter
-	conf.Tags["segment"] = segment
-	conf.Tags["id"] = string(s.config.NodeID)
-	conf.Tags["vsn"] = fmt.Sprintf("%d", s.config.ProtocolVersion)
-	conf.Tags["vsn_min"] = fmt.Sprintf("%d", ProtocolVersionMin)
-	conf.Tags["vsn_max"] = fmt.Sprintf("%d", ProtocolVersionMax)
-	conf.Tags["raft_vsn"] = fmt.Sprintf("%d", s.config.RaftConfig.ProtocolVersion)
-	conf.Tags["build"] = s.config.Build
+
 	addr := listener.Addr().(*net.TCPAddr)
 	conf.Tags["port"] = fmt.Sprintf("%d", addr.Port)
 	if s.config.Bootstrap {
@@ -72,13 +66,6 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 		conf.Tags["use_tls"] = "1"
 	}
 
-	if s.acls.ACLsEnabled() {
-		// we start in legacy mode and allow upgrading later
-		conf.Tags["acls"] = string(structs.ACLModeLegacy)
-	} else {
-		conf.Tags["acls"] = string(structs.ACLModeDisabled)
-	}
-
 	// feature flag: advertise support for federation states
 	conf.Tags["ft_fs"] = "1"
 
@@ -91,33 +78,12 @@ func (s *Server) setupSerf(conf *serf.Config, ch chan serf.Event, path string, w
 	} else {
 		subLoggerName = logging.LAN
 	}
+	serfConfigAddLogger(conf, s.logger, subLoggerName)
 
-	// Wrap hclog in a standard logger wrapper for serf and memberlist
-	// We use the Intercept variant here to ensure that serf and memberlist logs
-	// can be streamed via the monitor endpoint
-	serfLogger := s.logger.
-		NamedIntercept(logging.Serf).
-		NamedIntercept(subLoggerName).
-		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
-	memberlistLogger := s.logger.
-		NamedIntercept(logging.Memberlist).
-		NamedIntercept(subLoggerName).
-		StandardLoggerIntercept(&hclog.StandardLoggerOptions{InferLevels: true})
-
-	conf.MemberlistConfig.Logger = memberlistLogger
-	conf.Logger = serfLogger
 	conf.EventCh = ch
-	conf.ProtocolVersion = protocolVersionMap[s.config.ProtocolVersion]
-	conf.RejoinAfterLeave = s.config.RejoinAfterLeave
+
 	if wan {
 		conf.Merge = &wanMergeDelegate{}
-	} else {
-		conf.Merge = &lanMergeDelegate{
-			dc:       s.config.Datacenter,
-			nodeID:   s.config.NodeID,
-			nodeName: s.config.NodeName,
-			segment:  segment,
-		}
 	}
 
 	if wan {
