@@ -3310,7 +3310,7 @@ func testAgent_RegisterService_UnmanagedConnectProxy(t *testing.T, extraHCL stri
 		}
 		if args.Proxy.Upstreams[i].DestinationNamespace == "" {
 			args.Proxy.Upstreams[i].DestinationNamespace =
-				structs.DefaultEnterpriseMeta().NamespaceOrEmpty()
+				structs.DefaultEnterpriseMeta().NamespaceOrDefault()
 		}
 	}
 

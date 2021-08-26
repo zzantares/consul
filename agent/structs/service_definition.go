@@ -87,7 +87,7 @@ func (s *ServiceDefinition) NodeService() *NodeService {
 			// If a proxy's namespace is not defined, inherit the proxied service's namespace.
 			// Applicable only to Consul Enterprise.
 			if ns.Proxy.Upstreams[i].DestinationNamespace == "" {
-				ns.Proxy.Upstreams[i].DestinationNamespace = ns.EnterpriseMeta.NamespaceOrEmpty()
+				ns.Proxy.Upstreams[i].DestinationNamespace = ns.EnterpriseMeta.NamespaceOrDefault()
 			}
 		}
 		ns.Proxy.Expose = s.Proxy.Expose

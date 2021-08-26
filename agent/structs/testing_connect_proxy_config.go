@@ -48,7 +48,7 @@ func TestAddDefaultsToUpstreams(t testing.T, upstreams []Upstream, entMeta Enter
 			ups[i].DestinationType = UpstreamDestTypeService
 		}
 		if ups[i].DestinationNamespace == "" {
-			ups[i].DestinationNamespace = entMeta.NamespaceOrEmpty()
+			ups[i].DestinationNamespace = entMeta.NamespaceOrDefault()
 		}
 	}
 	return ups
