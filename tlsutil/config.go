@@ -915,16 +915,28 @@ func (c *Configurator) AuthorizeServerConn(dc string, conn *tls.Conn) error {
 	c.lock.RUnlock()
 
 	expected := c.ServerSNI(dc, "")
-	for _, chain := range conn.ConnectionState().VerifiedChains {
+	cs := conn.ConnectionState()
+	for _, chain := range cs.VerifiedChains {
 		if len(chain) == 0 {
 			continue
 		}
 		clientCert := chain[0]
-		_, err := clientCert.Verify(x509.VerifyOptions{
-			DNSName:   expected,
-			Roots:     caPool,
-			KeyUsages: []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
-		})
+		opts := x509.VerifyOptions{
+			DNSName:       expected,
+			Roots:         caPool,
+			Intermediates: x509.NewCertPool(),
+			KeyUsages:     []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+		}
+
+		for i, cert := range cs.PeerCertificates {
+			if i == 0 {
+				continue
+			}
+
+			opts.Intermediates.AddCert(cert)
+		}
+
+		_, err := clientCert.Verify(opts)
 		if err == nil {
 			return nil
 		}
