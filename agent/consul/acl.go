@@ -1097,7 +1097,7 @@ func (r *ACLResolver) ResolveTokenToIdentityAndAuthorizer(token string) (structs
 	// Build the Authorizer
 	var chain []acl.Authorizer
 
-	authz, err := policies.Compile(r.cache, r.aclConf)
+	authz, err := structs.NewPolicyAuthorizerWithCache(policies, r.cache, r.aclConf)
 	if err != nil {
 		return nil, nil, err
 	}
