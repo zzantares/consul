@@ -1,4 +1,4 @@
-package consul
+package aclauthz
 
 import (
 	"fmt"
@@ -8,8 +8,6 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
-
-	"github.com/hashicorp/consul/acl/aclauthz"
 
 	"github.com/hashicorp/go-uuid"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
@@ -709,7 +707,7 @@ func newTestACLResolver(t *testing.T, delegate *ACLResolverTestDelegate, cb func
 	rconf := &ACLResolverConfig{
 		Config: config.ACLResolverSettings,
 		Logger: testutil.Logger(t),
-		CacheConfig: &aclauthz.ACLCachesConfig{
+		CacheConfig: &ACLCachesConfig{
 			Identities:     4,
 			Policies:       4,
 			ParsedPolicies: 4,

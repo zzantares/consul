@@ -960,7 +960,7 @@ func createACLTestData(t *testing.T, srv *Server, namePrefix string, numObjects,
 			Policy: structs.ACLPolicy{
 				Name:        namePrefix + "-policy-" + str,
 				Description: namePrefix + "-policy " + str,
-				Rules:       testACLPolicyNew,
+				Rules:       aclauthz.testACLPolicyNew,
 			},
 			WriteRequest: structs.WriteRequest{Token: "root"},
 		}
