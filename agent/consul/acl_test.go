@@ -9,6 +9,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/hashicorp/consul/acl/aclauthz"
+
 	"github.com/hashicorp/go-uuid"
 	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	"github.com/mitchellh/copystructure"
@@ -707,7 +709,7 @@ func newTestACLResolver(t *testing.T, delegate *ACLResolverTestDelegate, cb func
 	rconf := &ACLResolverConfig{
 		Config: config.ACLResolverSettings,
 		Logger: testutil.Logger(t),
-		CacheConfig: &structs.ACLCachesConfig{
+		CacheConfig: &aclauthz.ACLCachesConfig{
 			Identities:     4,
 			Policies:       4,
 			ParsedPolicies: 4,

@@ -6,6 +6,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/hashicorp/consul/acl/aclauthz"
+
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
 	"github.com/hashicorp/go-hclog"
@@ -163,7 +165,7 @@ type ACLResolverConfig struct {
 	Logger hclog.Logger
 
 	// CacheConfig is a pass through configuration for ACL cache limits
-	CacheConfig *structs.ACLCachesConfig
+	CacheConfig *aclauthz.ACLCachesConfig
 
 	// Backend is used to retrieve data from the state store, or perform RPCs
 	// to fetch data from other Datacenters.
@@ -256,7 +258,7 @@ type ACLResolver struct {
 
 	tokens *token.Store
 
-	cache         *structs.ACLCaches
+	cache         *aclauthz.ACLCaches
 	identityGroup singleflight.Group
 	policyGroup   singleflight.Group
 	roleGroup     singleflight.Group
@@ -313,7 +315,7 @@ func NewACLResolver(config *ACLResolverConfig) (*ACLResolver, error) {
 		config.Logger = hclog.New(&hclog.LoggerOptions{})
 	}
 
-	cache, err := structs.NewACLCaches(config.CacheConfig)
+	cache, err := aclauthz.NewACLCaches(config.CacheConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -352,7 +354,7 @@ func (r *ACLResolver) Close() {
 	r.aclConf.Close()
 }
 
-func (r *ACLResolver) fetchAndCacheIdentityFromToken(token string, cached *structs.IdentityCacheEntry) (structs.ACLIdentity, error) {
+func (r *ACLResolver) fetchAndCacheIdentityFromToken(token string, cached *aclauthz.IdentityCacheEntry) (structs.ACLIdentity, error) {
 	cacheID := tokenSecretCacheID(token)
 
 	req := structs.ACLTokenGetRequest{
@@ -442,7 +444,7 @@ func (r *ACLResolver) resolveIdentityFromToken(token string) (structs.ACLIdentit
 	return identity, res.Err
 }
 
-func (r *ACLResolver) fetchAndCachePoliciesForIdentity(identity structs.ACLIdentity, policyIDs []string, cached map[string]*structs.PolicyCacheEntry) (map[string]*structs.ACLPolicy, error) {
+func (r *ACLResolver) fetchAndCachePoliciesForIdentity(identity structs.ACLIdentity, policyIDs []string, cached map[string]*aclauthz.PolicyCacheEntry) (map[string]*structs.ACLPolicy, error) {
 	req := structs.ACLPolicyBatchGetRequest{
 		Datacenter: r.backend.ACLDatacenter(),
 		PolicyIDs:  policyIDs,
@@ -497,7 +499,7 @@ func (r *ACLResolver) fetchAndCachePoliciesForIdentity(identity structs.ACLIdent
 	return out, nil
 }
 
-func (r *ACLResolver) fetchAndCacheRolesForIdentity(identity structs.ACLIdentity, roleIDs []string, cached map[string]*structs.RoleCacheEntry) (map[string]*structs.ACLRole, error) {
+func (r *ACLResolver) fetchAndCacheRolesForIdentity(identity structs.ACLIdentity, roleIDs []string, cached map[string]*aclauthz.RoleCacheEntry) (map[string]*structs.ACLRole, error) {
 	req := structs.ACLRoleBatchGetRequest{
 		Datacenter: r.backend.ACLDatacenter(),
 		RoleIDs:    roleIDs,
@@ -774,7 +776,7 @@ func (r *ACLResolver) collectPoliciesForIdentity(identity structs.ACLIdentity, p
 	// Get all associated policies
 	var missing []string
 	var expired []*structs.ACLPolicy
-	expCacheMap := make(map[string]*structs.PolicyCacheEntry)
+	expCacheMap := make(map[string]*aclauthz.PolicyCacheEntry)
 
 	var accessorID string
 	if identity != nil {
@@ -876,7 +878,7 @@ func (r *ACLResolver) collectRolesForIdentity(identity structs.ACLIdentity, role
 
 	var missing []string
 	var expired []*structs.ACLRole
-	expCacheMap := make(map[string]*structs.RoleCacheEntry)
+	expCacheMap := make(map[string]*aclauthz.RoleCacheEntry)
 
 	for _, roleID := range roleIDs {
 		if done, role, err := r.backend.ResolveRoleFromID(roleID); done {
@@ -1097,7 +1099,7 @@ func (r *ACLResolver) ResolveTokenToIdentityAndAuthorizer(token string) (structs
 	// Build the Authorizer
 	var chain []acl.Authorizer
 
-	authz, err := structs.NewPolicyAuthorizerWithCache(policies, r.cache, r.aclConf)
+	authz, err := aclauthz.NewPolicyAuthorizerWithCache(policies, r.cache, r.aclConf)
 	if err != nil {
 		return nil, nil, err
 	}
