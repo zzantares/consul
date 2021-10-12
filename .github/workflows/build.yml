@@ -88,18 +88,18 @@ jobs:
           deb_depends: "openssl"
           rpm_depends: "openssl"
 
-
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_i386.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_i386.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}*i386.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
           name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.i386.rpm
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.i386.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.i386.rpm
+
 
   build-amd64:
     needs: get-product-version
@@ -151,12 +151,6 @@ jobs:
           deb_depends: "openssl"
           rpm_depends: "openssl"
 
-      - name: Check
-        run: |
-            ls -lah out/
-            mv out/consul_1.11.0~dev_amd64.deb out/consul_1.11.0-dev_amd64.deb
-            mv out/consul-1.11.0~dev.x86_64.rpm out/consul_1.11.0-dev.x86_64.rpm
-
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
@@ -166,8 +160,8 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.x86_64.rpm
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.x86_64.rpm
+          name: consul-1.11.0.x86_64.rpm
+          path: out/consul-1.11.0.x86_64.rpm
 
   build-arm:
     needs: get-product-version
@@ -220,21 +214,15 @@ jobs:
           deb_depends: "openssl"
           rpm_depends: "openssl"
 
-      - name: Check
-        run: |
-            ls -lah out/
-            mv out/consul-1.11.0~dev.arm.rpm out/consul_1.11.0-dev.arm.rpm
-            mv out/consul_1.11.0~dev_armhf.deb out/consul_1.11.0-dev_armhf.deb
+      - uses: actions/upload-artifact@v2
+        with:
+          name: consul_1.11.0_armhf.deb
+          path: out/consul_1.11.0_armhf.deb
 
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
+          name: consul-1.11.0.arm.rpm
+          path: out/consul-1.11.0.arm.rpm
 
   build-arm64:
     needs: get-product-version
@@ -285,24 +273,17 @@ jobs:
           deb_depends: "openssl"
           rpm_depends: "openssl"
 
-      - name: Check & temp test
-        run: |
-          ls -lah out/
-          mv out/consul-1.11.0~dev.aarch64.rpm out/consul_1.11.0-dev.arm.rpm
-          mv out/consul_1.11.0~dev_arm64.deb out/consul_1.11.0-dev_arm64.deb
-          ls -lah out/
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.goos == 'linux' }}
+        with:
+          name: consul_1.11.0_arm64.deb
+          path: out/consul_1.11.0_arm64.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_arm*.deb
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
-        with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.*.rpm
+          name: consul-1.11.0.aarch64.rpm
+          path: out/consul-1.11.0.aarch64.rpm
 
   build-darwin:
     needs: get-product-version
