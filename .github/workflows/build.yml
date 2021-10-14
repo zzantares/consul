@@ -22,8 +22,13 @@ jobs:
           OUTPUT=$(make -f Makefile version)
           echo $OUTPUT
           V=${OUTPUT//-/ }
+          echo "V"
+          echo $V
+          echo "V2"
+          echo ${V}
           PREREL_VERSION=${V[1]}
           VERSION=${V[0]}
+          
           echo "VERSION"
           echo $VERSION
           echo "PREREL"
