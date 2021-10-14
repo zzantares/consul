@@ -28,7 +28,6 @@ jobs:
 
           VERSION=${V[0]}
           PREREL_VERSION=${V[1]}
-
           
           echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
@@ -76,6 +75,11 @@ jobs:
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
+
+      - name: Build UI
+        run: |
+          cd ui && make
+
       - name: Build
         run: |
           mkdir dist out
@@ -363,8 +367,13 @@ jobs:
       repo: ${{github.event.repository.name}}
       version: ${{needs.get-product-version.outputs.product-version}}
 
+
     steps:
       - uses: actions/checkout@v2
+      - name: setup dockerfile
+        run: |
+          git clone https://github.com/hashicorp/docker-consul.git
+          ls -lah
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
