@@ -376,7 +376,7 @@ jobs:
           git clone https://github.com/hashicorp/docker-consul.git
           ls -lah
           CURRENT_TAG_VERSION=${{needs.get-product-version.outputs.product-version}}
-          sed -i -r "s/^(ARG CONSUL_VERSION=).*/\1$CURRENT_TAG_VERSION/" $build_dir/0.X/Dockerfile
+          sed -i -r "s/^(ARG CONSUL_VERSION=).*/\1$CURRENT_TAG_VERSION/" /0.X/Dockerfile
 
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
