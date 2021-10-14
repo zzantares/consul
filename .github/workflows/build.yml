@@ -368,6 +368,7 @@ jobs:
         run: |
           docker version
           unzip -j ${GITHUB_WORKSPACE}/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
+          ls -lah
           if [ "${{ matrix.arch }}" = "arm" ]; then
             make docker ARCH=${{ matrix.arch }}
           fi
