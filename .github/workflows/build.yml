@@ -26,15 +26,12 @@ jobs:
 
           VERSION=${V[0]}
           PREREL_VERSION=${V[1]}
-          echo "VERSION"
-          echo $VERSION
-          echo "PREREL"
+
           
-          echo ${PREREL_VERSION}
-          #echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
+          echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
-          echo "::set-output name=product-version::$(make -f Makefile version)"
+          #echo "::set-output name=product-version::$(make -f Makefile version)"
 
   generate-metadata-file:
     needs: get-product-version
