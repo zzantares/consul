@@ -353,7 +353,6 @@ jobs:
   build-docker:
     needs:
       - get-product-version
-      - build-386
       - build-arm
     runs-on: ubuntu-latest
     strategy:
