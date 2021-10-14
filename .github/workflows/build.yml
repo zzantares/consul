@@ -215,7 +215,7 @@ jobs:
 
       - name: Package
         if: ${{ matrix.goos == 'linux' }}
-        uses: 99/actions-packaging-linux@main
+        uses: hashicorp/actions-packaging-linux@v1
         with:
           name: ${{ github.event.repository.name }}
           description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure."
@@ -241,6 +241,15 @@ jobs:
         with:
           name: consul-1.11.0.arm.rpm
           path: out/consul-1.11.0.arm.rpm
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
+
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
+          path: out/${{ github.event.repository.name }}?${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
 
   build-arm64:
     needs: get-product-version
