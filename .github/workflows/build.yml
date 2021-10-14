@@ -21,9 +21,9 @@ jobs:
         run: |
           OUTPUT=$(make -f Makefile version)
           echo $OUTPUT
-          V=(${OUTPUT//-/ })
-          PREREL_VERSION=(${V[1]})
-          VERSION=(${V[0]})
+          V=${OUTPUT//-/ }
+          PREREL_VERSION=${V[1]}
+          VERSION=${V[0]}
           echo "::set-output name=product-version::$VERSION-$PREREL_VERSION"
           echo "::set-output name=pre-version::$PREREL_VERSION"
           echo "::set-output name=pkg-version::$VERSION"
