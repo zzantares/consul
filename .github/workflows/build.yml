@@ -353,9 +353,7 @@ jobs:
   build-docker:
     needs:
       - get-product-version
-      - build-arm64
       - build-386
-      - build-amd64
       - build-arm
     runs-on: ubuntu-latest
     strategy:
