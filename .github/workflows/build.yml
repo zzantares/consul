@@ -165,16 +165,16 @@ jobs:
           name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
           path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
 
-      - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
-        with:
-          name: consul-1.11.0.x86_64.rpm
-          path: out/consul-1.11.0.x86_64.rpm
+#      - uses: actions/upload-artifact@v2
+#        if: ${{ matrix.goos == 'linux' }}
+#        with:
+#          name: consul-1.11.0.x86_64.rpm
+#          path: out/consul-1.11.0.x86_64.rpm
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: RPM package
+          name: ${{ github.event.repository.name }}*.x86_64.rpm
           path: "out/${{ github.event.repository.name }}*.x86_64.rpm"
 
   build-arm:
