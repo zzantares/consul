@@ -54,73 +54,73 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
-#  build-386:
-#    needs: get-product-version
-#    runs-on: ubuntu-latest
-#    strategy:
-#      matrix:
-#        goos: [ linux, freebsd, windows ]
-#        goarch: [ "386" ]
-#        go: [ "1.16" ]
-#      fail-fast: true
-#
-#    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-#    env:
-#      GOOS: ${{ matrix.goos }}
-#      GOARCH: ${{ matrix.goarch }}
-#
-#    steps:
-#      - uses: actions/checkout@v2
-#      - name: Setup go
-#        uses: actions/setup-go@v2
-#        with:
-#          go-version: ${{ matrix.go }}
-#
-#      - name: Build UI
-#        run: |
-#          cd ui && make
-#
-#      - name: Build
-#        run: |
-#          mkdir dist out
-#          go build -o dist/ .
-#          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-#      - uses: actions/upload-artifact@v2
-#        with:
-#          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-#          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-#
-#      - name: Package
-#        if: ${{ matrix.goos == 'linux' }}
-#        uses: hashicorp/actions-packaging-linux@v1
-#        with:
-#          name: ${{ github.event.repository.name }}
-#          description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure. "
-#          arch: ${{ matrix.goarch }}
-#          version: ${{ needs.get-product-version.outputs.product-version }}
-#          maintainer: "HashiCorp"
-#          homepage: "https://github.com/hashicorp/consul"
-#          license: "MPL-2.0"
-#          binary: "dist/${{ env.PKG_NAME }}"
-#          deb_depends: "openssl"
-#          rpm_depends: "openssl"
-#          config_dir: ".release/linux/package"
-#          preinstall: ".release/linux/preinstall"
-#          postinstall: ".release/linux/postinstall"
-#          postremove: ".release/linux/postremove"
-#
-#      - uses: actions/upload-artifact@v2
-#        if: ${{ matrix.goos == 'linux' }}
-#        with:
-#          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_i386.deb
-#          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_i386.deb
-#
-#      - uses: actions/upload-artifact@v2
-#        if: ${{ matrix.goos == 'linux' }}
-#        with:
-#          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
-#          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
-#
+  build-386:
+    needs: get-product-version
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [ linux, freebsd, windows ]
+        goarch: [ "386" ]
+        go: [ "1.16" ]
+      fail-fast: true
+
+    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
+    env:
+      GOOS: ${{ matrix.goos }}
+      GOARCH: ${{ matrix.goarch }}
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup go
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+
+      - name: Build UI
+        run: |
+          cd ui && make
+
+      - name: Build
+        run: |
+          mkdir dist out
+          go build -o dist/ .
+          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+      - uses: actions/upload-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
+
+      - name: Package
+        if: ${{ matrix.goos == 'linux' }}
+        uses: hashicorp/actions-packaging-linux@v1
+        with:
+          name: ${{ github.event.repository.name }}
+          description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure. "
+          arch: ${{ matrix.goarch }}
+          version: ${{ needs.get-product-version.outputs.product-version }}
+          maintainer: "HashiCorp"
+          homepage: "https://github.com/hashicorp/consul"
+          license: "MPL-2.0"
+          binary: "dist/${{ env.PKG_NAME }}"
+          deb_depends: "openssl"
+          rpm_depends: "openssl"
+          config_dir: ".release/linux/package"
+          preinstall: ".release/linux/preinstall"
+          postinstall: ".release/linux/postinstall"
+          postremove: ".release/linux/postremove"
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.goos == 'linux' }}
+        with:
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_i386.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_i386.deb
+
+      - uses: actions/upload-artifact@v2
+        if: ${{ matrix.goos == 'linux' }}
+        with:
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
+
 #  build-amd64:
 #    needs: get-product-version
 #    runs-on: ubuntu-latest
@@ -356,7 +356,7 @@ jobs:
     needs:
       - get-product-version
 #      - build-arm
-#      - build-386
+      - build-386
 #      - build-amd64
 #      - build-arm64
     runs-on: ubuntu-latest
