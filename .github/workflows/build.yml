@@ -25,7 +25,7 @@ jobs:
           PREREL_VERSION=(${V[1]})
           VERSION=(${V[0]})
           echo "::set-output name=product-version::$(VERSION)-$(PREREL_VERSION)"
-          echo "::set-output name=pre-version::$(PREREL_VERSION)"
+          echo "::set-output name=pre-version::$PREREL_VERSION"
           echo "::set-output name=pkg-version::$(VERSION)"
           #echo "::set-output name=product-version::$(make -f Makefile version)"
 
@@ -74,6 +74,8 @@ jobs:
         run: |
           mkdir dist out
           go build -o dist/ .
+          echo "Here we are"
+          echo ${{ needs.get-product-version.outputs.pre-version }}
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
       - uses: actions/upload-artifact@v2
         with:
