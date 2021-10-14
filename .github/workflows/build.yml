@@ -101,7 +101,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.i386.rpm
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.i386.rpm
           path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.i386.rpm
 
 
@@ -165,17 +165,11 @@ jobs:
           name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
           path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
 
-#      - uses: actions/upload-artifact@v2
-#        if: ${{ matrix.goos == 'linux' }}
-#        with:
-#          name: consul-1.11.0.x86_64.rpm
-#          path: out/consul-1.11.0.x86_64.rpm
-
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}*.x86_64.rpm
-          path: "out/${{ github.event.repository.name }}*.x86_64.rpm"
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.x86_64.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.x86_64.rpm
 
   build-arm:
     needs: get-product-version
@@ -234,13 +228,9 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: consul_1.11.0_armhf.deb
-          path: out/consul_1.11.0_armhf.deb
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
 
-      - uses: actions/upload-artifact@v2
-        with:
-          name: consul-1.11.0.arm.rpm
-          path: out/consul-1.11.0.arm.rpm
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_armhf.deb
@@ -249,7 +239,7 @@ jobs:
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
-          path: out/${{ github.event.repository.name }}?${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
 
   build-arm64:
     needs: get-product-version
@@ -307,14 +297,14 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: consul_1.11.0_arm64.deb
-          path: out/consul_1.11.0_arm64.deb
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_arm*.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: consul-1.11.0.aarch64.rpm
-          path: out/consul-1.11.0.aarch64.rpm
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.${{ matrix.goarch }}.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.*.rpm
 
   build-darwin:
     needs: get-product-version
@@ -351,35 +341,26 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-docker:
+    name: Docker ${{ matrix.arch }} build
     needs:
       - get-product-version
       - build-arm
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        arch: ["arm", "arm64", "386", "amd64"]
-    name: Docker ${{ matrix.arch }} build
+        arch: ["arm"]
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
 
     steps:
       - uses: actions/checkout@v2
-
-      # download arm/arm64/386/amd64 binaries from build jobs
-      - uses: actions/download-artifact@v2
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v1
         with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
-
-      # build docker image
-      - name: Docker build
-        working-directory: ./.release/docker
-        run: |
-          docker version
-          unzip -j ${GITHUB_WORKSPACE}/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
-          ls -lah
-          if [ "${{ matrix.arch }}" = "arm" ]; then
-            make docker ARCH=${{ matrix.arch }}
-          fi
-      # upload image tarball
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_docker_linux_${{ matrix.arch }}.tar
-          path: .release/docker/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_docker_linux_${{ matrix.arch }}.tar
+          version: ${{env.version}}
+          target: default
+          arch: ${{matrix.arch}}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}
+            ecr.public.aws/hashicorp/${{env.repo}}:${{env.version}}
