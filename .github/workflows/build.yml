@@ -368,10 +368,8 @@ jobs:
         run: |
           docker version
           unzip -j ${GITHUB_WORKSPACE}/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
-          # arm32 bit docker images are set with --platform=linux/arm/v6
+        # arm32 bit docker images are set with --platform=linux/arm/v6
           if [ "${{ matrix.arch }}" = "arm" ]; then
-            make docker ARCH=${{ matrix.arch }} GOARM_DOCKER="/v6"
-          else
             make docker ARCH=${{ matrix.arch }}
           fi
       # upload image tarball
