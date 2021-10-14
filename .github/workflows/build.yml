@@ -381,6 +381,7 @@ jobs:
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
+          workdir: release/0.X/
           version: ${{env.version}}
           target: default
           arch: ${{matrix.arch}}
