@@ -21,23 +21,20 @@ jobs:
         run: |
           OUTPUT=$(make -f Makefile version)
           echo $OUTPUT
-          V=${OUTPUT//-/ }
-          echo "V"
-          echo $V
-          echo "V2"
-          echo ${V}
-          PREREL_VERSION=${V[1]}
+          IFS="-"; OUTPUT=$(make -f Makefile version); 
+          read -a V <<< "$OUTPUT"; unset IFS;
+
           VERSION=${V[0]}
-          
+          PREREL_VERSION=${V[1]}
           echo "VERSION"
           echo $VERSION
           echo "PREREL"
           
           echo ${PREREL_VERSION}
-          echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
+          #echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
-          #echo "::set-output name=product-version::$(make -f Makefile version)"
+          echo "::set-output name=product-version::$(make -f Makefile version)"
 
   generate-metadata-file:
     needs: get-product-version
