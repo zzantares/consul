@@ -19,7 +19,22 @@ jobs:
       - name: get product version
         id: get-product-version
         run: |
-          make -f Makefile version
+          OUTPUT=$(make -f Makefile version)
+          echo $OUTPUT
+          V=(${OUTPUT//-/ })
+          echo $V
+          PREREL_VERSION=(${V[1]})
+          echo $PREREL_VERSION
+         
+          VERSION=(${V[0]})
+          echo $VERSION
+          
+          echo env.VERSION
+           
+          #echo "::set-output name=product-version::$(VERSION)-$(PREREL_VERSION)"
+          echo "::set-output name=pre-version::$(PREREL_VERSION)"
+          echo "::set-output name=pkg-version::$(VERSION)"
+          echo "::set-output name=product-version::$(make -f Makefile version)"
           echo "::set-output name=product-version::$(make -f Makefile version)"
 
   generate-metadata-file:
