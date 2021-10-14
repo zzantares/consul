@@ -370,10 +370,14 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
-      - name: setup dockerfile
+      - name: Setup dockerfile
         run: |
+          cd .release/
           git clone https://github.com/hashicorp/docker-consul.git
           ls -lah
+          CURRENT_TAG_VERSION=${{needs.get-product-version.outputs.product-version}}
+          sed -i -r "s/^(ARG CONSUL_VERSION=).*/\1$CURRENT_TAG_VERSION/" $build_dir/0.X/Dockerfil
+
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
