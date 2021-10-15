@@ -372,12 +372,19 @@ jobs:
       - uses: actions/checkout@v2
       - name: Setup dockerfile
         run: |
+          echo "START_DIR: $PWD" # DEBUG
           cd .release/
           git clone https://github.com/hashicorp/docker-consul.git
           ls -lah
           CURRENT_TAG_VERSION=${{needs.get-product-version.outputs.product-version}}
           sed -i -r "s/^(ARG CONSUL_VERSION=).*/\1$CURRENT_TAG_VERSION/" docker-consul/0.X/Dockerfile
           cat  docker-consul/0.X/Dockerfile
+          echo "END_DIR: $PWD" # DEBUG
+
+      # DEBUG
+      - name: (DEBUG) Print workdir
+        run: |
+          echo "NEW_STEP_DIR: $PWD" # DEBUG
 
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
