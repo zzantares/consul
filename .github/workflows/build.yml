@@ -6,7 +6,7 @@ on:
     branches:
       # Push events on crt-consul-migration branch
         - new_test
-        - *_build
+        - "*_build"
 env:
   PKG_NAME: consul
 
