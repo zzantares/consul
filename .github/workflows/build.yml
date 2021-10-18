@@ -213,6 +213,11 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
 
     steps:
+      - name: Install required build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu
+
       - uses: actions/checkout@v2
 
       - name: Setup go
@@ -222,7 +227,6 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 0
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-linkmode=external -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
@@ -282,6 +286,11 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
 
     steps:
+      - name: Install required build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu
+
       - uses: actions/checkout@v2
 
       - name: Setup go
@@ -291,7 +300,6 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 0
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-linkmode=external -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
