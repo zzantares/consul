@@ -5,7 +5,7 @@ on:
     # Sequence of patterns matched against refs/heads
     branches:
       # Push events on crt-consul-migration branch
-        - crt-consul-migration
+        - crt-migration-build-flags
 env:
   PKG_NAME: consul
 
@@ -16,6 +16,7 @@ jobs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
       pre-version: ${{ steps.get-product-version.outputs.pre-version }}
       pkg-version: ${{ steps.get-product-version.outputs.pkg-version }}
+      short-sha: ${{ steps.short-sha.outputs.short-sha }}
     steps:
       - uses: actions/checkout@v2
       - name: get product version
@@ -32,7 +33,9 @@ jobs:
           echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
-          #echo "::set-output name=product-version::$(make -f Makefile version)"
+      - name: Get Short SHA
+        id: short-sha
+        run: echo "::set-output name=short-sha::${GITHUB_SHA::8}"
 
   generate-metadata-file:
     needs: get-product-version
@@ -76,10 +79,16 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
       - name: Build
+        env:
+          CGO_ENABLED: 0
+          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
+          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -o dist/ .
+          go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+  
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -141,9 +150,14 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Build
+        env:
+          CGO_ENABLED: 0
+          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
+          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -o dist/
+          go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
@@ -207,10 +221,14 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Build
+        env:
+          CGO_ENABLED: 0
+          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
+          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "-linkexternal -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -o dist/
-
+          go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
@@ -272,10 +290,16 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Build
+        env:
+          CGO_ENABLED: 0
+          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
+          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "-linkexternal -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -o dist/
+          go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -337,10 +361,15 @@ jobs:
           go-version: ${{ matrix.go }}
 
       - name: Build
+        env:
+          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
+          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -o dist/
+          go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
+
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
