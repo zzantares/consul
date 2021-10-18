@@ -80,13 +80,12 @@ jobs:
           go-version: ${{ matrix.go }}
       - name: Build
         env:
-          CGO_ENABLED: 0
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
+          env CGO_ENABLED=0 go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
   
       - uses: actions/upload-artifact@v2
@@ -151,13 +150,12 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 0
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
+          env CGO_ENABLED=0 go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
@@ -227,13 +225,12 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 1
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-linkmode=external -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
+          env CGO_ENABLED=1 go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
@@ -301,13 +298,12 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 1
           GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
           GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
           GOLDFLAGS: "-linkmode=external -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
         run: |
           mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
+          env CGO_ENABLED=1 go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
