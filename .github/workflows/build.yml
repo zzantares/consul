@@ -16,7 +16,7 @@ jobs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
       pre-version: ${{ steps.get-product-version.outputs.pre-version }}
       pkg-version: ${{ steps.get-product-version.outputs.pkg-version }}
-      short-sha: ${{ steps.short-sha.outputs.short-sha }}
+      shared-ldflags: ${{ steps.shared-ld.outputs.shared-ldflags }}
     steps:
       - uses: actions/checkout@v2
       - name: get product version
@@ -33,9 +33,12 @@ jobs:
           echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
-      - name: Get Short SHA
-        id: short-sha
-        run: echo "::set-output name=short-sha::${GITHUB_SHA::8}"
+      - name: Set shared -ldflags
+        id: shared-ldflags
+        needs: get-product-version
+        run: echo "::set-output name=shared-ldflags::\
+                   -X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} \
+                   -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
 
   generate-metadata-file:
     needs: get-product-version
@@ -81,14 +84,12 @@ jobs:
       - name: Build
         env:
           CGO_ENABLED: 0
-          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
-          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
-          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "${{needs.get-product-version.outputs.shared-ldflags}}"
         run: |
           mkdir dist out
           go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
- 
+
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -152,9 +153,7 @@ jobs:
       - name: Build
         env:
           CGO_ENABLED: 0
-          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
-          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
-          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
         run: |
           mkdir dist out
           go build -ldflags="$GOLDFLAGS" -o dist/ .
@@ -213,11 +212,6 @@ jobs:
       GOARCH: ${{ matrix.goarch }}
 
     steps:
-      - name: Install required build tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu
-
       - uses: actions/checkout@v2
 
       - name: Setup go
@@ -227,7 +221,7 @@ jobs:
 
       - name: Build
         env:
-          GOLDFLAGS: "-linkmode=external -X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
         run: |
           mkdir dist out
           go build -ldflags="$GOLDFLAGS" -o dist/ .
@@ -369,9 +363,7 @@ jobs:
 
       - name: Build
         env:
-          GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
-          GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
-          GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+          GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
         run: |
           mkdir dist out
           go build -ldflags="$GOLDFLAGS" -o dist/ .
