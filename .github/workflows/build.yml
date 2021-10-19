@@ -16,7 +16,7 @@ jobs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
       pre-version: ${{ steps.get-product-version.outputs.pre-version }}
       pkg-version: ${{ steps.get-product-version.outputs.pkg-version }}
-      shared-ldflags: ${{ steps.shared-ld.outputs.shared-ldflags }}
+      shared-ldflags: "${{ steps.shared-ld.outputs.shared-ldflags }}"
     steps:
       - uses: actions/checkout@v2
       - name: get product version
@@ -24,7 +24,7 @@ jobs:
         run: |
           OUTPUT=$(make -f Makefile version)
           echo $OUTPUT
-          IFS="-"; OUTPUT=$(make -f Makefile version); 
+          IFS="-"; OUTPUT=$(make -f Makefile version);
           read -a V <<< "$OUTPUT"; unset IFS;
 
           VERSION=${V[0]}
@@ -83,6 +83,9 @@ jobs:
           CGO_ENABLED: 0
           GOLDFLAGS: "${{needs.get-product-version.outputs.shared-ldflags}}"
         run: |
+          echo "${{ needs.get-product-version.outputs.shared-ldflags }}"
+          echo "$GOLDFLAGS"
+          echo "${{ toJSON(needs) }}"
           mkdir dist out
           go build -ldflags="$GOLDFLAGS" -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
