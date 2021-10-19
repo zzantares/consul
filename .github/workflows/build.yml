@@ -35,10 +35,9 @@ jobs:
           echo "::set-output name=pkg-version::${VERSION}"
       - name: Set shared -ldflags
         id: shared-ldflags
-        needs: get-product-version
         run: echo "::set-output name=shared-ldflags::\
                    -X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} \
-                   -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
+                   -X github.com/hashicorp/consul/version.GitDescribe=${{ steps.get-product-version.outputs.product-version }}"
 
   generate-metadata-file:
     needs: get-product-version
