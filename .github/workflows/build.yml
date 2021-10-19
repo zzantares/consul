@@ -29,15 +29,13 @@ jobs:
 
           VERSION=${V[0]}
           PREREL_VERSION=${V[1]}
-         
+
           echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
       - name: Set shared -ldflags
         id: shared-ldflags
-        run: echo "::set-output name=shared-ldflags::\
-                   -X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} \
-                   -X github.com/hashicorp/consul/version.GitDescribe=${{ steps.get-product-version.outputs.product-version }}"
+        run: echo "::set-output name=shared-ldflags::-X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} -X github.com/hashicorp/consul/version.GitDescribe=${{ steps.get-product-version.outputs.product-version }}"
 
   generate-metadata-file:
     needs: get-product-version
