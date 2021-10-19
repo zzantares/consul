@@ -389,7 +389,7 @@ jobs:
       - build-arm
       - build-386
       - build-amd64
-      - build-arm64
+      # - build-arm64
     runs-on: ubuntu-latest
     strategy:
       matrix:
