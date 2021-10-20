@@ -14,13 +14,25 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       product-version: ${{ steps.get-product-version.outputs.product-version }}
+      pre-version: ${{ steps.get-product-version.outputs.pre-version }}
+      pkg-version: ${{ steps.get-product-version.outputs.pkg-version }}
     steps:
       - uses: actions/checkout@v2
       - name: get product version
         id: get-product-version
         run: |
-          make -f Makefile version
-          echo "::set-output name=product-version::$(make -f Makefile version)"
+          OUTPUT=$(make -f Makefile version)
+          echo $OUTPUT
+          IFS="-"; OUTPUT=$(make -f Makefile version);
+          read -a V <<< "$OUTPUT"; unset IFS;
+
+          VERSION=${V[0]}
+          PREREL_VERSION=${V[1]}
+
+          echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
+          echo "::set-output name=pre-version::${PREREL_VERSION}"
+          echo "::set-output name=pkg-version::${VERSION}"
+          #echo "::set-output name=product-version::$(make -f Makefile version)"
 
   generate-metadata-file:
     needs: get-product-version
@@ -53,18 +65,47 @@ jobs:
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
     steps:
       - uses: actions/checkout@v2
+
       - name: Setup go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
-      - name: Build
+
+      - name: Install project dependencies
         run: |
+          go get -u -v github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go get -u -v github.com/hashicorp/go-bindata/go-bindata@bf7910a
+
+      - name: Setup with node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+
+      - name: Build UI
+        run: |
+          CONSUL_VERSION=${{ needs.get-product-version.outputs.product-version }}
+          CONSUL_BINARY_TYPE=${CONSUL_BINARY_TYPE}
+          CONSUL_COPYRIGHT_YEAR=$(git show -s --format=%cd --date=format:%Y HEAD)
+          echo "consul_version is ${CONSUL_VERSION}"
+          echo "consul binary type is ${CONSUL_BINARY_TYPE}"
+          echo "consul copyright year is ${CONSUL_COPYRIGHT_YEAR}"
+          cd ui && make && cd ..
+          mkdir pkg
+          mv ui/packages/consul-ui/dist pkg/web_ui
+
+      - name: Build static-assets
+        run: make static-assets
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go mod vendor
           mkdir dist out
           go build -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
@@ -95,15 +136,14 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_i386.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}*i386.deb
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_i386.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_i386.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}.i386.rpm
-          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.product-version }}.i386.rpm
-
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
 
   build-amd64:
     needs: get-product-version
@@ -116,11 +156,6 @@ jobs:
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
     steps:
       - uses: actions/checkout@v2
 
@@ -129,12 +164,42 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
-      - name: Build
+      - name: Install project dependencies
         run: |
+          go get -u -v github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go get -u -v github.com/hashicorp/go-bindata/go-bindata@bf7910a
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+
+      - name: Build UI
+        run: |
+          CONSUL_VERSION=${{ needs.get-product-version.outputs.product-version }}
+          CONSUL_BINARY_TYPE=${CONSUL_BINARY_TYPE}
+          CONSUL_COPYRIGHT_YEAR=$(git show -s --format=%cd --date=format:%Y HEAD)
+          echo "consul_version is ${CONSUL_VERSION}"
+          #echo "consul binary type is ${CONSUL_BINARY_TYPE}"
+          echo "consul copyright year is ${CONSUL_COPYRIGHT_YEAR}"
+          cd ui && make && cd ..
+          mkdir pkg
+          mv ui/packages/consul-ui/dist pkg/web_ui
+
+      - name: Build static-assets
+        run: make static-assets
+
+      - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go mod vendor
           mkdir dist out
           go build -o dist/
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
       - uses: actions/upload-artifact@v2
         with:
           name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
@@ -162,14 +227,14 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goarch }}.deb
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: consul-1.11.0.x86_64.rpm
-          path: out/consul-1.11.0.x86_64.rpm
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.x86_64.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.x86_64.rpm
 
   build-arm:
     needs: get-product-version
@@ -182,24 +247,47 @@ jobs:
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
     steps:
       - uses: actions/checkout@v2
-
       - name: Setup go
         uses: actions/setup-go@v2
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Install project dependencies
+        run: |
+          go get -u -v github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go get -u -v github.com/hashicorp/go-bindata/go-bindata@bf7910a
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+
+      - name: Build UI
+        run: |
+          CONSUL_VERSION=${{ needs.get-product-version.outputs.product-version }}
+          CONSUL_BINARY_TYPE=${CONSUL_BINARY_TYPE}
+          CONSUL_COPYRIGHT_YEAR=$(git show -s --format=%cd --date=format:%Y HEAD)
+          echo "consul_version is ${CONSUL_VERSION}"
+          #echo "consul binary type is ${CONSUL_BINARY_TYPE}"
+          echo "consul copyright year is ${CONSUL_COPYRIGHT_YEAR}"
+          cd ui && make && cd ..
+          mkdir pkg
+          mv ui/packages/consul-ui/dist pkg/web_ui
+
+      - name: Build static-assets
+        run: make static-assets
+
       - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir dist out
           go build -o dist/
-
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
@@ -228,13 +316,13 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: consul_1.11.0_armhf.deb
-          path: out/consul_1.11.0_armhf.deb
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_armhf.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_armhf.deb
 
       - uses: actions/upload-artifact@v2
         with:
-          name: consul-1.11.0.arm.rpm
-          path: out/consul-1.11.0.arm.rpm
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.${{ matrix.goarch }}.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.${{ matrix.goarch }}.rpm
 
   build-arm64:
     needs: get-product-version
@@ -248,10 +336,6 @@ jobs:
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
 
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
     steps:
       - uses: actions/checkout@v2
 
@@ -260,7 +344,37 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Install project dependencies
+        run: |
+          go get -u -v github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go get -u -v github.com/hashicorp/go-bindata/go-bindata@bf7910a
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+
+      - name: Build UI
+        run: |
+          CONSUL_VERSION=${{ needs.get-product-version.outputs.product-version }}
+          CONSUL_BINARY_TYPE=${CONSUL_BINARY_TYPE}
+          CONSUL_COPYRIGHT_YEAR=$(git show -s --format=%cd --date=format:%Y HEAD)
+          echo "consul_version is ${CONSUL_VERSION}"
+          #echo "consul binary type is ${CONSUL_BINARY_TYPE}"
+          echo "consul copyright year is ${CONSUL_COPYRIGHT_YEAR}"
+          cd ui && make && cd ..
+          mkdir pkg
+          mv ui/packages/consul-ui/dist pkg/web_ui
+
+      - name: Build static-assets
+        run: make static-assets
+
       - name: Build
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
         run: |
           mkdir dist out
           go build -o dist/
@@ -292,14 +406,14 @@ jobs:
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: consul_1.11.0_arm64.deb
-          path: out/consul_1.11.0_arm64.deb
+          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
+          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_arm*.deb
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: consul-1.11.0.aarch64.rpm
-          path: out/consul-1.11.0.aarch64.rpm
+          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.rpm
+          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}*.rpm
 
   build-darwin:
     needs: get-product-version
@@ -325,6 +439,33 @@ jobs:
         with:
           go-version: ${{ matrix.go }}
 
+      - name: Install project dependencies
+        run: |
+          go get -u -v github.com/elazarl/go-bindata-assetfs/go-bindata-assetfs@38087fe
+          go get -u -v github.com/hashicorp/go-bindata/go-bindata@bf7910a
+
+      - name: Setup node and yarn
+        uses: actions/setup-node@v2
+        with:
+          node-version: '14'
+          cache: 'yarn'
+          cache-dependency-path: 'ui/yarn.lock'
+
+      - name: Build UI
+        run: |
+          CONSUL_VERSION=${{ needs.get-product-version.outputs.product-version }}
+          CONSUL_BINARY_TYPE=${CONSUL_BINARY_TYPE}
+          CONSUL_COPYRIGHT_YEAR=$(git show -s --format=%cd --date=format:%Y HEAD)
+          echo "consul_version is ${CONSUL_VERSION}"
+          #echo "consul binary type is ${CONSUL_BINARY_TYPE}"
+          echo "consul copyright year is ${CONSUL_COPYRIGHT_YEAR}"
+          cd ui && make && cd ..
+          mkdir pkg
+          mv ui/packages/consul-ui/dist pkg/web_ui
+
+      - name: Build static-assets
+        run: make static-assets
+
       - name: Build
         run: |
           mkdir dist out
@@ -336,40 +477,29 @@ jobs:
           path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
 
   build-docker:
+    name: Docker ${{ matrix.arch }} build
     needs:
       - get-product-version
-      - build-arm64
+      - build-arm
       - build-386
       - build-amd64
-      - build-arm
+      - build-arm64
     runs-on: ubuntu-latest
     strategy:
       matrix:
         arch: ["arm", "arm64", "386", "amd64"]
-    name: Docker ${{ matrix.arch }} build
+    env:
+      repo: ${{github.event.repository.name}}
+      version: ${{needs.get-product-version.outputs.product-version}}
 
     steps:
       - uses: actions/checkout@v2
-
-      # download arm/arm64/386/amd64 binaries from build jobs
-      - uses: actions/download-artifact@v2
+      - name: Docker Build (Action)
+        uses: hashicorp/actions-docker-build@v1
         with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
-
-      # build docker image
-      - name: Docker build
-        working-directory: ./.release/docker
-        run: |
-          docker version
-          unzip -j ${GITHUB_WORKSPACE}/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_linux_${{ matrix.arch }}.zip
-          # arm32 bit docker images are set with --platform=linux/arm/v6
-          if [ "${{ matrix.arch }}" = "arm" ]; then
-            make docker ARCH=${{ matrix.arch }} GOARM_DOCKER="/v6"
-          else
-            make docker ARCH=${{ matrix.arch }}
-          fi
-      # upload image tarball
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_docker_linux_${{ matrix.arch }}.tar
-          path: .release/docker/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_docker_linux_${{ matrix.arch }}.tar
+          version: ${{env.version}}
+          target: default
+          arch: ${{matrix.arch}}
+          tags: |
+            docker.io/hashicorp/${{env.repo}}:${{env.version}}
+            ecr.public.aws/hashicorp/${{env.repo}}:${{env.version}}
