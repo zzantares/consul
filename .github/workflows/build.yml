@@ -30,14 +30,15 @@ jobs:
           VERSION=${V[0]}
           PREREL_VERSION=${V[1]}
 
+          PRODUCT_VERSION="$(make --file Makefile version)"
+          IFS=- read VERSION PREREL_VERSION <<< "${PRODUCT_VERSION}"
+
           echo "::set-output name=product-version::${VERSION}-${PREREL_VERSION}"
           echo "::set-output name=pre-version::${PREREL_VERSION}"
           echo "::set-output name=pkg-version::${VERSION}"
       - name: Set shared -ldflags
         id: shared-ldflags
-        run: echo "::set-output name=shared-ldflags::\
-                   -X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} \
-                   -X github.com/hashicorp/consul/version.GitDescribe=${{ steps.get-product-version.outputs.product-version }}"
+        run: echo "::set-output name=shared-ldflags::-X github.com/hashicorp/consul/version.GitCommit=${GITHUB_SHA::8} -X github.com/hashicorp/consul/version.GitDescribe=${{ steps.get-product-version.outputs.product-version }}"
 
   generate-metadata-file:
     needs: get-product-version
@@ -59,14 +60,21 @@ jobs:
           name: metadata.json
           path: ${{ steps.generate-metadata-file.outputs.filepath }}
 
-  build-386:
+  build:
     needs: get-product-version
     runs-on: ubuntu-latest
     strategy:
       matrix:
         goos: [ linux, freebsd, windows ]
-        goarch: [ "386" ]
+        goarch: [ "386", "x86_64" ]
         go: [ "1.16" ]
+        include:
+          - goos: "solaris"
+            goarch: "x86_64"
+          - goos: "linux"
+            goarch: "arm"
+          - goos: "linux"
+            goarch: "arm64"
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -113,24 +121,29 @@ jobs:
           postinstall: ".release/linux/postinstall"
           postremove: ".release/linux/postremove"
 
+      - name: Set Package Names
+        if: ${{ matrix.goos == 'linux' }}
+        run: |
+          echo "RPM_PACKAGE=$(ls out/*.rpm)" >> $GITHUB_ENV
+          echo "DEB_PACKAGE=$(ls out/*.deb)" >> $GITHUB_ENV
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_i386.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_i386.deb
+          name: ${{ env.RPM_PACKAGE }}
+          path: out/${{ env.RPM_PACKAGE }}
 
       - uses: actions/upload-artifact@v2
         if: ${{ matrix.goos == 'linux' }}
         with:
-          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
-          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.i386.rpm
+          name: ${{ env.DEB_PACKAGE }}
+          path: out/${{ env.DEB_PACKAGE }}
 
-  build-amd64:
+  build-darwin:
     needs: get-product-version
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
       matrix:
-        goos: [linux, freebsd, solaris, windows]
+        goos: [darwin]
         goarch: ["amd64"]
         go: ["1.16"]
       fail-fast: true
@@ -151,221 +164,10 @@ jobs:
 
       - name: Build
         env:
-          CGO_ENABLED: 0
           GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
         run: |
           mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
-          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-
-      - name: Package
-        if: ${{ matrix.goos == 'linux' }}
-        uses: hashicorp/actions-packaging-linux@v1
-        with:
-          name: ${{ github.event.repository.name }}
-          description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure."
-          arch: ${{ matrix.goarch }}
-          version: ${{ needs.get-product-version.outputs.product-version }}
-          maintainer: "HashiCorp"
-          homepage: "https://github.com/hashicorp/consul"
-          license: "MPL-2.0"
-          binary: "dist/${{ env.PKG_NAME }}"
-          deb_depends: "openssl"
-          rpm_depends: "openssl"
-          config_dir: ".release/linux/package"
-          preinstall: ".release/linux/preinstall"
-          postinstall: ".release/linux/postinstall"
-          postremove: ".release/linux/postremove"
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
-        with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
-
-      - uses: actions/upload-artifact@v2
-        if: ${{ matrix.goos == 'linux' }}
-        with:
-          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.x86_64.rpm
-          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.x86_64.rpm
-
-  build-arm:
-    needs: get-product-version
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        goos: [ linux ]
-        goarch: [ arm, arm64 ]
-        go: [ "1.16" ]
-      fail-fast: true
-
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Build
-        env:
-          GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
-        run: |
-          mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
-          zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-
-      - name: Package
-        if: ${{ matrix.goos == 'linux' }}
-        uses: hashicorp/actions-packaging-linux@v1
-        with:
-          name: ${{ github.event.repository.name }}
-          description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure."
-          arch: ${{ matrix.goarch }}
-          version: ${{ needs.get-product-version.outputs.product-version }}
-          maintainer: "HashiCorp"
-          homepage: "https://github.com/hashicorp/consul"
-          license: "MPL-2.0"
-          binary: "dist/${{ env.PKG_NAME }}"
-          deb_depends: "openssl"
-          rpm_depends: "openssl"
-          config_dir: ".release/linux/package"
-          preinstall: ".release/linux/preinstall"
-          postinstall: ".release/linux/postinstall"
-          postremove: ".release/linux/postremove"
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}*.deb
-          path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}*.deb
-
-      - uses: actions/upload-artifact@v2
-        with:
-          name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.${{ matrix.goarch }}.rpm
-          path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}.${{ matrix.goarch }}.rpm
-
-  # build-arm64:
-    # needs: get-product-version
-    # runs-on: ubuntu-latest
-    # strategy:
-      # matrix:
-        # goos: [linux]
-        # goarch: [arm64]
-        # go: ["1.16"]
-      # fail-fast: true
-#
-    # name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-#
-    # env:
-      # GOOS: ${{ matrix.goos }}
-      # GOARCH: ${{ matrix.goarch }}
-#
-    # steps:
-      # - name: Install required build tools
-        # run: |
-          # sudo apt-get update
-          # sudo apt-get install -y gcc-arm-linux-gnueabi gcc-arm-linux-gnueabihf gcc-aarch64-linux-gnu
-#
-      # - uses: actions/checkout@v2
-#
-      # - name: Setup go
-        # uses: actions/setup-go@v2
-        # with:
-          # go-version: ${{ matrix.go }}
-#
-      # - name: Build
-        # env:
-          # CGO_ENABLED: 0
-          # GIT_COMMIT: "${{ needs.get-product-version.outputs.short-sha }}"
-          # GIT_DESCRIBE: "${{ needs.get-product-version.outputs.product-version }}"
-          # GOLDFLAGS: "-X github.com/hashicorp/consul/version.GitCommit=${{ needs.get-product-version.outputs.short-sha }} -X github.com/hashicorp/consul/version.GitDescribe=${{ needs.get-product-version.outputs.product-version }}"
-        # run: |
-          # mkdir dist out
-          # env CGO_ENABLED=1 go build -ldflags="$GOLDFLAGS" -o dist/ .
-          # zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
-#
-      # - uses: actions/upload-artifact@v2
-        # with:
-          # name: ${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-          # path: out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip
-#
-      # - name: Package
-        # if: ${{ matrix.goos == 'linux' }}
-        # uses: hashicorp/actions-packaging-linux@v1
-        # with:
-          # name: ${{ github.event.repository.name }}
-          # description: "Consul is a distributed, highly available, and data center aware solution to connect and configure applications across dynamic, distributed infrastructure."
-          # arch: ${{ matrix.goarch }}
-          # version: ${{ needs.get-product-version.outputs.product-version }}
-          # maintainer: "HashiCorp"
-          # homepage: "https://github.com/hashicorp/consul"
-          # license: "MPL-2.0"
-          # binary: "dist/${{ env.PKG_NAME }}"
-          # deb_depends: "openssl"
-          # rpm_depends: "openssl"
-          # config_dir: ".release/linux/package"
-          # preinstall: ".release/linux/preinstall"
-          # postinstall: ".release/linux/postinstall"
-          # postremove: ".release/linux/postremove"
-#
-      # - uses: actions/upload-artifact@v2
-        # if: ${{ matrix.goos == 'linux' }}
-        # with:
-          # name: ${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}_${{ matrix.goarch }}.deb
-          # path: out/${{ github.event.repository.name }}_${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}_arm*.deb
-#
-      # - uses: actions/upload-artifact@v2
-        # if: ${{ matrix.goos == 'linux' }}
-        # with:
-          # name: ${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}-${{ needs.get-product-version.outputs.pre-version }}.rpm
-          # path: out/${{ github.event.repository.name }}-${{ needs.get-product-version.outputs.pkg-version }}~${{ needs.get-product-version.outputs.pre-version }}*.rpm
-
-  build-darwin:
-    needs: get-product-version
-    runs-on: macos-latest
-    strategy:
-      matrix:
-        goos: [ darwin ]
-        goarch: [ "amd64" ]
-        go: [ "1.16" ]
-      fail-fast: true
-
-    name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
-
-    env:
-      GOOS: ${{ matrix.goos }}
-      GOARCH: ${{ matrix.goarch }}
-
-    steps:
-      - uses: actions/checkout@v2
-
-      - name: Setup go
-        uses: actions/setup-go@v2
-        with:
-          go-version: ${{ matrix.go }}
-
-      - name: Build
-        env:
-          GOLDFLAGS: "${{ needs.get-product-version.outputs.shared-ldflags }}"
-        run: |
-          mkdir dist out
-          go build -ldflags="$GOLDFLAGS" -o dist/ .
+          go build -ldflags="$GOLDFLAGS" -tags=netcgo -o dist/ .
           zip -r -j out/${{ env.PKG_NAME }}_${{ needs.get-product-version.outputs.product-version }}_${{ matrix.goos }}_${{ matrix.goarch }}.zip dist/
 
       - uses: actions/upload-artifact@v2
