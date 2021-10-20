@@ -179,10 +179,7 @@ jobs:
     name: Docker ${{ matrix.arch }} build
     needs:
       - get-product-version
-      - build-arm
-      - build-386
-      - build-amd64
-      # - build-arm64
+      - build
     runs-on: ubuntu-latest
     strategy:
       matrix:
