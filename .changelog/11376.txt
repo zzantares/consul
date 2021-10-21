@@ -1,3 +1,0 @@
-```release-note:enhancement
-try to transfer leadership to another server when leaving.
-```
