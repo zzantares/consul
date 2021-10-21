@@ -63,9 +63,6 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        goos: []
-        goarch: []
-        go: []
         include:
           - {go: "1.17", goos: "linux", goarch: "386"}
           - {go: "1.17", goos: "linux", goarch: "amd64"}
