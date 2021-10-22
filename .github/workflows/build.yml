@@ -171,7 +171,7 @@ jobs:
       matrix:
         goos: [ darwin ]
         goarch: [ "amd64" ]
-        go: [ "1.16" ]
+        go: [ "1.17" ]
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
