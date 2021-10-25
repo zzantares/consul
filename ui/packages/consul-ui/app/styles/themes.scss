@@ -7,7 +7,10 @@
 %main-header-horizontal,
 %main-nav-vertical,
 %main-nav-horizontal {
-  @extend %theme-dark;
+  @extend %theme-light;
+}
+%main-header-horizontal {
+  border-bottom: 1px solid rgb(var(--tone-gray-100));
 }
 %main-nav-vertical .menu-panel a:hover,
 %main-nav-vertical .menu-panel a:focus {
