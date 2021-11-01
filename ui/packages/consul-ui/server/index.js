@@ -28,6 +28,8 @@ module.exports = function(app, options) {
 
   // sets the base CSP policy for the UI
   app.use(function(request, response, next) {
+    response.header('Access-Control-Allow-Origin', 'http://localhost:6006');
+    response.header('Access-Control-Allow-Credentials', 'true');
     response.set({
       'Content-Security-Policy': `default-src 'self' 'unsafe-inline' ws: localhost:${options.liveReloadPort} http: localhost:${options.liveReloadPort}; img-src 'self' data: ; style-src 'self' 'unsafe-inline'`,
     });

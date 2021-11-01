@@ -1,0 +1,864 @@
+{
+    "v": 2,
+    "globalParameters": {},
+    "kindParameters": {
+        "docs": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "components": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "consul": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "health-check": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "lock-session": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "metadata": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "nspace": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "policy": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "role": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "token": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "ruleset": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "consul-partitions": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "partition": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "helpers": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "modifiers": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "rfcs": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "services": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "consul-engineering-handbook": {
+            "fileName": 1667,
+            "framework": "ember"
+        },
+        "consul-engineering-docs": {
+            "fileName": 1667,
+            "framework": "ember"
+        }
+    },
+    "stories": {
+        "docs--Introduction": {
+            "id": "docs--Introduction",
+            "name": "Introduction",
+            "kind": "docs",
+            "story": "Introduction",
+            "parameters": {
+                "__id": "docs--Introduction",
+                "__isArgsStory": false
+            }
+        },
+        "docs--Debug-Engineering-Utilities": {
+            "id": "docs--Debug-Engineering-Utilities",
+            "name": "Debug/Engineering Utilities",
+            "kind": "docs",
+            "story": "Debug/Engineering Utilities",
+            "parameters": {
+                "__id": "docs--Debug-Engineering-Utilities",
+                "__isArgsStory": false
+            }
+        },
+        "docs--i18n": {
+            "id": "docs--i18n",
+            "name": "i18n",
+            "kind": "docs",
+            "story": "i18n",
+            "parameters": {
+                "__id": "docs--i18n",
+                "__isArgsStory": false
+            }
+        },
+        "docs--Significant-patterns": {
+            "id": "docs--Significant-patterns",
+            "name": "Significant patterns",
+            "kind": "docs",
+            "story": "Significant patterns",
+            "parameters": {
+                "__id": "docs--Significant-patterns",
+                "__isArgsStory": false
+            }
+        },
+        "docs--Testing": {
+            "id": "docs--Testing",
+            "name": "Testing",
+            "kind": "docs",
+            "story": "Testing",
+            "parameters": {
+                "__id": "docs--Testing",
+                "__isArgsStory": false
+            }
+        },
+        "docs--Upgrades": {
+            "id": "docs--Upgrades",
+            "name": "Upgrades",
+            "kind": "docs",
+            "story": "Upgrades",
+            "parameters": {
+                "__id": "docs--Upgrades",
+                "__isArgsStory": false
+            }
+        },
+        "components--AppView": {
+            "id": "components--AppView",
+            "name": "AppView",
+            "kind": "components",
+            "story": "AppView",
+            "parameters": {
+                "__id": "components--AppView",
+                "__isArgsStory": false
+            }
+        },
+        "components--AuthDialog": {
+            "id": "components--AuthDialog",
+            "name": "AuthDialog",
+            "kind": "components",
+            "story": "AuthDialog",
+            "parameters": {
+                "__id": "components--AuthDialog",
+                "__isArgsStory": false
+            }
+        },
+        "components--AuthForm": {
+            "id": "components--AuthForm",
+            "name": "AuthForm",
+            "kind": "components",
+            "story": "AuthForm",
+            "parameters": {
+                "__id": "components--AuthForm",
+                "__isArgsStory": false
+            }
+        },
+        "components--AuthProfile": {
+            "id": "components--AuthProfile",
+            "name": "AuthProfile",
+            "kind": "components",
+            "story": "AuthProfile",
+            "parameters": {
+                "__id": "components--AuthProfile",
+                "__isArgsStory": false
+            }
+        },
+        "components--badge": {
+            "id": "components--badge",
+            "name": "badge",
+            "kind": "components",
+            "story": "badge",
+            "parameters": {
+                "__id": "components--badge",
+                "__isArgsStory": false
+            }
+        },
+        "components--BrandLoader": {
+            "id": "components--BrandLoader",
+            "name": "BrandLoader",
+            "kind": "components",
+            "story": "BrandLoader",
+            "parameters": {
+                "__id": "components--BrandLoader",
+                "__isArgsStory": false
+            }
+        },
+        "components--Certificate": {
+            "id": "components--Certificate",
+            "name": "Certificate",
+            "kind": "components",
+            "story": "Certificate",
+            "parameters": {
+                "__id": "components--Certificate",
+                "__isArgsStory": false
+            }
+        },
+        "components--CodeEditor": {
+            "id": "components--CodeEditor",
+            "name": "CodeEditor",
+            "kind": "components",
+            "story": "CodeEditor",
+            "parameters": {
+                "__id": "components--CodeEditor",
+                "__isArgsStory": false
+            }
+        },
+        "components--CollapsibleNotices": {
+            "id": "components--CollapsibleNotices",
+            "name": "CollapsibleNotices",
+            "kind": "components",
+            "story": "CollapsibleNotices",
+            "parameters": {
+                "__id": "components--CollapsibleNotices",
+                "__isArgsStory": false
+            }
+        },
+        "components--CopyButton": {
+            "id": "components--CopyButton",
+            "name": "CopyButton",
+            "kind": "components",
+            "story": "CopyButton",
+            "parameters": {
+                "__id": "components--CopyButton",
+                "__isArgsStory": false
+            }
+        },
+        "components--csv-list": {
+            "id": "components--csv-list",
+            "name": "csv-list",
+            "kind": "components",
+            "story": "csv-list",
+            "parameters": {
+                "__id": "components--csv-list",
+                "__isArgsStory": false
+            }
+        },
+        "components--DataCollection": {
+            "id": "components--DataCollection",
+            "name": "DataCollection",
+            "kind": "components",
+            "story": "DataCollection",
+            "parameters": {
+                "__id": "components--DataCollection",
+                "__isArgsStory": false
+            }
+        },
+        "components--DataLoader": {
+            "id": "components--DataLoader",
+            "name": "DataLoader",
+            "kind": "components",
+            "story": "DataLoader",
+            "parameters": {
+                "__id": "components--DataLoader",
+                "__isArgsStory": false
+            }
+        },
+        "components--DataSink": {
+            "id": "components--DataSink",
+            "name": "DataSink",
+            "kind": "components",
+            "story": "DataSink",
+            "parameters": {
+                "__id": "components--DataSink",
+                "__isArgsStory": false
+            }
+        },
+        "components--DataSource": {
+            "id": "components--DataSource",
+            "name": "DataSource",
+            "kind": "components",
+            "story": "DataSource",
+            "parameters": {
+                "__id": "components--DataSource",
+                "__isArgsStory": false
+            }
+        },
+        "components--definition-table": {
+            "id": "components--definition-table",
+            "name": "definition-table",
+            "kind": "components",
+            "story": "definition-table",
+            "parameters": {
+                "__id": "components--definition-table",
+                "__isArgsStory": false
+            }
+        },
+        "components--EmptyState": {
+            "id": "components--EmptyState",
+            "name": "EmptyState",
+            "kind": "components",
+            "story": "EmptyState",
+            "parameters": {
+                "__id": "components--EmptyState",
+                "__isArgsStory": false
+            }
+        },
+        "components--ErrorState": {
+            "id": "components--ErrorState",
+            "name": "ErrorState",
+            "kind": "components",
+            "story": "ErrorState",
+            "parameters": {
+                "__id": "components--ErrorState",
+                "__isArgsStory": false
+            }
+        },
+        "components--EventSource": {
+            "id": "components--EventSource",
+            "name": "EventSource",
+            "kind": "components",
+            "story": "EventSource",
+            "parameters": {
+                "__id": "components--EventSource",
+                "__isArgsStory": false
+            }
+        },
+        "components--flash-message": {
+            "id": "components--flash-message",
+            "name": "flash-message",
+            "kind": "components",
+            "story": "flash-message",
+            "parameters": {
+                "__id": "components--flash-message",
+                "__isArgsStory": false
+            }
+        },
+        "components--horizontal-kv-list": {
+            "id": "components--horizontal-kv-list",
+            "name": "horizontal-kv-list",
+            "kind": "components",
+            "story": "horizontal-kv-list",
+            "parameters": {
+                "__id": "components--horizontal-kv-list",
+                "__isArgsStory": false
+            }
+        },
+        "components--icon-definition": {
+            "id": "components--icon-definition",
+            "name": "icon-definition",
+            "kind": "components",
+            "story": "icon-definition",
+            "parameters": {
+                "__id": "components--icon-definition",
+                "__isArgsStory": false
+            }
+        },
+        "components--inline-alert": {
+            "id": "components--inline-alert",
+            "name": "inline-alert",
+            "kind": "components",
+            "story": "inline-alert",
+            "parameters": {
+                "__id": "components--inline-alert",
+                "__isArgsStory": false
+            }
+        },
+        "components--inline-code": {
+            "id": "components--inline-code",
+            "name": "inline-code",
+            "kind": "components",
+            "story": "inline-code",
+            "parameters": {
+                "__id": "components--inline-code",
+                "__isArgsStory": false
+            }
+        },
+        "components--JwtSource": {
+            "id": "components--JwtSource",
+            "name": "JwtSource",
+            "kind": "components",
+            "story": "JwtSource",
+            "parameters": {
+                "__id": "components--JwtSource",
+                "__isArgsStory": false
+            }
+        },
+        "components--MainNavVertical": {
+            "id": "components--MainNavVertical",
+            "name": "MainNavVertical",
+            "kind": "components",
+            "story": "MainNavVertical",
+            "parameters": {
+                "__id": "components--MainNavVertical",
+                "__isArgsStory": false
+            }
+        },
+        "components--ModalDialog": {
+            "id": "components--ModalDialog",
+            "name": "ModalDialog",
+            "kind": "components",
+            "story": "ModalDialog",
+            "parameters": {
+                "__id": "components--ModalDialog",
+                "__isArgsStory": false
+            }
+        },
+        "components--ModalLayer": {
+            "id": "components--ModalLayer",
+            "name": "ModalLayer",
+            "kind": "components",
+            "story": "ModalLayer",
+            "parameters": {
+                "__id": "components--ModalLayer",
+                "__isArgsStory": false
+            }
+        },
+        "components--Notice": {
+            "id": "components--Notice",
+            "name": "Notice",
+            "kind": "components",
+            "story": "Notice",
+            "parameters": {
+                "__id": "components--Notice",
+                "__isArgsStory": false
+            }
+        },
+        "components--Outlet": {
+            "id": "components--Outlet",
+            "name": "Outlet",
+            "kind": "components",
+            "story": "Outlet",
+            "parameters": {
+                "__id": "components--Outlet",
+                "__isArgsStory": false
+            }
+        },
+        "components--radio-group": {
+            "id": "components--radio-group",
+            "name": "radio-group",
+            "kind": "components",
+            "story": "radio-group",
+            "parameters": {
+                "__id": "components--radio-group",
+                "__isArgsStory": false
+            }
+        },
+        "components--Ref": {
+            "id": "components--Ref",
+            "name": "Ref",
+            "kind": "components",
+            "story": "Ref",
+            "parameters": {
+                "__id": "components--Ref",
+                "__isArgsStory": false
+            }
+        },
+        "components--Route": {
+            "id": "components--Route",
+            "name": "Route",
+            "kind": "components",
+            "story": "Route",
+            "parameters": {
+                "__id": "components--Route",
+                "__isArgsStory": false
+            }
+        },
+        "components--State": {
+            "id": "components--State",
+            "name": "State",
+            "kind": "components",
+            "story": "State",
+            "parameters": {
+                "__id": "components--State",
+                "__isArgsStory": false
+            }
+        },
+        "components--StateChart": {
+            "id": "components--StateChart",
+            "name": "StateChart",
+            "kind": "components",
+            "story": "StateChart",
+            "parameters": {
+                "__id": "components--StateChart",
+                "__isArgsStory": false
+            }
+        },
+        "components--TabNav": {
+            "id": "components--TabNav",
+            "name": "TabNav",
+            "kind": "components",
+            "story": "TabNav",
+            "parameters": {
+                "__id": "components--TabNav",
+                "__isArgsStory": false
+            }
+        },
+        "components--TagList": {
+            "id": "components--TagList",
+            "name": "TagList",
+            "kind": "components",
+            "story": "TagList",
+            "parameters": {
+                "__id": "components--TagList",
+                "__isArgsStory": false
+            }
+        },
+        "components--TextInput": {
+            "id": "components--TextInput",
+            "name": "TextInput",
+            "kind": "components",
+            "story": "TextInput",
+            "parameters": {
+                "__id": "components--TextInput",
+                "__isArgsStory": false
+            }
+        },
+        "components--ToggleButton": {
+            "id": "components--ToggleButton",
+            "name": "ToggleButton",
+            "kind": "components",
+            "story": "ToggleButton",
+            "parameters": {
+                "__id": "components--ToggleButton",
+                "__isArgsStory": false
+            }
+        },
+        "components--TokenSource": {
+            "id": "components--TokenSource",
+            "name": "TokenSource",
+            "kind": "components",
+            "story": "TokenSource",
+            "parameters": {
+                "__id": "components--TokenSource",
+                "__isArgsStory": false
+            }
+        },
+        "consul--Consul-ExternalSource": {
+            "id": "consul--Consul-ExternalSource",
+            "name": "Consul::ExternalSource",
+            "kind": "consul",
+            "story": "Consul::ExternalSource",
+            "parameters": {
+                "__id": "consul--Consul-ExternalSource",
+                "__isArgsStory": false
+            }
+        },
+        "consul--Consul-Loader": {
+            "id": "consul--Consul-Loader",
+            "name": "Consul::Loader",
+            "kind": "consul",
+            "story": "Consul::Loader",
+            "parameters": {
+                "__id": "consul--Consul-Loader",
+                "__isArgsStory": false
+            }
+        },
+        "consul--Consul-Source": {
+            "id": "consul--Consul-Source",
+            "name": "Consul::Source",
+            "kind": "consul",
+            "story": "Consul::Source",
+            "parameters": {
+                "__id": "consul--Consul-Source",
+                "__isArgsStory": false
+            }
+        },
+        "health-check--Consul-HealthCheck-List": {
+            "id": "health-check--Consul-HealthCheck-List",
+            "name": "Consul::HealthCheck::List",
+            "kind": "health-check",
+            "story": "Consul::HealthCheck::List",
+            "parameters": {
+                "__id": "health-check--Consul-HealthCheck-List",
+                "__isArgsStory": false
+            }
+        },
+        "lock-session--Consul-LockSession-List": {
+            "id": "lock-session--Consul-LockSession-List",
+            "name": "Consul::LockSession::List",
+            "kind": "lock-session",
+            "story": "Consul::LockSession::List",
+            "parameters": {
+                "__id": "lock-session--Consul-LockSession-List",
+                "__isArgsStory": false
+            }
+        },
+        "metadata--Consul-Metadata-List": {
+            "id": "metadata--Consul-Metadata-List",
+            "name": "Consul::Metadata::List",
+            "kind": "metadata",
+            "story": "Consul::Metadata::List",
+            "parameters": {
+                "__id": "metadata--Consul-Metadata-List",
+                "__isArgsStory": false
+            }
+        },
+        "nspace--Consul-Nspace-List": {
+            "id": "nspace--Consul-Nspace-List",
+            "name": "Consul::Nspace::List",
+            "kind": "nspace",
+            "story": "Consul::Nspace::List",
+            "parameters": {
+                "__id": "nspace--Consul-Nspace-List",
+                "__isArgsStory": false
+            }
+        },
+        "policy--Consul-Policy-List": {
+            "id": "policy--Consul-Policy-List",
+            "name": "Consul::Policy::List",
+            "kind": "policy",
+            "story": "Consul::Policy::List",
+            "parameters": {
+                "__id": "policy--Consul-Policy-List",
+                "__isArgsStory": false
+            }
+        },
+        "role--Consul-Role-List": {
+            "id": "role--Consul-Role-List",
+            "name": "Consul::Role::List",
+            "kind": "role",
+            "story": "Consul::Role::List",
+            "parameters": {
+                "__id": "role--Consul-Role-List",
+                "__isArgsStory": false
+            }
+        },
+        "token--Consul-Token-List": {
+            "id": "token--Consul-Token-List",
+            "name": "Consul::Token::List",
+            "kind": "token",
+            "story": "Consul::Token::List",
+            "parameters": {
+                "__id": "token--Consul-Token-List",
+                "__isArgsStory": false
+            }
+        },
+        "ruleset--Consul-Token-Ruleset-List": {
+            "id": "ruleset--Consul-Token-Ruleset-List",
+            "name": "Consul::Token::Ruleset::List",
+            "kind": "ruleset",
+            "story": "Consul::Token::Ruleset::List",
+            "parameters": {
+                "__id": "ruleset--Consul-Token-Ruleset-List",
+                "__isArgsStory": false
+            }
+        },
+        "partition--Consul-Partition-Form": {
+            "id": "partition--Consul-Partition-Form",
+            "name": "Consul::Partition::Form",
+            "kind": "partition",
+            "story": "Consul::Partition::Form",
+            "parameters": {
+                "__id": "partition--Consul-Partition-Form",
+                "__isArgsStory": false
+            }
+        },
+        "partition--Consul-Partition-List": {
+            "id": "partition--Consul-Partition-List",
+            "name": "Consul::Partition::List",
+            "kind": "partition",
+            "story": "Consul::Partition::List",
+            "parameters": {
+                "__id": "partition--Consul-Partition-List",
+                "__isArgsStory": false
+            }
+        },
+        "partition--Consul-Partition-Notifications": {
+            "id": "partition--Consul-Partition-Notifications",
+            "name": "Consul::Partition::Notifications",
+            "kind": "partition",
+            "story": "Consul::Partition::Notifications",
+            "parameters": {
+                "__id": "partition--Consul-Partition-Notifications",
+                "__isArgsStory": false
+            }
+        },
+        "partition--Consul-Partition-SearchBar": {
+            "id": "partition--Consul-Partition-SearchBar",
+            "name": "Consul::Partition::SearchBar",
+            "kind": "partition",
+            "story": "Consul::Partition::SearchBar",
+            "parameters": {
+                "__id": "partition--Consul-Partition-SearchBar",
+                "__isArgsStory": false
+            }
+        },
+        "partition--Consul-Partition-Selector": {
+            "id": "partition--Consul-Partition-Selector",
+            "name": "Consul::Partition::Selector",
+            "kind": "partition",
+            "story": "Consul::Partition::Selector",
+            "parameters": {
+                "__id": "partition--Consul-Partition-Selector",
+                "__isArgsStory": false
+            }
+        },
+        "helpers--duration-from": {
+            "id": "helpers--duration-from",
+            "name": "duration-from",
+            "kind": "helpers",
+            "story": "duration-from",
+            "parameters": {
+                "__id": "helpers--duration-from",
+                "__isArgsStory": false
+            }
+        },
+        "helpers--is-href": {
+            "id": "helpers--is-href",
+            "name": "is-href",
+            "kind": "helpers",
+            "story": "is-href",
+            "parameters": {
+                "__id": "helpers--is-href",
+                "__isArgsStory": false
+            }
+        },
+        "helpers--is": {
+            "id": "helpers--is",
+            "name": "is",
+            "kind": "helpers",
+            "story": "is",
+            "parameters": {
+                "__id": "helpers--is",
+                "__isArgsStory": false
+            }
+        },
+        "helpers--test": {
+            "id": "helpers--test",
+            "name": "test",
+            "kind": "helpers",
+            "story": "test",
+            "parameters": {
+                "__id": "helpers--test",
+                "__isArgsStory": false
+            }
+        },
+        "modifiers--disabled": {
+            "id": "modifiers--disabled",
+            "name": "disabled",
+            "kind": "modifiers",
+            "story": "disabled",
+            "parameters": {
+                "__id": "modifiers--disabled",
+                "__isArgsStory": false
+            }
+        },
+        "modifiers--tooltip": {
+            "id": "modifiers--tooltip",
+            "name": "tooltip",
+            "kind": "modifiers",
+            "story": "tooltip",
+            "parameters": {
+                "__id": "modifiers--tooltip",
+                "__isArgsStory": false
+            }
+        },
+        "modifiers--validate": {
+            "id": "modifiers--validate",
+            "name": "validate",
+            "kind": "modifiers",
+            "story": "validate",
+            "parameters": {
+                "__id": "modifiers--validate",
+                "__isArgsStory": false
+            }
+        },
+        "modifiers--with-copyable": {
+            "id": "modifiers--with-copyable",
+            "name": "with-copyable",
+            "kind": "modifiers",
+            "story": "with-copyable",
+            "parameters": {
+                "__id": "modifiers--with-copyable",
+                "__isArgsStory": false
+            }
+        },
+        "modifiers--with-overlay": {
+            "id": "modifiers--with-overlay",
+            "name": "with-overlay",
+            "kind": "modifiers",
+            "story": "with-overlay",
+            "parameters": {
+                "__id": "modifiers--with-overlay",
+                "__isArgsStory": false
+            }
+        },
+        "rfcs--RFCs": {
+            "id": "rfcs--RFCs",
+            "name": "RFCs",
+            "kind": "rfcs",
+            "story": "RFCs",
+            "parameters": {
+                "__id": "rfcs--RFCs",
+                "__isArgsStory": false
+            }
+        },
+        "services--env": {
+            "id": "services--env",
+            "name": "env",
+            "kind": "services",
+            "story": "env",
+            "parameters": {
+                "__id": "services--env",
+                "__isArgsStory": false
+            }
+        },
+        "consul-engineering-handbook--Language-Style-JavaScript": {
+            "id": "consul-engineering-handbook--Language-Style-JavaScript",
+            "name": "Language Style: JavaScript",
+            "kind": "consul-engineering-handbook",
+            "story": "Language Style: JavaScript",
+            "parameters": {
+                "__id": "consul-engineering-handbook--Language-Style-JavaScript",
+                "__isArgsStory": false
+            }
+        },
+        "consul-engineering-docs--Consul-UI-Demo-Site-Deployment": {
+            "id": "consul-engineering-docs--Consul-UI-Demo-Site-Deployment",
+            "name": "Consul UI Demo Site Deployment",
+            "kind": "consul-engineering-docs",
+            "story": "Consul UI Demo Site Deployment",
+            "parameters": {
+                "__id": "consul-engineering-docs--Consul-UI-Demo-Site-Deployment",
+                "__isArgsStory": false
+            }
+        },
+        "consul-engineering-docs--Consul-UI-Onboarding": {
+            "id": "consul-engineering-docs--Consul-UI-Onboarding",
+            "name": "Consul UI Onboarding",
+            "kind": "consul-engineering-docs",
+            "story": "Consul UI Onboarding",
+            "parameters": {
+                "__id": "consul-engineering-docs--Consul-UI-Onboarding",
+                "__isArgsStory": false
+            }
+        },
+        "consul-engineering-docs--Task-Tracking": {
+            "id": "consul-engineering-docs--Task-Tracking",
+            "name": "Task Tracking",
+            "kind": "consul-engineering-docs",
+            "story": "Task Tracking",
+            "parameters": {
+                "__id": "consul-engineering-docs--Task-Tracking",
+                "__isArgsStory": false
+            }
+        },
+        "consul-engineering-docs--Consul-UI-Team": {
+            "id": "consul-engineering-docs--Consul-UI-Team",
+            "name": "Consul UI Team",
+            "kind": "consul-engineering-docs",
+            "story": "Consul UI Team",
+            "parameters": {
+                "__id": "consul-engineering-docs--Consul-UI-Team",
+                "__isArgsStory": false
+            }
+        }
+    }
+}

@@ -20,7 +20,7 @@
     "format": "npm-run-all format:*",
     "format:js": "prettier --write \"{app,config,lib,server,vendor,tests}/**/*.js\" ./*.js ./.*.js",
     "format:sass": "prettier --write \"app/**/*.scss\"",
-    "start": "ember serve --port=${EMBER_SERVE_PORT:-4200} --live-reload-port=${EMBER_LIVE_RELOAD_PORT:-7020}",
+    "start": "ember serve --port=${EMBER_SERVE_PORT:-4300} --live-reload-port=${EMBER_LIVE_RELOAD_PORT:-7020}",
     "start:staging": "ember serve --port=${EMBER_SERVE_PORT:-4200} --live-reload-port=${EMBER_LIVE_RELOAD_PORT:-7020} --environment staging",
     "start:consul": "ember serve --proxy=${CONSUL_HTTP_ADDR:-http://localhost:8500} --port=${EMBER_SERVE_PORT:-4200} --live-reload-port=${EMBER_LIVE_RELOAD_PORT:-7020}",
     "start:api": "api-double --dir ./node_modules/@hashicorp/consul-api-double",
