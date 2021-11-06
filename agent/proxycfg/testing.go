@@ -2157,6 +2157,66 @@ func TestConfigSnapshotIngress_MultipleListenersDuplicateService(t testing.T) *C
 	return snap
 }
 
+func TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutDiscoveryChain(t testing.T) *ConfigSnapshot {
+	snap := TestConfigSnapshotIngress_HTTPMultipleServices(t)
+
+	snap.IngressGateway.Upstreams = map[IngressListenerKey]structs.Upstreams{
+		{Protocol: "http", Port: 8080}: {
+			{
+				DestinationName: "foo",
+				LocalBindPort:   8080,
+			},
+		},
+		{Protocol: "http", Port: 443}: {
+			{
+				DestinationName: "bar",
+				LocalBindPort:   443,
+			},
+		},
+	}
+
+	fooChain := discoverychain.TestCompileConfigEntries(t, "foo", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+
+	snap.IngressGateway.DiscoveryChain = map[UpstreamID]*structs.CompiledDiscoveryChain{
+		UpstreamIDFromString("foo"): fooChain,
+		// excluding bar should invalidate the upstream
+	}
+
+	return snap
+}
+
+func TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutBackingEndpoint(t testing.T) *ConfigSnapshot {
+	snap := TestConfigSnapshotIngress_HTTPMultipleServices(t)
+
+	snap.IngressGateway.Upstreams = map[IngressListenerKey]structs.Upstreams{
+		{Protocol: "http", Port: 8080}: {
+			{
+				DestinationName: "foo",
+				LocalBindPort:   8080,
+			},
+		},
+		{Protocol: "http", Port: 443}: {
+			{
+				DestinationName: "bar",
+				LocalBindPort:   443,
+			},
+		},
+	}
+
+	fooChain := discoverychain.TestCompileConfigEntries(t, "foo", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+	barChain := discoverychain.TestCompileConfigEntries(t, "bar", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+
+	snap.IngressGateway.DiscoveryChain = map[UpstreamID]*structs.CompiledDiscoveryChain{
+		UpstreamIDFromString("foo"): fooChain,
+		UpstreamIDFromString("bar"): barChain,
+	}
+
+	// invalidates the upstream
+	delete(snap.IngressGateway.WatchedUpstreamEndpoints, UpstreamIDFromString("bar"))
+
+	return snap
+}
+
 func httpMatch(http *structs.ServiceRouteHTTPMatch) *structs.ServiceRouteMatch {
 	return &structs.ServiceRouteMatch{HTTP: http}
 }
