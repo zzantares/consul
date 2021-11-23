@@ -217,6 +217,8 @@ func (p *ConnPool) acquire(dc string, nodeName string, addr net.Addr) (*Conn, er
 
 	poolKey := nodeName + ":" + addrStr
 
+	fmt.Printf("=====pool key: %s\n", poolKey)
+	fmt.Printf("=====pool: %#v\n", p.pool)
 	// Check to see if there's a pooled connection available. This is up
 	// here since it should the vastly more common case than the rest
 	// of the code here.
@@ -228,6 +230,8 @@ func (p *ConnPool) acquire(dc string, nodeName string, addr net.Addr) (*Conn, er
 		return c, nil
 	}
 
+	fmt.Printf("=====no existing connection for %s\n", poolKey)
+
 	// If not (while we are still locked), set up the throttling structure
 	// for this address, which will make everyone else wait until our
 	// attempt is done.
@@ -238,14 +242,22 @@ func (p *ConnPool) acquire(dc string, nodeName string, addr net.Addr) (*Conn, er
 		p.limiter[addrStr] = wait
 	}
 	isLeadThread := !ok
+	fmt.Printf("=====is lead thread %v, addr %s\n", isLeadThread, addrStr)
+	// if it's not lead thread, then there's already a wait channel in the limiter
 	p.Unlock()
 
 	// If we are the lead thread, make the new connection and then wake
 	// everybody else up to see if we got it.
 	if isLeadThread {
 		c, err := p.getNewConn(dc, nodeName, addr)
+		if c != nil {
+			fmt.Printf("=============lead thread got connection- addr: %s, dc: %s, nodeName: %s\n", addr, dc, nodeName)
+		} else {
+			fmt.Printf("=============lead thread got nil connection- addr: %s, dc: %s, nodeName: %s\n", addr, dc, nodeName)
+		}
 		p.Lock()
 		delete(p.limiter, addrStr)
+		fmt.Printf("=============closing wait chan- addr: %s, dc: %s, nodeName: %s\n", addr, dc, nodeName)
 		close(wait)
 		if err != nil {
 			p.Unlock()
@@ -253,12 +265,14 @@ func (p *ConnPool) acquire(dc string, nodeName string, addr net.Addr) (*Conn, er
 		}
 
 		p.pool[poolKey] = c
+		fmt.Printf("=============saved connection to the pool: %#v\n", p.pool)
 		p.Unlock()
 		return c, nil
 	}
 
 	// Otherwise, wait for the lead thread to attempt the connection
 	// and use what's in the pool at that point.
+	fmt.Printf("=====waiting for lead thread to attempt connection addr: %s\n", addrStr)
 	select {
 	case <-p.shutdownCh:
 		return nil, fmt.Errorf("rpc error: shutdown")
@@ -302,6 +316,7 @@ func (p *ConnPool) DialTimeout(
 		if nextProto == "" {
 			return nil, nil, fmt.Errorf("rpc type %d cannot be routed through a mesh gateway", actualRPCType)
 		}
+		fmt.Println("dialing rpc via mesh gateway\n", dc, addr)
 		return DialRPCViaMeshGateway(
 			context.Background(),
 			dc,
@@ -404,8 +419,9 @@ func DialRPCViaMeshGateway(
 	}
 
 	dialer := &net.Dialer{LocalAddr: srcAddr, Timeout: DefaultDialTimeout}
-
+	fmt.Printf("==== getting raw conn for gwAddr: %s, nodeName: %s, dc: %s, srcAddr: %v\n", gwAddr, nodeName, dc, srcAddr.String())
 	rawConn, err := dialer.DialContext(ctx, "tcp", gwAddr)
+	fmt.Printf("==== got raw conn for gwAddr: %s, nodeName: %s, dc: %s, srcAddr: %v\n", gwAddr, nodeName, dc, srcAddr.String())
 	if err != nil {
 		return nil, nil, err
 	}
