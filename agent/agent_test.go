@@ -126,23 +126,12 @@ func TestAgent_ConnectClusterIDConfig(t *testing.T) {
 		{
 			name:          "default TestAgent has fixed cluster id",
 			hcl:           "",
-			wantClusterID: connect.TestClusterID,
+			wantClusterID: connect.TestClusterID + ".consul",
 		},
 		{
 			name:          "no cluster ID specified sets to test ID",
 			hcl:           "connect { enabled = true }",
-			wantClusterID: connect.TestClusterID,
-		},
-		{
-			name: "non-UUID cluster_id is fatal",
-			hcl: `connect {
-	   enabled = true
-	   ca_config {
-	     cluster_id = "fake-id"
-	   }
-	 }`,
-			wantClusterID: "",
-			wantErr:       true,
+			wantClusterID: connect.TestClusterID + ".consul",
 		},
 	}
 
@@ -161,8 +150,14 @@ func TestAgent_ConnectClusterIDConfig(t *testing.T) {
 			}
 			defer a.Shutdown()
 
-			cfg := a.consulConfig()
-			assert.Equal(t, tt.wantClusterID, cfg.CAConfig.ClusterID)
+			args := &structs.DCSpecificRequest{
+				Datacenter: "dc1",
+			}
+			var reply structs.IndexedCARoots
+			err = a.RPC("ConnectCA.Roots", args, &reply)
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantClusterID, reply.TrustDomain)
 		})
 	}
 }

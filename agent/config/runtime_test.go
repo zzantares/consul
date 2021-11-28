@@ -6716,33 +6716,6 @@ func TestConnectCAConfiguration(t *testing.T) {
 				},
 			},
 		},
-		"cluster-id-override": {
-			config: RuntimeConfig{
-				ConnectEnabled: true,
-				ConnectCAConfig: map[string]interface{}{
-					"cluster_id": "adfe7697-09b4-413a-ac0a-fa81ed3a3001",
-				},
-			},
-			expected: &structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: "adfe7697-09b4-413a-ac0a-fa81ed3a3001",
-				Config: map[string]interface{}{
-					"LeafCertTTL":         "72h",
-					"IntermediateCertTTL": "8760h",  // 365 * 24h
-					"RootCertTTL":         "87600h", // 365 * 10 * 24h
-					"cluster_id":          "adfe7697-09b4-413a-ac0a-fa81ed3a3001",
-				},
-			},
-		},
-		"cluster-id-non-uuid": {
-			config: RuntimeConfig{
-				ConnectEnabled: true,
-				ConnectCAConfig: map[string]interface{}{
-					"cluster_id": "foo",
-				},
-			},
-			err: "cluster_id was supplied but was not a valid UUID",
-		},
 		"provider-override": {
 			config: RuntimeConfig{
 				ConnectEnabled:    true,

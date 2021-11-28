@@ -40,8 +40,7 @@ func newMockDelegate(t *testing.T, conf *structs.CAConfiguration) *consulCAMockD
 
 func testConsulCAConfig() *structs.CAConfiguration {
 	return &structs.CAConfiguration{
-		ClusterID: connect.TestClusterID,
-		Provider:  "consul",
+		Provider: "consul",
 		Config: map[string]interface{}{
 			// Tests duration parsing after msgpack type mangling during raft apply.
 			"LeafCertTTL":         []byte("72h"),
@@ -53,7 +52,7 @@ func testConsulCAConfig() *structs.CAConfiguration {
 
 func testProviderConfig(caCfg *structs.CAConfiguration) ProviderConfig {
 	return ProviderConfig{
-		ClusterID:  caCfg.ClusterID,
+		ClusterID:  connect.TestClusterID,
 		Datacenter: "dc1",
 		IsPrimary:  true,
 		RawConfig:  caCfg.Config,
@@ -87,7 +86,7 @@ func TestConsulCAProvider_Bootstrap(t *testing.T) {
 	// Should be a valid cert
 	parsed, err := connect.ParseCert(root)
 	require.NoError(err)
-	require.Equal(parsed.URIs[0].String(), fmt.Sprintf("spiffe://%s.consul", conf.ClusterID))
+	require.Equal(parsed.URIs[0].String(), fmt.Sprintf("spiffe://%s.consul", connect.TestClusterID))
 	requireNotEncoded(t, parsed.SubjectKeyId)
 	requireNotEncoded(t, parsed.AuthorityKeyId)
 

@@ -95,8 +95,7 @@ func TestConnectCAConfig(t *testing.T) {
 			}`,
 			wantErr: false,
 			wantCfg: structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: connect.TestClusterID,
+				Provider: "consul",
 				Config: map[string]interface{}{
 					"LeafCertTTL":         "72h",
 					"IntermediateCertTTL": "288h",
@@ -115,8 +114,7 @@ func TestConnectCAConfig(t *testing.T) {
 			}`,
 			wantErr: false,
 			wantCfg: structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: connect.TestClusterID,
+				Provider: "consul",
 				Config: map[string]interface{}{
 					"LeafCertTTL":         "72h",
 					"IntermediateCertTTL": "288h",
@@ -136,8 +134,7 @@ func TestConnectCAConfig(t *testing.T) {
 			}`,
 			wantErr: false,
 			wantCfg: structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: connect.TestClusterID,
+				Provider: "consul",
 				Config: map[string]interface{}{
 					"LeafCertTTL":         "72h",
 					"IntermediateCertTTL": "288h",
@@ -163,8 +160,7 @@ func TestConnectCAConfig(t *testing.T) {
 			}`,
 			wantErr: false,
 			wantCfg: structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: connect.TestClusterID,
+				Provider: "consul",
 				Config: map[string]interface{}{
 					"LeafCertTTL":         "72h",
 					"IntermediateCertTTL": "288h",
@@ -199,8 +195,7 @@ func TestConnectCAConfig(t *testing.T) {
 			}`,
 			wantErr: false,
 			wantCfg: structs.CAConfiguration{
-				Provider:  "consul",
-				ClusterID: connect.TestClusterID,
+				Provider: "consul",
 				Config: map[string]interface{}{
 					"LeafCertTTL":         "72h",
 					"IntermediateCertTTL": "288h",

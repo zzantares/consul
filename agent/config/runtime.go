@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/hashicorp/go-uuid"
 	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/consul/agent/cache"
@@ -1625,33 +1624,6 @@ func (c *RuntimeConfig) ConnectCAConfiguration() (*structs.CAConfiguration, erro
 			"IntermediateCertTTL": structs.DefaultIntermediateCertTTL,
 			"RootCertTTL":         structs.DefaultRootCertTTL,
 		},
-	}
-
-	// Allow config to specify cluster_id provided it's a valid UUID. This is
-	// meant only for tests where a deterministic ID makes fixtures much simpler
-	// to work with but since it's only read on initial cluster bootstrap it's not
-	// that much of a liability in production. The worst a user could do is
-	// configure logically separate clusters with same ID by mistake but we can
-	// avoid documenting this is even an option.
-	if clusterID, ok := c.ConnectCAConfig["cluster_id"]; ok {
-		// If they tried to specify an ID but typoed it then don't ignore as they
-		//  will then bootstrap with a new ID and have to throw away the whole cluster
-		// and start again.
-
-		// ensure the cluster_id value in the opaque config is a string
-		cIDStr, ok := clusterID.(string)
-		if !ok {
-			return nil, fmt.Errorf("cluster_id was supplied but was not a string")
-		}
-
-		// ensure that the cluster_id string is a valid UUID
-		_, err := uuid.ParseUUID(cIDStr)
-		if err != nil {
-			return nil, fmt.Errorf("cluster_id was supplied but was not a valid UUID")
-		}
-
-		// now that we know the cluster_id is okay we can set it in the CAConfiguration
-		ca.ClusterID = cIDStr
 	}
 
 	if c.ConnectCAProvider != "" {

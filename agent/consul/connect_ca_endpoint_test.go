@@ -53,12 +53,10 @@ func TestConnectCARoots(t *testing.T) {
 	ca1 := connect.TestCA(t, nil)
 	ca2 := connect.TestCA(t, nil)
 	ca2.Active = false
-	idx, _, err := state.CARoots(nil)
+	idx, roots, err := state.CARoots(nil)
 	require.NoError(err)
 	ok, err := state.CARootSetCAS(idx, idx, []*structs.CARoot{ca1, ca2})
 	assert.True(ok)
-	require.NoError(err)
-	_, caCfg, err := state.CAConfig(nil)
 	require.NoError(err)
 
 	// Request
@@ -76,7 +74,7 @@ func TestConnectCARoots(t *testing.T) {
 		assert.Equal("", r.SigningCert)
 		assert.Equal("", r.SigningKey)
 	}
-	assert.Equal(fmt.Sprintf("%s.consul", caCfg.ClusterID), reply.TrustDomain)
+	assert.Equal(fmt.Sprintf("%s.consul", roots.Active().ExternalTrustDomain), reply.TrustDomain)
 }
 
 func TestConnectCAConfig_GetSet(t *testing.T) {
