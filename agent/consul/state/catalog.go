@@ -752,7 +752,7 @@ func ensureServiceTxn(tx WriteTxn, idx uint64, node string, preserveIndexes bool
 }
 
 // Services returns all services along with a list of associated tags.
-func (s *Store) Services(ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, structs.Services, error) {
+func (s *Store) Services(ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (uint64, []*structs.ServiceNode, error) {
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
@@ -766,30 +766,11 @@ func (s *Store) Services(ws memdb.WatchSet, entMeta *structs.EnterpriseMeta) (ui
 	}
 	ws.Add(services.WatchCh())
 
-	// Rip through the services and enumerate them and their unique set of
-	// tags.
-	unique := make(map[string]map[string]struct{})
+	var result []*structs.ServiceNode
 	for service := services.Next(); service != nil; service = services.Next() {
-		svc := service.(*structs.ServiceNode)
-		tags, ok := unique[svc.ServiceName]
-		if !ok {
-			unique[svc.ServiceName] = make(map[string]struct{})
-			tags = unique[svc.ServiceName]
-		}
-		for _, tag := range svc.ServiceTags {
-			tags[tag] = struct{}{}
-		}
+		result = append(result, service.(*structs.ServiceNode))
 	}
-
-	// Generate the output structure.
-	var results = make(structs.Services)
-	for service, tags := range unique {
-		results[service] = make([]string, 0, len(tags))
-		for tag := range tags {
-			results[service] = append(results[service], tag)
-		}
-	}
-	return idx, results, nil
+	return idx, result, nil
 }
 
 func (s *Store) ServiceList(ws memdb.WatchSet,
@@ -829,7 +810,7 @@ func serviceListTxn(tx ReadTxn, ws memdb.WatchSet,
 }
 
 // ServicesByNodeMeta returns all services, filtered by the given node metadata.
-func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string, entMeta *structs.EnterpriseMeta) (uint64, structs.Services, error) {
+func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string, entMeta *structs.EnterpriseMeta) (uint64, []*structs.ServiceNode, error) {
 	tx := s.db.Txn(false)
 	defer tx.Abort()
 
@@ -874,8 +855,7 @@ func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string,
 	}
 	allServicesCh := allServices.WatchCh()
 
-	// Populate the services map
-	unique := make(map[string]map[string]struct{})
+	var result []*structs.ServiceNode
 	for node := nodes.Next(); node != nil; node = nodes.Next() {
 		n := node.(*structs.Node)
 		if len(filters) > 1 && !structs.SatisfiesMetaFilters(n.Meta, filters) {
@@ -889,30 +869,11 @@ func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string,
 		}
 		ws.AddWithLimit(watchLimit, services.WatchCh(), allServicesCh)
 
-		// Rip through the services and enumerate them and their unique set of
-		// tags.
 		for service := services.Next(); service != nil; service = services.Next() {
-			svc := service.(*structs.ServiceNode)
-			tags, ok := unique[svc.ServiceName]
-			if !ok {
-				unique[svc.ServiceName] = make(map[string]struct{})
-				tags = unique[svc.ServiceName]
-			}
-			for _, tag := range svc.ServiceTags {
-				tags[tag] = struct{}{}
-			}
+			result = append(result, service.(*structs.ServiceNode))
 		}
 	}
-
-	// Generate the output structure.
-	var results = make(structs.Services)
-	for service, tags := range unique {
-		results[service] = make([]string, 0, len(tags))
-		for tag := range tags {
-			results[service] = append(results[service], tag)
-		}
-	}
-	return idx, results, nil
+	return idx, result, nil
 }
 
 // maxIndexForService return the maximum Raft Index for a service
