@@ -70,8 +70,8 @@ func translateConfig(c *pbconfig.Config) config.Config {
 				Agent:                  stringPtrOrNil(t.Agent),
 				ManagedServiceProvider: tokens,
 				DeprecatedTokens: config.DeprecatedTokens{
-					Master:      stringPtrOrNil(t.Master),
-					AgentMaster: stringPtrOrNil(t.AgentMaster),
+					Master:      stringPtrOrNil(t.InitialManagement),
+					AgentMaster: stringPtrOrNil(t.AgentRecovery),
 				},
 			}
 		}
