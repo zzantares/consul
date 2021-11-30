@@ -17,7 +17,7 @@ descriptions.
 Configuration precedence is evaluated in the following order:
 
 1. Command line arguments
-2. Configuration files
+1. Configuration files
 
 When loading configuration, Consul loads the configuration from files and
 directories in lexical order. For example, configuration file
@@ -40,7 +40,7 @@ documented below in the
 configuration reload.
 
 You can test the following configuration options by following the
-[Getting Started](https://learn.hashicorp.com/tutorials/consul/get-started-install?utm_source=consul.io&utm_medium=docs)
+[Getting Started](https://learn.hashicorp.com/tutorials/consul/get-started-install?utm_source=consul.io\&utm_medium=docs)
 tutorials to install a local agent.
 
 ## Environment Variables
@@ -56,7 +56,7 @@ information.
 
 The options below are all specified on the command-line.
 
-- `-advertise` ((#\_advertise)) - The advertise address is used to change
+- `-advertise` ((#_advertise)) - The advertise address is used to change
   the address that we advertise to other nodes in the cluster. By default, the [`-bind`](#_bind)
   address is advertised. However, in some cases, there may be a routable address
   that cannot be bound. This flag enables gossiping a different address to support
@@ -64,7 +64,7 @@ The options below are all specified on the command-line.
   state as other nodes will treat the non-routability as a failure. In Consul 1.1.0 and later this can be dynamically defined with a [go-sockaddr]
   template that is resolved at runtime.
 
-- `-advertise-wan` ((#\_advertise-wan)) - The advertise WAN address is used
+- `-advertise-wan` ((#_advertise-wan)) - The advertise WAN address is used
   to change the address that we advertise to server nodes joining through the WAN.
   This can also be set on client agents when used in combination with the [`translate_wan_addrs`](#translate_wan_addrs) configuration option. By default, the [`-advertise`](#_advertise) address
   is advertised. However, in some cases all members of all datacenters cannot be
@@ -75,14 +75,14 @@ The options below are all specified on the command-line.
   accessed from a remote datacenter if the remote datacenter is configured with [`translate_wan_addrs`](#translate_wan_addrs). In Consul 1.1.0 and later this can be dynamically defined with a [go-sockaddr]
   template that is resolved at runtime.
 
-- `-bootstrap` ((#\_bootstrap)) - This flag is used to control if a server
+- `-bootstrap` ((#_bootstrap)) - This flag is used to control if a server
   is in "bootstrap" mode. It is important that no more than one server **per** datacenter
   be running in this mode. Technically, a server in bootstrap mode is allowed to
   self-elect as the Raft leader. It is important that only a single node is in this
   mode; otherwise, consistency cannot be guaranteed as multiple nodes are able to
   self-elect. It is not recommended to use this flag after a cluster has been bootstrapped.
 
-- `-bootstrap-expect` ((#\_bootstrap_expect)) - This flag provides the number
+- `-bootstrap-expect` ((#_bootstrap_expect)) - This flag provides the number
   of expected servers in the datacenter. Either this value should not be provided
   or the value must agree with other servers in the cluster. When provided, Consul
   waits until the specified number of servers are available and then bootstraps the
@@ -90,7 +90,7 @@ The options below are all specified on the command-line.
   be used in conjunction with the legacy [`-bootstrap`](#_bootstrap) flag. This flag
   requires [`-server`](#_server) mode.
 
-- `-bind` ((#\_bind)) - The address that should be bound to for internal
+- `-bind` ((#_bind)) - The address that should be bound to for internal
   cluster communications. This is an IP address that should be reachable by all other
   nodes in the cluster. By default, this is "0.0.0.0", meaning Consul will bind to
   all addresses on the local machine and will [advertise](/docs/agent/options#_advertise)
@@ -117,13 +117,13 @@ The options below are all specified on the command-line.
   $ consul agent -bind '{{ GetAllInterfaces | include "name" "^eth" | include "flags" "forwardable|up" | attr "address" }}'
   ```
 
-- `-serf-wan-bind` ((#\_serf_wan_bind)) - The address that should be bound
+- `-serf-wan-bind` ((#_serf_wan_bind)) - The address that should be bound
   to for Serf WAN gossip communications. By default, the value follows the same rules
   as [`-bind` command-line flag](#_bind), and if this is not specified, the `-bind`
   option is used. This is available in Consul 0.7.1 and later. In Consul 1.1.0 and later this can be dynamically defined with a [go-sockaddr]
   template that is resolved at runtime.
 
-- `-serf-lan-bind` ((#\_serf_lan_bind)) - The address that should be bound
+- `-serf-lan-bind` ((#_serf_lan_bind)) - The address that should be bound
   to for Serf LAN gossip communications. This is an IP address that should be reachable
   by all other LAN nodes in the cluster. By default, the value follows the same rules
   as [`-bind` command-line flag](#_bind), and if this is not specified, the `-bind`
@@ -136,13 +136,13 @@ The options below are all specified on the command-line.
   a very large output in their checks. In order to completely disable check output
   capture, it is possible to use [`discard_check_output`](#discard_check_output).
 
-- `-client` ((#\_client)) - The address to which Consul will bind client
+- `-client` ((#_client)) - The address to which Consul will bind client
   interfaces, including the HTTP and DNS servers. By default, this is "127.0.0.1",
   allowing only loopback connections. In Consul 1.0 and later this can be set to
   a space-separated list of addresses to bind to, or a [go-sockaddr]
   template that can potentially resolve to multiple addresses.
 
-- `-config-file` ((#\_config_file)) - A configuration file to load. For
+- `-config-file` ((#_config_file)) - A configuration file to load. For
   more information on the format of this file, read the [Configuration Files](#configuration_files)
   section. This option can be specified multiple times to load multiple configuration
   files. If it is specified multiple times, configuration files loaded later will
@@ -150,7 +150,7 @@ The options below are all specified on the command-line.
   keys (string, int, bool) will simply have their values replaced while list types
   will be appended together.
 
-- `-config-dir` ((#\_config_dir)) - A directory of configuration files to
+- `-config-dir` ((#_config_dir)) - A directory of configuration files to
   load. Consul will load all files in this directory with the suffix ".json" or ".hcl".
   The load order is alphabetical, and the the same merge routine is used as with
   the [`config-file`](#_config_file) option above. This option can be specified multiple
@@ -158,13 +158,13 @@ The options below are all specified on the command-line.
   not loaded. For more information on the format of the configuration files, see
   the [Configuration Files](#configuration_files) section.
 
-- `-config-format` ((#\_config_format)) - The format of the configuration
+- `-config-format` ((#_config_format)) - The format of the configuration
   files to load. Normally, Consul detects the format of the config files from the
   ".json" or ".hcl" extension. Setting this option to either "json" or "hcl" forces
   Consul to interpret any file with or without extension to be interpreted in that
   format.
 
-- `-data-dir` ((#\_data_dir)) - This flag provides a data directory for
+- `-data-dir` ((#_data_dir)) - This flag provides a data directory for
   the agent to store state. This is required for all agents. The directory should
   be durable across reboots. This is especially critical for agents that are running
   in server mode as they must be able to persist cluster state. Additionally, the
@@ -173,12 +173,12 @@ The options below are all specified on the command-line.
 
   **Note:** both server and non-server agents may store ACL tokens in the state in this directory so read access may grant access to any tokens on servers and to any tokens used during service registration on non-servers. On Unix-based platforms the files are written with 0600 permissions so you should ensure only trusted processes can execute as the same user as Consul. On Windows, you should ensure the directory has suitable permissions configured as these will be inherited.
 
-- `-datacenter` ((#\_datacenter)) - This flag controls the datacenter in
+- `-datacenter` ((#_datacenter)) - This flag controls the datacenter in
   which the agent is running. If not provided, it defaults to "dc1". Consul has first-class
   support for multiple datacenters, but it relies on proper configuration. Nodes
   in the same datacenter should be on a single LAN.
 
-- `-dev` ((#\_dev)) - Enable development server mode. This is useful for
+- `-dev` ((#_dev)) - Enable development server mode. This is useful for
   quickly starting a Consul agent with all persistence options turned off, enabling
   an in-memory server which can be used for rapid prototyping or developing against
   the API. In this mode, [Connect is enabled](/docs/connect/configuration) and
@@ -186,7 +186,7 @@ The options below are all specified on the command-line.
   intended for production use as it does not write any data to disk. The gRPC port
   is also defaulted to `8502` in this mode.
 
-- `-disable-host-node-id` ((#\_disable_host_node_id)) - Setting this to
+- `-disable-host-node-id` ((#_disable_host_node_id)) - Setting this to
   true will prevent Consul from using information from the host to generate a deterministic
   node ID, and will instead generate a random node ID which will be persisted in
   the data directory. This is useful when running multiple Consul agents on the same
@@ -197,26 +197,26 @@ The options below are all specified on the command-line.
   to host-based IDs then Consul and Nomad will use information on the host to automatically
   assign the same ID in both systems.
 
-- `-disable-keyring-file` ((#\_disable_keyring_file)) - If set, the keyring
+- `-disable-keyring-file` ((#_disable_keyring_file)) - If set, the keyring
   will not be persisted to a file. Any installed keys will be lost on shutdown, and
   only the given `-encrypt` key will be available on startup. This defaults to false.
 
-- `-dns-port` ((#\_dns_port)) - the DNS port to listen on. This overrides
+- `-dns-port` ((#_dns_port)) - the DNS port to listen on. This overrides
   the default port 8600. This is available in Consul 0.7 and later.
 
-- `-domain` ((#\_domain)) - By default, Consul responds to DNS queries in
+- `-domain` ((#_domain)) - By default, Consul responds to DNS queries in
   the "consul." domain. This flag can be used to change that domain. All queries
   in this domain are assumed to be handled by Consul and will not be recursively
   resolved.
 
-- `-alt-domain` ((#\_alt_domain)) - This flag allows Consul to respond to
+- `-alt-domain` ((#_alt_domain)) - This flag allows Consul to respond to
   DNS queries in an alternate domain, in addition to the primary domain. If unset,
   no alternate domain is used.
 
   In Consul 1.10.4 and later, Consul DNS responses will use the same domain as in the query (`-domain` or `-alt-domain`) where applicable.
   PTR query responses will always use `-domain`, since the desired domain cannot be included in the query.
 
-- `-enable-script-checks` ((#\_enable_script_checks)) This controls whether
+- `-enable-script-checks` ((#_enable_script_checks)) This controls whether
   [health checks that execute scripts](/docs/agent/checks) are enabled on this
   agent, and defaults to `false` so operators must opt-in to allowing these. This
   was added in Consul 0.9.0.
@@ -227,13 +227,12 @@ The options below are all specified on the command-line.
   blog post](https://www.hashicorp.com/blog/protecting-consul-from-rce-risk-in-specific-configurations)
   for more details.
 
-- `-enable-local-script-checks` ((#\_enable_local_script_checks))
+- `-enable-local-script-checks` ((#_enable_local_script_checks))
   Like [`enable_script_checks`](#_enable_script_checks), but only enable them when
   they are defined in the local configuration files. Script checks defined in HTTP
   API registrations will still not be allowed.
-  
 
-- `-encrypt` ((#\_encrypt)) - Specifies the secret key to use for encryption
+- `-encrypt` ((#_encrypt)) - Specifies the secret key to use for encryption
   of Consul network traffic. This key must be 32-bytes that are Base64-encoded. The
   easiest way to create an encryption key is to use [`consul keygen`](/commands/keygen).
   All nodes within a cluster must share the same encryption key to communicate. The
@@ -243,23 +242,23 @@ The options below are all specified on the command-line.
   If it is provided after Consul has been initialized with an encryption key, then
   the provided key is ignored and a warning will be displayed.
 
-- `-grpc-port` ((#\_grpc_port)) - the gRPC API port to listen on. Default
-  -1 (gRPC disabled). See [ports](#ports) documentation for more detail.
+- `-grpc-port` ((#_grpc_port)) - the gRPC API port to listen on. Default
+  \-1 (gRPC disabled). See [ports](#ports) documentation for more detail.
 
-- `-hcl` ((#\_hcl)) - A HCL configuration fragment. This HCL configuration
+- `-hcl` ((#_hcl)) - A HCL configuration fragment. This HCL configuration
   fragment is appended to the configuration and allows to specify the full range
   of options of a config file on the command line. This option can be specified multiple
   times. This was added in Consul 1.0.
 
-- `-http-port` ((#\_http_port)) - the HTTP API port to listen on. This overrides
+- `-http-port` ((#_http_port)) - the HTTP API port to listen on. This overrides
   the default port 8500. This option is very useful when deploying Consul to an environment
   which communicates the HTTP port through the environment e.g. PaaS like CloudFoundry,
   allowing you to set the port directly via a Procfile.
 
-- `-https-port` ((#\_https_port)) - the HTTPS API port to listen on. Default
-  -1 (https disabled). See [ports](#ports) documentation for more detail.
+- `-https-port` ((#_https_port)) - the HTTPS API port to listen on. Default
+  \-1 (https disabled). See [ports](#ports) documentation for more detail.
 
-- `-log-file` ((#\_log_file)) - writes all the Consul agent log messages
+- `-log-file` ((#_log_file)) - writes all the Consul agent log messages
   to a file. This value is used as a prefix for the log file name. The current timestamp
   is appended to the file name. If the value ends in a path separator, `consul-`
   will be appended to the value. If the file name is missing an extension, `.log`
@@ -268,29 +267,29 @@ The options below are all specified on the command-line.
   [`-log-rotate-bytes`](#_log_rotate_bytes) and [-log-rotate-duration](#_log_rotate_duration)
   for a fine-grained log rotation experience.
 
-- `-log-rotate-bytes` ((#\_log_rotate_bytes)) - to specify the number of
+- `-log-rotate-bytes` ((#_log_rotate_bytes)) - to specify the number of
   bytes that should be written to a log before it needs to be rotated. Unless specified,
   there is no limit to the number of bytes that can be written to a log file.
 
-- `-log-rotate-duration` ((#\_log_rotate_duration)) - to specify the maximum
+- `-log-rotate-duration` ((#_log_rotate_duration)) - to specify the maximum
   duration a log should be written to before it needs to be rotated. Must be a duration
   value such as 30s. Defaults to 24h.
 
-- `-log-rotate-max-files` ((#\_log_rotate_max_files)) - to specify the maximum
+- `-log-rotate-max-files` ((#_log_rotate_max_files)) - to specify the maximum
   number of older log file archives to keep. Defaults to 0 (no files are ever deleted).
   Set to -1 to discard old log files when a new one is created.
 
-- `-default-query-time` ((#\_default_query_time)) - This flag controls the
+- `-default-query-time` ((#_default_query_time)) - This flag controls the
   amount of time a blocking query will wait before Consul will force a response.
   This value can be overridden by the `wait` query parameter. Note that Consul applies
   some jitter on top of this time. Defaults to 300s.
 
-- `-max-query-time` ((#\_max_query_time)) - this flag controls the maximum
+- `-max-query-time` ((#_max_query_time)) - this flag controls the maximum
   amount of time a blocking query can wait before Consul will force a response. Consul
   applies jitter to the wait time. The jittered time will be capped to this time.
   Defaults to 600s.
 
-- `-join` ((#\_join)) - Address of another agent to join upon starting up.
+- `-join` ((#_join)) - Address of another agent to join upon starting up.
   This can be specified multiple times to specify multiple agents to join. If Consul
   is unable to join with any of the specified addresses, agent startup will fail.
   By default, the agent won't join any nodes when it starts up. Note that using [`retry_join`](#retry_join) could be more appropriate to help mitigate node startup race conditions when automating
@@ -303,7 +302,7 @@ The options below are all specified on the command-line.
   If using Enterprise network segments, see [additional documentation on
   joining a client to a segment](/docs/enterprise/network-segments#join_a_client_to_a_segment).
 
-- `-retry-join` ((#\_retry_join)) - Similar to [`-join`](#_join) but allows retrying a join until
+- `-retry-join` ((#_retry_join)) - Similar to [`-join`](#_join) but allows retrying a join until
   it is successful. Once it joins successfully to a member in a list of members
   it will never attempt to join again. Agents will then solely maintain their
   membership via gossip. This is useful for cases where you know the address will
@@ -364,14 +363,14 @@ The options below are all specified on the command-line.
   $ consul agent -retry-join "provider=aws tag_key=..."
   ```
 
-- `-retry-interval` ((#\_retry_interval)) - Time to wait between join attempts.
+- `-retry-interval` ((#_retry_interval)) - Time to wait between join attempts.
   Defaults to 30s.
 
-- `-retry-max` ((#\_retry_max)) - The maximum number of [`-join`](#_join)
+- `-retry-max` ((#_retry_max)) - The maximum number of [`-join`](#_join)
   attempts to be made before exiting with return code 1. By default, this is set
   to 0 which is interpreted as infinite retries.
 
-- `-join-wan` ((#\_join_wan)) - Address of another wan agent to join upon
+- `-join-wan` ((#_join_wan)) - Address of another wan agent to join upon
   starting up. This can be specified multiple times to specify multiple WAN agents
   to join. If Consul is unable to join with any of the specified addresses, agent
   startup will fail. By default, the agent won't [`-join-wan`](#_join_wan) any nodes
@@ -380,7 +379,7 @@ The options below are all specified on the command-line.
   In Consul 1.1.0 and later this can be dynamically defined with a [go-sockaddr]
   template that is resolved at runtime.
 
-- `-retry-join-wan` ((#\_retry_join_wan)) - Similar to [`retry-join`](#_retry_join)
+- `-retry-join-wan` ((#_retry_join_wan)) - Similar to [`retry-join`](#_retry_join)
   but allows retrying a wan join if the first attempt fails. This is useful for cases
   where we know the address will become available eventually. As of Consul 0.9.3
   [Cloud Auto-Joining](#cloud-auto-joining) is supported as well.
@@ -388,26 +387,26 @@ The options below are all specified on the command-line.
   In Consul 1.1.0 and later this can be dynamically defined with a [go-sockaddr]
   template that is resolved at runtime.
 
-- `-retry-interval-wan` ((#\_retry_interval_wan)) - Time to wait between
+- `-retry-interval-wan` ((#_retry_interval_wan)) - Time to wait between
   [`-join-wan`](#_join_wan) attempts. Defaults to 30s.
 
-- `-retry-max-wan` ((#\_retry_max_wan)) - The maximum number of [`-join-wan`](#_join_wan)
+- `-retry-max-wan` ((#_retry_max_wan)) - The maximum number of [`-join-wan`](#_join_wan)
   attempts to be made before exiting with return code 1. By default, this is set
   to 0 which is interpreted as infinite retries.
 
-- `-log-level` ((#\_log_level)) - The level of logging to show after the
+- `-log-level` ((#_log_level)) - The level of logging to show after the
   Consul agent has started. This defaults to "info". The available log levels are
   "trace", "debug", "info", "warn", and "err". You can always connect to an agent
   via [`consul monitor`](/commands/monitor) and use any log level. Also,
   the log level can be changed during a config reload.
 
-- `-log-json` ((#\_log_json)) - This flag enables the agent to output logs
+- `-log-json` ((#_log_json)) - This flag enables the agent to output logs
   in a JSON format. By default this is false.
 
-- `-node` ((#\_node)) - The name of this node in the cluster. This must
+- `-node` ((#_node)) - The name of this node in the cluster. This must
   be unique within the cluster. By default this is the hostname of the machine.
 
-- `-node-id` ((#\_node_id)) - Available in Consul 0.7.3 and later, this
+- `-node-id` ((#_node_id)) - Available in Consul 0.7.3 and later, this
   is a unique identifier for this node across all time, even if the name of the node
   or address changes. This must be in the form of a hex string, 36 characters long,
   such as `adf4238a-882b-9ddc-4a9d-5b6758e4159e`. If this isn't supplied, which is
@@ -417,7 +416,7 @@ The options below are all specified on the command-line.
   node ID if possible, unless [`-disable-host-node-id`](#_disable_host_node_id) is
   set to true.
 
-- `-node-meta` ((#\_node_meta)) - Available in Consul 0.7.3 and later, this
+- `-node-meta` ((#_node_meta)) - Available in Consul 0.7.3 and later, this
   specifies an arbitrary metadata key/value pair to associate with the node, of the
   form `key:value`. This can be specified multiple times. Node metadata pairs have
   the following restrictions:
@@ -430,34 +429,34 @@ The options below are all specified on the command-line.
   - Metadata values for keys beginning with `rfc1035-` are encoded verbatim in DNS TXT requests, otherwise
     the metadata kv-pair is encoded according [RFC1464](https://www.ietf.org/rfc/rfc1464.txt).
 
-- `-pid-file` ((#\_pid_file)) - This flag provides the file path for the
+- `-pid-file` ((#_pid_file)) - This flag provides the file path for the
   agent to store its PID. This is useful for sending signals (for example, `SIGINT`
   to close the agent or `SIGHUP` to update check definitions) to the agent.
 
-- `-protocol` ((#\_protocol)) - The Consul protocol version to use. Consul
+- `-protocol` ((#_protocol)) - The Consul protocol version to use. Consul
   agents speak protocol 2 by default, however agents will automatically use protocol > 2 when speaking to compatible agents. This should be set only when [upgrading](/docs/upgrading). You can view the protocol versions supported by Consul by running `consul -v`.
 
-- `-primary-gateway` ((#\_primary_gateway)) - Similar to [`retry-join-wan`](#_retry_join_wan)
+- `-primary-gateway` ((#_primary_gateway)) - Similar to [`retry-join-wan`](#_retry_join_wan)
   but allows retrying discovery of fallback addresses for the mesh gateways in the
   primary datacenter if the first attempt fails. This is useful for cases where we
   know the address will become available eventually. [Cloud Auto-Joining](#cloud-auto-joining)
   is supported as well as [go-sockaddr]
   templates. This was added in Consul 1.8.0.
 
-- `-raft-protocol` ((#\_raft_protocol)) - This controls the internal version
+- `-raft-protocol` ((#_raft_protocol)) - This controls the internal version
   of the Raft consensus protocol used for server communications. This must be set
   to 3 in order to gain access to Autopilot features, with the exception of [`cleanup_dead_servers`](#cleanup_dead_servers). Defaults to 3 in Consul 1.0.0 and later (defaulted to 2 previously). See [Raft Protocol Version Compatibility](/docs/upgrade-specific#raft-protocol-version-compatibility) for more details.
 
-- `-recursor` ((#\_recursor)) - Specifies the address of an upstream DNS
+- `-recursor` ((#_recursor)) - Specifies the address of an upstream DNS
   server. This option may be provided multiple times, and is functionally equivalent
   to the [`recursors` configuration option](#recursors).
 
-- `-rejoin` ((#\_rejoin)) - When provided, Consul will ignore a previous
+- `-rejoin` ((#_rejoin)) - When provided, Consul will ignore a previous
   leave and attempt to rejoin the cluster when starting. By default, Consul treats
   leave as a permanent intent and does not attempt to join the cluster again when
   starting. This flag allows the previous state to be used to rejoin the cluster.
 
-- `-segment` ((#\_segment)) <EnterpriseAlert inline /> - This flag is used to set
+- `-segment` ((#_segment)) <EnterpriseAlert inline /> - This flag is used to set
   the name of the network segment the agent belongs to. An agent can only join and
   communicate with other agents within its network segment. Ensure the [join
   operation uses the correct port for this segment](/docs/enterprise/network-segments#join_a_client_to_a_segment).
@@ -465,25 +464,25 @@ The options below are all specified on the command-line.
   for more details. By default, this is an empty string, which is the `<default>`
   network segment.
 
-- `-serf-lan-allowed-cidrs` ((#\_serf_lan_allowed_cidrs)) - The Serf LAN allowed CIDRs allow to accept incoming
+- `-serf-lan-allowed-cidrs` ((#_serf_lan_allowed_cidrs)) - The Serf LAN allowed CIDRs allow to accept incoming
   connections for Serf only from several networks (multiple values are supported).
   Those networks are specified with CIDR notation (eg: 192.168.1.0/24).
   This is available in Consul 1.8 and later.
 
-- `-serf-lan-port` ((#\_serf_lan_port)) - the Serf LAN port to listen on.
+- `-serf-lan-port` ((#_serf_lan_port)) - the Serf LAN port to listen on.
   This overrides the default Serf LAN port 8301. This is available in Consul 1.2.2
   and later.
 
-- `-serf-wan-allowed-cidrs` ((#\_serf_wan_allowed_cidrs)) - The Serf WAN allowed CIDRs allow to accept incoming
+- `-serf-wan-allowed-cidrs` ((#_serf_wan_allowed_cidrs)) - The Serf WAN allowed CIDRs allow to accept incoming
   connections for Serf only from several networks (multiple values are supported).
   Those networks are specified with CIDR notation (eg: 192.168.1.0/24).
   This is available in Consul 1.8 and later.
 
-- `-serf-wan-port` ((#\_serf_wan_port)) - the Serf WAN port to listen on.
+- `-serf-wan-port` ((#_serf_wan_port)) - the Serf WAN port to listen on.
   This overrides the default Serf WAN port 8302. This is available in Consul 1.2.2
   and later.
 
-- `-server` ((#\_server)) - This flag is used to control if an agent is
+- `-server` ((#_server)) - This flag is used to control if an agent is
   in server or client mode. When provided, an agent will act as a Consul server.
   Each Consul cluster must have at least one server and ideally no more than 5 per
   datacenter. All servers participate in the Raft consensus algorithm to ensure that
@@ -493,34 +492,35 @@ The options below are all specified on the command-line.
   nodes in other datacenters. Servers act as gateways to other datacenters and forward
   traffic as appropriate.
 
-- `-server-port` ((#\_server_port)) - the server RPC port to listen on.
+- `-server-port` ((#_server_port)) - the server RPC port to listen on.
   This overrides the default server RPC port 8300. This is available in Consul 1.2.2
   and later.
 
-- `-non-voting-server` ((#\_non_voting_server)) <EnterpriseAlert inline /> - **This field
+- `-non-voting-server` ((#_non_voting_server)) <EnterpriseAlert inline /> - **This field
   is deprecated in Consul 1.9.1. See the [`-read-replica`](#_read_replica) flag instead.**
 
-- `-read-replica` ((#\_read_replica)) <EnterpriseAlert inline /> - This
+- `-read-replica` ((#_read_replica)) <EnterpriseAlert inline /> - This
   flag is used to make the server not participate in the Raft quorum, and have it
   only receive the data replication stream. This can be used to add read scalability
   to a cluster in cases where a high volume of reads to servers are needed.
 
-- `-syslog` ((#\_syslog)) - This flag enables logging to syslog. This is
+- `-syslog` ((#_syslog)) - This flag enables logging to syslog. This is
   only supported on Linux and OSX. It will result in an error if provided on Windows.
 
-- `-ui` ((#\_ui)) - Enables the built-in web UI server and the required
+- `-ui` ((#_ui)) - Enables the built-in web UI server and the required
   HTTP routes. This eliminates the need to maintain the Consul web UI files separately
   from the binary.
 
-- `-ui-dir` ((#\_ui_dir)) - This flag provides the directory containing
+- `-ui-dir` ((#_ui_dir)) - This flag provides the directory containing
   the Web UI resources for Consul. This will automatically enable the Web UI. The
   directory must be readable to the agent. Starting with Consul version 0.7.0 and
   later, the Web UI assets are included in the binary so this flag is no longer necessary;
   specifying only the `-ui` flag is enough to enable the Web UI. Specifying both
   the '-ui' and '-ui-dir' flags will result in an error.
 
-<!-- prettier-ignore -->
-- `-ui-content-path` ((#\_ui\_content\_path)) - This flag provides the option
+{/* prettier-ignore */}
+
+- `-ui-content-path` ((#_ui_content_path)) - This flag provides the option
   to change the path the Consul UI loads from and will be displayed in the browser.
   By default, the path is `/ui/`, for example `http://localhost:8500/ui/`. Only alphanumerics,
   `-`, and `_` are allowed in a custom path.`/v1/` is not allowed as it would overwrite
@@ -1311,7 +1311,7 @@ bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr
       Currently supported values are:
 
       - `private_key_type = ec` (default): `224, 256, 384, 521`
-        corresponding to the NIST P-\* curves of the same name.
+        corresponding to the NIST P-* curves of the same name.
       - `private_key_type = rsa`: `2048, 4096`
 
 - `datacenter` Equivalent to the [`-datacenter` command-line flag](#_datacenter).
@@ -1366,7 +1366,7 @@ bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr
     "m" for minute.
 
   - `service_ttl` - This is a sub-object which allows
-    for setting a TTL on service lookups with a per-service policy. The "\*" wildcard
+    for setting a TTL on service lookups with a per-service policy. The "*" wildcard
     service can be used when there is no specific policy available for a service.
     By default, all services are served with a 0 TTL value. DNS caching for service
     lookups can be enabled by setting this value.
@@ -1767,7 +1767,7 @@ bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr
 - `raft_protocol` ((#raft_protocol)) Equivalent to the [`-raft-protocol`
   command-line flag](#_raft_protocol).
 
-- `raft_snapshot_threshold` ((#\_raft_snapshot_threshold)) This controls the
+- `raft_snapshot_threshold` ((#_raft_snapshot_threshold)) This controls the
   minimum number of raft commit entries between snapshots that are saved to
   disk. This is a low-level parameter that should rarely need to be changed.
   Very busy clusters experiencing excessive disk IO may increase this value to
@@ -1783,7 +1783,7 @@ bind_addr = "{{ GetPrivateInterfaces | include \"network\" \"10.0.0.0/8\" | attr
   server a `SIGHUP` to allow tuning snapshot activity without a rolling restart
   in emergencies.
 
-- `raft_snapshot_interval` ((#\_raft_snapshot_interval)) This controls how often
+- `raft_snapshot_interval` ((#_raft_snapshot_interval)) This controls how often
   servers check if they need to save a snapshot to disk. This is a low-level
   parameter that should rarely need to be changed. Very busy clusters
   experiencing excessive disk IO may increase this value to reduce disk IO, and
@@ -2268,7 +2268,7 @@ signed by the CA can be used to gain full access to Consul.
 - `tls_cipher_suites` Added in Consul 0.8.2, this specifies the list of
   supported ciphersuites as a comma-separated-list. Applicable to TLS 1.2 and below only.
   The list of all supported ciphersuites is available through
-  [this search](https://github.com/hashicorp/consul/search?q=cipherMap+%3A%3D+map&unscoped_q=cipherMap+%3A%3D+map).
+  [this search](https://github.com/hashicorp/consul/search?q=cipherMap+%3A%3D+map\&unscoped_q=cipherMap+%3A%3D+map).
 
   ~> **Note:** The ordering of cipher suites will not be guaranteed from Consul 1.11 onwards. See this
   [post](https://go.dev/blog/tls-cipher-suites) for details.
@@ -2408,6 +2408,6 @@ items which are reloaded include:
   - Please be aware that this is currently limited to reload a configuration that is already TLS enabled. You cannot enable or disable TLS only with reloading.
 - Watches
 
-<!-- list of reference-style links -->
+{/* list of reference-style links */}
 
 [go-sockaddr]: https://godoc.org/github.com/hashicorp/go-sockaddr/template

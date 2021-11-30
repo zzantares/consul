@@ -1,8 +1,9 @@
 ---
 layout: docs
 page_title: WAN Federation via Mesh Gateways
-description: |-
-  WAN federation via mesh gateways allows for Consul servers in different datacenters to be federated exclusively through mesh gateways.
+description: >-
+  WAN federation via mesh gateways allows for Consul servers in different
+  datacenters to be federated exclusively through mesh gateways.
 ---
 
 # WAN Federation via Mesh Gateways
@@ -77,8 +78,10 @@ themselves being directly reachable.
 All Consul servers in all datacenters should have TLS configured with certificates containing
 these SAN fields:
 
-    server.<this_datacenter>.<domain>              (normal)
-    <node_name>.server.<this_datacenter>.<domain>  (needed for wan federation)
+```
+server.<this_datacenter>.<domain>              (normal)
+<node_name>.server.<this_datacenter>.<domain>  (needed for wan federation)
+```
 
 This can be achieved using any number of tools, including `consul tls cert create` with the `-node` flag.
 
@@ -139,20 +142,20 @@ follow this general procedure:
 
 1. Upgrade to the desired version of the consul binary for all servers,
    clients, and CLI.
-2. Start all consul servers and clients on the new version in the primary
+1. Start all consul servers and clients on the new version in the primary
    datacenter.
-3. Ensure the primary datacenter has at least one running, registered mesh gateway with
+1. Ensure the primary datacenter has at least one running, registered mesh gateway with
    the service metadata key of `{"consul-wan-federation":"1"}` set.
-4. Ensure you are _prepared_ to launch corresponding mesh gateways in all
+1. Ensure you are _prepared_ to launch corresponding mesh gateways in all
    secondaries. When ACLs are enabled actually registering these requires
    upstream connectivity to the primary datacenter to authorize catalog
    registration.
-5. Ensure all servers in the primary datacenter have updated configuration and
+1. Ensure all servers in the primary datacenter have updated configuration and
    restart.
-6. Ensure all servers in the secondary datacenter have updated configuration.
-7. Start all consul servers and clients on the new version in the secondary
+1. Ensure all servers in the secondary datacenter have updated configuration.
+1. Start all consul servers and clients on the new version in the secondary
    datacenter.
-8. When ACLs are enabled, shortly afterwards it should become possible to
+1. When ACLs are enabled, shortly afterwards it should become possible to
    resolve ACL tokens from the secondary, at which time it should be possible
    to launch the mesh gateways in the secondary datacenter.
 
@@ -160,12 +163,12 @@ follow this general procedure:
 
 1. Upgrade to the desired version of the consul binary for all servers,
    clients, and CLI.
-2. Restart all consul servers and clients on the new version.
-3. Ensure each datacenter has at least one running, registered mesh gateway with the
+1. Restart all consul servers and clients on the new version.
+1. Ensure each datacenter has at least one running, registered mesh gateway with the
    service metadata key of `{"consul-wan-federation":"1"}` set.
-4. Ensure all servers in the primary datacenter have updated configuration and
+1. Ensure all servers in the primary datacenter have updated configuration and
    restart.
-5. Ensure all servers in the secondary datacenter have updated configuration and
+1. Ensure all servers in the secondary datacenter have updated configuration and
    restart.
 
 ### Verification

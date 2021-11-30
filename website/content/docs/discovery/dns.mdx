@@ -35,7 +35,7 @@ as the DNS server for a node and provide a
 [`recursors`](/docs/agent/options#recursors) configuration so that non-Consul queries
 can also be resolved. The last method is to forward all queries for the "consul."
 domain to a Consul agent from the existing DNS server. Review the
-[DNS Forwarding tutorial](https://learn.hashicorp.com/tutorials/consul/dns-forwarding?utm_source=consul.io&utm_medium=docs) for examples.
+[DNS Forwarding tutorial](https://learn.hashicorp.com/tutorials/consul/dns-forwarding?utm_source=consul.io\&utm_medium=docs) for examples.
 
 You can experiment with Consul's DNS server on the command line using tools such as `dig`:
 
@@ -170,7 +170,9 @@ foobar.node.dc1.consul.	0	IN	A	10.1.10.12
 
 The format for RFC 2782 SRV lookups is:
 
-    _<service>._<protocol>[.service][.datacenter][.domain]
+```
+_<service>._<protocol>[.service][.datacenter][.domain]
+```
 
 Per [RFC 2782](https://tools.ietf.org/html/rfc2782), SRV queries should use
 underscores, `_`, as a prefix to the `service` and `protocol` values in a query to
@@ -336,7 +338,7 @@ Consul agents resolve DNS requests using one of the preconfigured tokens below,
 listed in order of precedence:
 
 1. The agent's [`default` token](/docs/agent/options#acl_tokens_default).
-2. The built-in [`anonymous` token](/docs/security/acl/acl-system#builtin-tokens).
+1. The built-in [`anonymous` token](/docs/security/acl/acl-system#builtin-tokens).
    Because the anonymous token is used when any request is made to Consul without
    explicitly specifying a token, production deployments should not apply policies
    needed for DNS to this token.

@@ -159,7 +159,7 @@ The following resources are not covered by ACL policies:
    basic IP and port information about the servers, and does not allow modification
    of any state.
 
-2. The datacenter listing operation of the
+1. The datacenter listing operation of the
    [Catalog API](/api/catalog#list-datacenters) similarly exposes the names of known
    Consul datacenters, and does not allow modification of any state.
 
@@ -241,8 +241,8 @@ In Consul 0.9.1 and later, the agent ACL tokens can be introduced or updated via
 The [`acl_agent_token`](/docs/agent/options#acl_agent_token) is a special token that is used for an agent's internal operations. It isn't used directly for any user-initiated operations like the [`acl_token`](/docs/agent/options#acl_token), though if the `acl_agent_token` isn't configured the `acl_token` will be used. The ACL agent token is used for the following operations by the agent:
 
 1. Updating the agent's node entry using the [Catalog API](/api/catalog), including updating its node metadata, tagged addresses, and network coordinates
-2. Performing [anti-entropy](/docs/internals/anti-entropy) syncing, in particular reading the node metadata and services registered with the catalog
-3. Reading and writing the special `_rexec` section of the KV store when executing [`consul exec`](/commands/exec) commands
+1. Performing [anti-entropy](/docs/internals/anti-entropy) syncing, in particular reading the node metadata and services registered with the catalog
+1. Reading and writing the special `_rexec` section of the KV store when executing [`consul exec`](/commands/exec) commands
 
 Here's an example policy sufficient to accomplish the above for a node called `mynode`:
 
@@ -274,9 +274,9 @@ The first step for bootstrapping ACLs is to enable ACLs on the Consul servers in
 datacenter. In this example, we are configuring the following:
 
 1. An ACL datacenter of "dc1", which is where these servers are
-2. An ACL master token of "b1gs33cr3t"; see below for an alternative using the [/v1/acl/bootstrap API](/api/acl/acl#bootstrap-acls)
-3. A default policy of "deny" which means we are in allowlist mode
-4. A down policy of "extend-cache" which means that we will ignore token TTLs
+1. An ACL master token of "b1gs33cr3t"; see below for an alternative using the [/v1/acl/bootstrap API](/api/acl/acl#bootstrap-acls)
+1. A default policy of "deny" which means we are in allowlist mode
+1. A down policy of "extend-cache" which means that we will ignore token TTLs
    during an outage
 
 Here's the corresponding JSON configuration file:
@@ -750,7 +750,7 @@ Event rules are keyed by the event name prefix they apply to, using the longest 
 In the example above, the rules allow read-only access to any event, and firing of any event that
 starts with "deploy".
 
-The [`consul exec`](/commands/exec) command uses events with the "\_rexec" prefix during
+The [`consul exec`](/commands/exec) command uses events with the "_rexec" prefix during
 operation, so to enable this feature in a Consul environment with ACLs enabled, you will need to
 give agents a token with access to this event prefix, in addition to configuring
 [`disable_remote_exec`](/docs/agent/options#disable_remote_exec) to `false`.
@@ -883,7 +883,7 @@ to use for registration events:
 1. Using the [acl_token](/docs/agent/options#acl_token) configuration
    directive. This allows a single token to be configured globally and used
    during all check registration operations.
-2. Providing an ACL token with service and check definitions at
+1. Providing an ACL token with service and check definitions at
    registration time. This allows for greater flexibility and enables the use
    of multiple tokens on the same agent. Examples of what this looks like are
    available for both [services](/docs/agent/services) and
@@ -991,7 +991,7 @@ prepared query namespace.
 
 These differences are outlined in the table below:
 
-| Operation                          | Version <= 0.6.3                                                                                                                                                                                 | Version > 0.6.3                                                                                                                                                                                                                     |
+| Operation                          | Version \<= 0.6.3                                                                                                                                                                                 | Version > 0.6.3                                                                                                                                                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create static query without `Name` | The ACL Token used to create the prepared query is checked to make sure it can access the service being queried. This token is captured as the `Token` to use when executing the prepared query. | No ACL policies are used as long as no `Name` is defined. No `Token` is captured by default unless specifically supplied by the client when creating the query.                                                                     |
 | Create static query with `Name`    | The ACL Token used to create the prepared query is checked to make sure it can access the service being queried. This token is captured as the `Token` to use when executing the prepared query. | The client token's `query` ACL policy is used to determine if the client is allowed to register a query for the given `Name`. No `Token` is captured by default unless specifically supplied by the client when creating the query. |
@@ -1040,7 +1040,7 @@ to use for registration events:
 1. Using the [acl_token](/docs/agent/options#acl_token) configuration
    directive. This allows a single token to be configured globally and used
    during all service and check registration operations.
-2. Providing an ACL token with service and check definitions at registration
+1. Providing an ACL token with service and check definitions at registration
    time. This allows for greater flexibility and enables the use of multiple
    tokens on the same agent. Examples of what this looks like are available for
    both [services](/docs/agent/services) and
@@ -1135,12 +1135,12 @@ using a process like this:
    is healthy and caught up to the current ACL index in the target datacenter
    using the [ACL replication status](/api/acl/acl#check-acl-replication)
    endpoint.
-2. Turn down the old authoritative datacenter servers.
-3. Rolling restart the agents in the target datacenter and change the
+1. Turn down the old authoritative datacenter servers.
+1. Rolling restart the agents in the target datacenter and change the
    `acl_datacenter` servers to itself. This will automatically turn off
    replication and will enable the datacenter to start acting as the authoritative
    datacenter, using its replicated ACLs from before.
-4. Rolling restart the agents in other datacenters and change their `acl_datacenter`
+1. Rolling restart the agents in other datacenters and change their `acl_datacenter`
    configuration to the target datacenter.
 
 #### Complete ACL Coverage in Consul 0.8 ((#version_8_acls))

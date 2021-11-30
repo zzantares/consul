@@ -34,11 +34,13 @@ Usage: `consul config read [options]`
 
 ## Examples
 
-    $ consul config read -kind service-defaults -name web
-    {
-        "Kind": "service-defaults",
-        "Name": "web",
-        "Protocol": "http",
-        "CreateIndex": 13,
-        "ModifyIndex": 13
-    }
+```
+$ consul config read -kind service-defaults -name web
+{
+    "Kind": "service-defaults",
+    "Name": "web",
+    "Protocol": "http",
+    "CreateIndex": 13,
+    "ModifyIndex": 13
+}
+```

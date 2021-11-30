@@ -18,8 +18,7 @@ This topic describes how to configure rules for Consul's access control list (AC
 
 ACL rules describe the level of access to resources. A rule is composed of a resource declaration and an access level defined with the `policy` keyword and a [policy disposition](#policy-dispositions). The following syntax describes the basic structure of a rule:
 
-<CodeTabs heading="Basic syntax for configuring an ACL rule">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Basic syntax for configuring an ACL rule"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 <resource> {
@@ -27,8 +26,7 @@ ACL rules describe the level of access to resources. A rule is composed of a res
   }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "<resource>": [{
@@ -36,8 +34,7 @@ ACL rules describe the level of access to resources. A rule is composed of a res
   }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 ### Resource Labels
 
@@ -45,8 +42,7 @@ Many resources take an additional value that limits the scope of the rule to res
 
 The following syntax describes how to include a resource label in the rule:
 
-<CodeTabs heading="Syntax for applying an ACL rule to named resources">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Syntax for applying an ACL rule to named resources"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 <resource> "<label>" {
@@ -54,8 +50,7 @@ The following syntax describes how to include a resource label in the rule:
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "<resource>": [{
@@ -65,34 +60,30 @@ The following syntax describes how to include a resource label in the rule:
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 Labels provide operators with more granular control over access to the resouce, but the following resource types do not take a label:
 
-* `acl`
-* `keyring`
-* `mesh`
-* `operator`
+- `acl`
+- `keyring`
+- `mesh`
+- `operator`
 
 Use the following syntax to create rules for these resources:
 
-<CodeTabs heading="Syntax for resources that take ACL rule configurations directly">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Syntax for resources that take ACL rule configurations directly"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 <resource> = "<policy disposition>"
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "<resource>": "<policy disposition>"
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 ### Policy Dispositions
 
@@ -110,16 +101,15 @@ You can define rules for labeled resources based on exact matches or by using re
 
 The following example rule is an exact match that denies access to services labeled `web-prod`:
 
-<CodeTabs heading="Example rule that denies access to services named 'web-prod'">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example rule that denies access to services named 'web-prod'"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 service "web-prod" {
   policy = "deny"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "service": [{
@@ -128,21 +118,20 @@ service "web-prod" {
   }]
 }]
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 You can append the resource with `_prefix` to match all resource labels beginning with the same value. The following example rule allows `write` access to all services with labels that begin with "web":
 
-<CodeTabs heading="Example rule that grants read and write access to services with names beginning with 'web'">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example rule that grants read and write access to services with names beginning with 'web'"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 service_prefix "web" {
   policy = "write"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "service_prefix": [{
@@ -152,21 +141,19 @@ service_prefix "web" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 Prefix-based resource labels can also contain an empty string, which configures the rule to apply to all resources of the declared type. The following example rule allows `read` access to all `service` resources:
 
-<CodeTabs heading="Example rule that grants read access to all services">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example rule that grants read access to all services"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 service_prefix "" {
   policy = "read"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "service_prefix" : [{
@@ -176,14 +163,13 @@ service_prefix "" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 When using prefix-based rules, the most specific prefix match determines the action. In a real-world scenario, a combination of rules would be combined to create a flexible policy. Each team or business unit would use tokens based on policies that enforce several rules, for example:
 
-* A rule that denies access to a specific resource label
-* A prefix-based rule that allows write access to a class of resources
-* An empty prefix that grants read-only access to all resource within the declared class
+- A rule that denies access to a specific resource label
+- A prefix-based rule that allows write access to a class of resources
+- An empty prefix that grants read-only access to all resource within the declared class
 
 #### Matching Precedence
 
@@ -200,8 +186,7 @@ Define rules using the
 HCL is human readable and interoperable with JSON, making it easy to automate rule generation.
 The following examples show the same rules formatted in HCL and JSON:
 
-<CodeTabs heading="Example rules">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example rules"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 # These control access to the key/value store.
@@ -223,8 +208,7 @@ key "foo/bar/secret" {
 operator = "read"
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 {
@@ -264,8 +248,7 @@ operator = "read"
 }
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 ## Defining Rules with the ACL API
 
@@ -322,12 +305,12 @@ The following table provides an overview of the resources you can use to create 
 | `partition`<br/>`partition_prefix` | <EnterpriseAlert inline /> Controls access to one or more admin partitions. <br/>See [Admin Partition Rules](#admin-partition-rules) for details. | Yes      |
 | `agent`<br/>`agent_prefix`    | Controls access to the utility operations in the [Agent API](/api/agent), such as `join` and `leave`. <br/>See [Agent Rules](#agent-rules) for details.  | Yes      |
 | `event`<br/>`event_prefix`    | Controls access to event operations in the [Event API](/api/event), such as firing and listing events. <br/>See [Event Rules](#event-rules) for details. | Yes      |
-| `key`<br/>`key_prefix` &nbsp; | Controls access to key/value store operations in the [KV API](/api/kv). <br/>Can also use the `list` access level when setting the policy disposition. <br/>Has additional value options in Consul Enterprise for integrating with [Sentinel](https://docs.hashicorp.com/sentinel/consul).  <br/>See [Key/Value Rules](#key-value-rules) for details. | Yes      |
-| `keyring` &nbsp; &nbsp; &nbsp; | Controls access to keyring operations in the [Keyring API](/api/keyring). <br/>See [Keyring Rules](#keyring-rules) for details. | No      |
-| `mesh` &nbsp; &nbsp; &nbsp; | Provides operator-level permissions for resources in the admin partition, such as ingress gateways or mesh proxy defaults. See [Mesh Rules](#mesh-rules) for details.  | No      |
+| `key`<br/>`key_prefix`   | Controls access to key/value store operations in the [KV API](/api/kv). <br/>Can also use the `list` access level when setting the policy disposition. <br/>Has additional value options in Consul Enterprise for integrating with [Sentinel](https://docs.hashicorp.com/sentinel/consul).  <br/>See [Key/Value Rules](#key-value-rules) for details. | Yes      |
+| `keyring`       | Controls access to keyring operations in the [Keyring API](/api/keyring). <br/>See [Keyring Rules](#keyring-rules) for details. | No      |
+| `mesh`       | Provides operator-level permissions for resources in the admin partition, such as ingress gateways or mesh proxy defaults. See [Mesh Rules](#mesh-rules) for details.  | No      |
 | `namespace`<br/>`namespace_prefix` | <EnterpriseAlert inline /> Controls access to one or more namespaces. <br/>See [Namespace Rules](#namespace-rules) for details. | Yes      |
-| `node`<br/>`node_prefix` &nbsp; | Controls access to node-level registration and read access to the [Catalog API](/api/catalog). <br/>See [Node Rules](#node-rules) for details. | Yes      |
-| `operator` &nbsp; &nbsp; &nbsp; | Controls access to cluster-level operations available in the [Operator API](/api/operator) excluding keyring API endpoints. <br/>See [Operator Rules](#operator-rules) for details. | No      |
+| `node`<br/>`node_prefix`   | Controls access to node-level registration and read access to the [Catalog API](/api/catalog). <br/>See [Node Rules](#node-rules) for details. | Yes      |
+| `operator`       | Controls access to cluster-level operations available in the [Operator API](/api/operator) excluding keyring API endpoints. <br/>See [Operator Rules](#operator-rules) for details. | No      |
 | `query`<br/>`query_prefix` | Controls access to create, update, and delete prepared queries in the [Prepared Query API](/api/query). Access to the [node](#node-rules) and [service](#service-rules) must also be granted. <br/>See [Prepared Query Rules](#prepared-query-rules) for details. | Yes      |
 | `service`<br/>`service_prefix` | Controls service-level registration and read access to the [Catalog API](/api/catalog), as well as service discovery with the [Health API](/api/health). <br/>See [Service Rules](#node-rules) for details. | Yes      |
 | `session`<br/>`session_prefix` | Controls access to operations in the [Session API](/api/session). <br/>See [Session Rules](#session-rules) for details. | Yes      |
@@ -344,22 +327,19 @@ Rules for ACL resources do not use labels.
 
 In the following example, `write` access to the ACL API. The rule enables the operator to read or write ACLs, as well as discover the secret ID of any token.
 
-<CodeTabs heading="Example acl rule">
-<CodeBlockConfig>
+<CodeTabs heading="Example acl rule"> <CodeBlockConfig>
 
 ```hcl
 acl = "write"
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "acl" : "write"
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 ### Admin Partition Rules <EnterpriseAlert inline />
 
@@ -369,8 +349,7 @@ You can include any number of namespace rules inside the admin partition.
 In the following example, the agent has write access to the `ex-namespace` namespace, as well as namespaces prefixed with `ex-` in the `example` partition.
 The `mesh` resource is also scoped to the admin partition rule, which grants `write` access to mesh-level resources in the partition:
 
-<CodeTabs heading="Example admin partition rules">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example admin partition rules"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 partition "example" {
@@ -391,8 +370,7 @@ partition_prefix "ex-" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 {
@@ -439,9 +417,7 @@ partition_prefix "ex-" {
 }
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
-
+</CodeBlockConfig> </CodeTabs>
 
 ### Agent Rules
 
@@ -449,8 +425,7 @@ The `agent` and `agent_prefix` resources control access to the utility operation
 such as join and leave. All of the catalog-related operations are covered by the [`node` or `node_prefix`](#node-rules)
 and [`service` or `service_prefix`](#service-rules) policies instead.
 
-<CodeTabs heading="Example agent rules">
-<CodeBlockConfig lineNumbers>
+<CodeTabs heading="Example agent rules"> <CodeBlockConfig lineNumbers>
 
 ```hcl
 agent_prefix "" {
@@ -464,8 +439,7 @@ agent_prefix "bar" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig lineNumbers>
+</CodeBlockConfig> <CodeBlockConfig lineNumbers>
 
 ```json
 "agent_prefix" : [{
@@ -483,8 +457,7 @@ agent_prefix "bar" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 Agent rules are keyed by the node name they apply to. In the example above the rules
 allow read-only access to any node name by using the empty prefix, read-write access to
@@ -501,8 +474,7 @@ write access to these operations even if no ACL resolution capability is availab
 The `event` and `event_prefix` resources control access to event operations in the [Event API](/api/event), such as
 firing events and listing events.
 
-<CodeTabs heading="Example event rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example event rules"> <CodeBlockConfig>
 
 ```hcl
 event_prefix "" {
@@ -512,8 +484,8 @@ event "deploy" {
   policy = "write"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "event_prefix" : [{
@@ -528,13 +500,12 @@ event "deploy" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 Event rules are labeled with the event name they apply to. In the example above, the rules allow
 read-only access to any event, and firing of the "deploy" event.
 
-The [`consul exec`](/commands/exec) command uses events with the "\_rexec" prefix during
+The [`consul exec`](/commands/exec) command uses events with the "_rexec" prefix during
 operation, so to enable this feature in a Consul environment with ACLs enabled, you will need to
 give agents a token with access to this event prefix, in addition to configuring
 [`disable_remote_exec`](/docs/agent/options#disable_remote_exec) to `false`.
@@ -543,8 +514,7 @@ give agents a token with access to this event prefix, in addition to configuring
 
 The `key` and `key_prefix` resources control access to key/value store operations in the [KV API](/api/kv).
 
-<CodeTabs heading="Example key rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example key rules"> <CodeBlockConfig>
 
 ```hcl
 key_prefix "" {
@@ -557,8 +527,8 @@ key "bar" {
   policy = "deny"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "key_prefix" : [{
@@ -576,8 +546,7 @@ key "bar" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 Key rules are labeled with the key name they apply to. In the example above, the rules allow read-only access
 to any key name with the empty prefix rule, allow read-write access to the "foo" key, and deny access to the "bar" key.
@@ -586,9 +555,7 @@ to any key name with the empty prefix rule, allow read-write access to the "foo"
 
 Enable the `list` policy disposition (Consul 1.0+) by setting the `acl.enable_key_list_policy` parameter to `true`. The disposition provides recursive access to `key` entries. Refer to the [KV API](/api/kv#recurse) documentation for additional information. In the following example, `key` resources that start with `bar` are listed.
 
-
-<CodeTabs heading="Example 'key' rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example 'key' rules"> <CodeBlockConfig>
 
 ```hcl
 key_prefix "" {
@@ -604,8 +571,7 @@ key_prefix "baz" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "key_prefix" : [{
@@ -621,8 +587,7 @@ key_prefix "baz" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 In the example above, the rules allow reading the key "baz", and only allow recursive reads on the prefix "bar".
 
@@ -652,41 +617,37 @@ For more detailed information, see the [Consul Sentinel documentation](/docs/age
 
 The `keyring` resource controls access to keyring operations in the [Keyring API](/api/operator/keyring). Only one keyring policy is allowed per rule set. The value is set to one of the policy dispositions, but may be read and updated.
 
-<CodeTabs heading="Example keyring rule">
-<CodeBlockConfig>
+<CodeTabs heading="Example keyring rule"> <CodeBlockConfig>
 
 ```hcl
 keyring = "write"
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "keyring" : "write"
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 ### Mesh Rules
 
 The `mesh` resource controls access to ingress gateways, terminating gateways, and mesh configuration entries. The following rule grants read and write access:
 
-<CodeTabs heading="Example mesh rule">
-<CodeBlockConfig>
+<CodeTabs heading="Example mesh rule"> <CodeBlockConfig>
 
 ```hcl
 mesh = "write"
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "mesh" : "write"
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 See [Admin Partition Rules](#admin-partition-rules) for another example rule that uses the `mesh` resource.
 
@@ -698,8 +659,7 @@ The `namespace` and `namespace_prefix` resource controls access to Consul namesp
 
 The following examples describe how namespace rules can be defined in a policy:
 
-<CodeTabs heading="Example namespace rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example namespace rules"> <CodeBlockConfig>
 
 ```hcl
 namespace_prefix "" {
@@ -745,8 +705,8 @@ namespace "foo" {
   }
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 {
@@ -794,18 +754,17 @@ namespace "foo" {
 }
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>
 
 #### Restrictions
 
 The following restrictions apply when a rule is defined in any user-created namespace:
 
 1. `operator` rules are not allowed.
-2. `event` rules are not allowed.
-3. `keyring` rules are not allowed.
-4. `query` rules are not allowed.
-5. `node` rules that attempt to grant `write` privileges are not allowed.
+1. `event` rules are not allowed.
+1. `keyring` rules are not allowed.
+1. `query` rules are not allowed.
+1. `node` rules that attempt to grant `write` privileges are not allowed.
 
 These restrictions do not apply to the `default` namespace created by Consul. In general all of the
 above are permissions that only an operator should have and thus granting these permissions can
@@ -822,17 +781,16 @@ specific namespace are prevented from accessing resources in another namespace.
 
 The `node` and `node_prefix` resources control access to the following API behaviors:
 
-* node-level registration and read access to the [Catalog API](/api/catalog)
-* service discovery with the [Health API](/api/health)
-* filtering results in [Agent API](/api/agent) operations, such as fetching the list of cluster members.
+- node-level registration and read access to the [Catalog API](/api/catalog)
+- service discovery with the [Health API](/api/health)
+- filtering results in [Agent API](/api/agent) operations, such as fetching the list of cluster members.
 
 You can use resource labels to scope the rule to a specific resource or set of resources.
 
 The following example rule uses an empty prefix label, which provides read-only access to all nodes.
 The rule also provides read-write access to the `app` node and denies all access to the `admin` node:
 
-<CodeTabs heading="Example node rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example node rules"> <CodeBlockConfig>
 
 ```hcl
 node_prefix "" {
@@ -846,8 +804,7 @@ node "admin" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "node_prefix" : [{
@@ -862,8 +819,8 @@ node "admin" {
   }]
 }]
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 #### Registering and Querying Node Information
 
@@ -878,12 +835,12 @@ Node rules are used to filter query results when reading from the catalog or ret
 Consul agents check tokens locally when health checks are registered and when Consul performs periodic [anti-entropy](/docs/internals/anti-entropy) syncs.
 These actions may required an ACL token to complete. Use the following methods to configure ACL tokens for registration events:
 
-* Configure a global token in the [acl.tokens.default](/docs/agent/options#acl_tokens_default) parameter.
-This allows a single token to be used during all check registration operations.
-* Provide an ACL token with service and check definitions at registration time.
-This allows for greater flexibility and enables the use of multiple tokens on the same agent.
-Refer to the [services](/docs/agent/services) and [checks](/docs/agent/checks) documentation for examples.
-Tokens may also be passed to the [HTTP API](/api) for operations that require them.
+- Configure a global token in the [acl.tokens.default](/docs/agent/options#acl_tokens_default) parameter.
+  This allows a single token to be used during all check registration operations.
+- Provide an ACL token with service and check definitions at registration time.
+  This allows for greater flexibility and enables the use of multiple tokens on the same agent.
+  Refer to the [services](/docs/agent/services) and [checks](/docs/agent/checks) documentation for examples.
+  Tokens may also be passed to the [HTTP API](/api) for operations that require them.
 
 ### Operator Rules
 
@@ -893,21 +850,19 @@ The `operator` resource controls access to cluster-level operations in the
 Only one operator rule allowed per rule set. In the following example, the token may be used to query the operator endpoints for
 diagnostic purposes but it will not make changes.
 
-<CodeTabs heading="Example operator rule">
-<CodeBlockConfig>
+<CodeTabs heading="Example operator rule"> <CodeBlockConfig>
 
 ```hcl
 operator = "read"
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "operator" : "read"
 ```
-</CodeBlockConfig>
-</CodeTabs>
 
+</CodeBlockConfig> </CodeTabs>
 
 ### Prepared Query Rules
 
@@ -916,8 +871,7 @@ The `query` and `query_prefix` resources control access to create, update, and d
 The resource label in the following example is empty. As a result, the rules allow read-only access to query resources with any name.
 The rules also grant read-write access to the query named `foo`, which allows control of the query namespace to be delegated based on ACLs:
 
-<CodeTabs heading="Example query rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example query rules"> <CodeBlockConfig>
 
 ```hcl
 query_prefix "" {
@@ -928,8 +882,7 @@ query "foo" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "query_prefix" : [{
@@ -943,8 +896,8 @@ query "foo" {
   }]
 }]
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 Executing queries is subject to `node`/`node_prefix` and `service`/`service_prefix`
 policies.
@@ -1008,7 +961,7 @@ prepared query namespace.
 
 These differences are outlined in the table below:
 
-| Operation                          | Version <= 0.6.3                                                                                                                                                                                 | Version > 0.6.3                                                                                                                                                                                                                     |
+| Operation                          | Version \<= 0.6.3                                                                                                                                                                                 | Version > 0.6.3                                                                                                                                                                                                                     |
 | ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Create static query without `Name` | The ACL Token used to create the prepared query is checked to make sure it can access the service being queried. This token is captured as the `Token` to use when executing the prepared query. | No ACL policies are used as long as no `Name` is defined. No `Token` is captured by default unless specifically supplied by the client when creating the query.                                                                     |
 | Create static query with `Name`    | The ACL Token used to create the prepared query is checked to make sure it can access the service being queried. This token is captured as the `Token` to use when executing the prepared query. | The client token's `query` ACL policy is used to determine if the client is allowed to register a query for the given `Name`. No `Token` is captured by default unless specifically supplied by the client when creating the query. |
@@ -1024,8 +977,7 @@ Specify the resource label in service rules to set the scope of the rule.
 The resource label in the following example is empty. As a result, the rules allow read-only access to any service name with the empty prefix.
 The rules also allow read-write access to the `app` service and deny all access to the `admin` service:
 
-<CodeTabs heading="Example service rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example service rules"> <CodeBlockConfig>
 
 ```hcl
 service_prefix "" {
@@ -1038,8 +990,8 @@ service "admin" {
   policy = "deny"
 }
 ```
-</CodeBlockConfig>
-<CodeBlockConfig>
+
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "service_prefix" : [{
@@ -1056,8 +1008,8 @@ service "admin" {
   }]
 }]
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 Consul's DNS interface is affected by restrictions on service rules. If the
 [`acl.tokens.default`](/docs/agent/options#acl_tokens_default) used by the agent does not have `read` access to a
@@ -1075,7 +1027,7 @@ to use for registration events:
 1. Using the [acl.tokens.default](/docs/agent/options#acl_tokens_default) configuration
    directive. This allows a single token to be configured globally and used
    during all service and check registration operations.
-2. Providing an ACL token with service and check definitions at registration
+1. Providing an ACL token with service and check definitions at registration
    time. This allows for greater flexibility and enables the use of multiple
    tokens on the same agent. Examples of what this looks like are available for
    both [services](/docs/agent/services) and
@@ -1095,8 +1047,7 @@ Service rules are also used to grant read or write access to intentions. The
 following policy provides read-write access to the "app" service, and explicitly
 grants `intentions:read` access to view intentions associated with the "app" service.
 
-<CodeTabs heading="Example service rule with intentions">
-<CodeBlockConfig>
+<CodeTabs heading="Example service rule with intentions"> <CodeBlockConfig>
 
 ```hcl
 service "app" {
@@ -1105,8 +1056,7 @@ service "app" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "service" : [{
@@ -1116,8 +1066,8 @@ service "app" {
   "intentions" : "read"
 }]
 ```
-</CodeBlockConfig>
-</CodeTabs>
+
+</CodeBlockConfig> </CodeTabs>
 
 Refer to [Intention Management Permissions](/docs/connect/intentions#intention-management-permissions)
 for more information about managing intentions access with service rules.
@@ -1130,8 +1080,7 @@ Specify the resource label in session rules to set the scope of the rule.
 The resource label in the following example is empty. As a result, the rules allow read-only access to all sessions.
 The rules also allow creating sessions on the node named `app` and deny all access to any sessions on the `admin` node:
 
-<CodeTabs heading="Example session rules">
-<CodeBlockConfig>
+<CodeTabs heading="Example session rules"> <CodeBlockConfig>
 
 ```hcl
 session_prefix "" {
@@ -1145,8 +1094,7 @@ session "admin" {
 }
 ```
 
-</CodeBlockConfig>
-<CodeBlockConfig>
+</CodeBlockConfig> <CodeBlockConfig>
 
 ```json
 "session_prefix" : [{
@@ -1164,5 +1112,4 @@ session "admin" {
 }]
 ```
 
-</CodeBlockConfig>
-</CodeTabs>
+</CodeBlockConfig> </CodeTabs>

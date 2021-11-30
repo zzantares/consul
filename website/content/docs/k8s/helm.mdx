@@ -11,9 +11,10 @@ The chart is highly customizable using
 Each value has a reasonable default tuned for an optimal getting started experience
 with Consul.
 
-<!-- DO NOT EDIT. The docs below are generated automatically. To change, edit
-                  the consul-helm repo's values.yaml file -->
-<!-- codegen: start -->
+{/* DO NOT EDIT. The docs below are generated automatically. To change, edit
+                  the consul-helm repo's values.yaml file */}
+
+{/* codegen: start */}
 
 ## Top-Level Stanzas
 
@@ -468,7 +469,7 @@ Use these links to navigate to a particular top-level stanza.
     - `maxUnavailable` ((#v-server-disruptionbudget-maxunavailable)) (`integer: null`) - The maximum number of unavailable pods. By default, this will be
       automatically computed based on the `server.replicas` value to be `(n/2)-1`.
       If you need to set this to `0`, you will need to add a
-      --set 'server.disruptionBudget.maxUnavailable=0'` flag to the helm chart installation
+      \--set 'server.disruptionBudget.maxUnavailable=0'\` flag to the helm chart installation
       command because of a limitation in the Helm templating language.
 
   - `extraConfig` ((#v-server-extraconfig)) (`string: {}`) - A raw string of extra JSON configuration (https://consul.io/docs/agent/options) for Consul
@@ -1257,13 +1258,13 @@ Use these links to navigate to a particular top-level stanza.
       add prometheus annotations to connect-injected pods. It will also
       add a listener on the Envoy sidecar to expose metrics. The exposed
       metrics will depend on whether metrics merging is enabled:
-        - If metrics merging is enabled:
-          the Consul sidecar will run a merged metrics server
-          combining Envoy sidecar and Connect service metrics,
-          i.e. if your service exposes its own Prometheus metrics.
-        - If metrics merging is disabled:
-          the listener will just expose Envoy sidecar metrics.
-      This will inherit from `global.metrics.enabled`.
+      - If metrics merging is enabled:
+        the Consul sidecar will run a merged metrics server
+        combining Envoy sidecar and Connect service metrics,
+        i.e. if your service exposes its own Prometheus metrics.
+      - If metrics merging is disabled:
+        the listener will just expose Envoy sidecar metrics.
+        This will inherit from `global.metrics.enabled`.
 
     - `defaultEnableMerging` ((#v-connectinject-metrics-defaultenablemerging)) (`boolean: false`) - Configures the Consul sidecar to run a merged metrics server
       to combine and serve both Envoy and Connect service metrics.
@@ -1276,14 +1277,14 @@ Use these links to navigate to a particular top-level stanza.
     - `defaultPrometheusScrapePort` ((#v-connectinject-metrics-defaultprometheusscrapeport)) (`integer: 20200`) - Configures the port Prometheus will scrape metrics from, by configuring
       the Pod annotation `prometheus.io/port` and the corresponding listener in
       the Envoy sidecar.
-      NOTE: This is *not* the port that your application exposes metrics on.
+      NOTE: This is _not_ the port that your application exposes metrics on.
       That can be configured with the
       `consul.hashicorp.com/service-metrics-port` annotation.
 
     - `defaultPrometheusScrapePath` ((#v-connectinject-metrics-defaultprometheusscrapepath)) (`string: /metrics`) - Configures the path Prometheus will scrape metrics from, by configuring the pod
       annotation `prometheus.io/path` and the corresponding handler in the Envoy
       sidecar.
-      NOTE: This is *not* the path that your application exposes metrics on.
+      NOTE: This is _not_ the path that your application exposes metrics on.
       That can be configured with the
       `consul.hashicorp.com/service-metrics-path` annotation.
 
@@ -1318,7 +1319,7 @@ Use these links to navigate to a particular top-level stanza.
     which can lead to hangs. In these environments it is recommend to use "Ignore" instead.
     This setting can be safely disabled by setting to "Ignore".
 
-  - `namespaceSelector` ((#v-connectinject-namespaceselector)) (`string`) - Selector for restricting the webhook to only specific namespaces. 
+  - `namespaceSelector` ((#v-connectinject-namespaceselector)) (`string`) - Selector for restricting the webhook to only specific namespaces.
     Use with `connectInject.default: true` to automatically inject all pods in namespaces that match the selector. This should be set to a multiline string.
     See https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#matching-requests-namespaceselector
     for more details.
@@ -1432,8 +1433,11 @@ Use these links to navigate to a particular top-level stanza.
       These settings can be overridden on a per-pod basis via these annotations:
 
       - `consul.hashicorp.com/sidecar-proxy-cpu-limit`
+
       - `consul.hashicorp.com/sidecar-proxy-cpu-request`
+
       - `consul.hashicorp.com/sidecar-proxy-memory-limit`
+
       - `consul.hashicorp.com/sidecar-proxy-memory-request`
 
       - `requests` ((#v-connectinject-sidecarproxy-resources-requests))
@@ -1490,6 +1494,7 @@ Use these links to navigate to a particular top-level stanza.
     `global.acls.manageSystemACLs`).
 
     If running Consul OSS, requires permissions:
+
     ```hcl
     operator = "write"
     service_prefix "" {
@@ -1497,6 +1502,7 @@ Use these links to navigate to a particular top-level stanza.
       intentions = "write"
     }
     ```
+
     If running Consul Enterprise, talk to your account manager for assistance.
 
     - `secretName` ((#v-controller-acltoken-secretname)) (`string: null`) - The name of the Kubernetes secret.
@@ -1832,7 +1838,7 @@ Use these links to navigate to a particular top-level stanza.
 
   - `enabled` ((#v-tests-enabled)) (`boolean: true`)
 
-  <!-- codegen: end -->
+  {/* codegen: end */}
 
 ## Helm Chart Examples
 

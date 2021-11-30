@@ -82,8 +82,8 @@ connect {
 The configuration options are listed below.
 
 -> **NOTE**: The first key is the value used in API calls, and the second key
-   (after the `/`) is used if you are adding the configuration to the agent's
-   configuration file.
+(after the `/`) is used if you are adding the configuration to the agent's
+configuration file.
 
 - `Address` / `address` (`string: <required>`) - The address of the Vault
   server.
@@ -102,18 +102,17 @@ The configuration options are listed below.
   on how to configure individual auth methods. If auth method is provided, Consul will obtain a
   a new token from Vault when the token can no longer be renewed.
 
-   - `Type`/ `type` (`string: ""`) - The type of Vault auth method.
+  - `Type`/ `type` (`string: ""`) - The type of Vault auth method.
 
-   - `MountPath`/ `mount_path` (`string: <AuthMethod.Type>`) - The mount path of the auth method.
-      If not provided the auth method type will be used as the mount path.
+  - `MountPath`/ `mount_path` (`string: <AuthMethod.Type>`) - The mount path of the auth method.
+    If not provided the auth method type will be used as the mount path.
 
-   - `Params`/`params` (`map: nil`) - The parameters to configure the auth method. Please see
+  - `Params`/`params` (`map: nil`) - The parameters to configure the auth method. Please see
     [Vault Auth Methods](https://www.vaultproject.io/docs/auth) for information on how to configure the
     auth method you wish to use. If using the Kubernetes auth method,
     Consul will read the service account token from the
     default mount path `/var/run/secrets/kubernetes.io/serviceaccount/token` if the `jwt` parameter
     is not provided.
-
 
 - `RootPKIPath` / `root_pki_path` (`string: <required>`) - The path to
   a PKI secrets engine for the root certificate. If the path does not
@@ -265,7 +264,10 @@ path "/connect_inter/*" {
 
 </CodeBlockConfig>
 
-<!-- Reference style links -->
+{/* Reference style links */}
+
 [`ca_config`]: /docs/agent/options#connect_ca_config
+
 [`ca_provider`]: /docs/agent/options#connect_ca_provider
+
 [`/connect/ca/configuration`]: /api-docs/connect/ca#update-ca-configuration
