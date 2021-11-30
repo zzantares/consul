@@ -527,13 +527,13 @@ var aclConfigTpl = template.Must(template.New("ACL Config").Parse(`
 		{{- if .HasConfiguredTokens}}
 		tokens {
 			{{- if ne .MasterToken ""}}
-			master = "{{ .MasterToken }}"
+			initial_management = "{{ .MasterToken }}"
 			{{- end}}
 			{{- if ne .AgentToken ""}}
 			agent = "{{ .AgentToken }}"
 			{{- end}}
 			{{- if ne .AgentMasterToken "" }}
-			agent_master = "{{ .AgentMasterToken }}"
+			agent_recovery = "{{ .AgentMasterToken }}"
 			{{- end}}
 			{{- if ne .DefaultToken "" }}
 			default = "{{ .DefaultToken }}"

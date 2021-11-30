@@ -973,16 +973,21 @@ func TestHTTPServer_PProfHandlers_ACLs(t *testing.T) {
 	}
 
 	t.Parallel()
-	assert := assert.New(t)
 	dc1 := "dc1"
 
 	a := NewTestAgent(t, `
-	acl_datacenter = "`+dc1+`"
-	acl_default_policy = "deny"
-	acl_master_token = "master"
-	acl_agent_token = "agent"
-	acl_agent_master_token = "towel"
-	enable_debug = false
+	primary_datacenter = "`+dc1+`"
+
+	acl {
+		enabled = true
+		default_policy = "deny"
+
+		tokens {
+			initial_management = "root"
+			agent = "agent"
+			agent_recovery = "towel"
+		}
+	}
 `)
 
 	cases := []struct {
@@ -993,7 +998,7 @@ func TestHTTPServer_PProfHandlers_ACLs(t *testing.T) {
 	}{
 		{
 			code:        http.StatusOK,
-			token:       "master",
+			token:       "root",
 			endpoint:    "/debug/pprof/heap",
 			nilResponse: false,
 		},
@@ -1017,7 +1022,7 @@ func TestHTTPServer_PProfHandlers_ACLs(t *testing.T) {
 		},
 		{
 			code:        http.StatusOK,
-			token:       "master",
+			token:       "root",
 			endpoint:    "/debug/pprof/heap",
 			nilResponse: false,
 		},
@@ -1034,6 +1039,7 @@ func TestHTTPServer_PProfHandlers_ACLs(t *testing.T) {
 
 	for i, c := range cases {
 		t.Run(fmt.Sprintf("case %d (%#v)", i, c), func(t *testing.T) {
+			assert := assert.New(t)
 			req, _ := http.NewRequest("GET", fmt.Sprintf("%s?token=%s", c.endpoint, c.token), nil)
 			resp := httptest.NewRecorder()
 			a.srv.handler(true).ServeHTTP(resp, req)

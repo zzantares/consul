@@ -5158,7 +5158,7 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 					tokens {
 						default = ""
 						agent = ""
-						agent_master = ""
+						agent_recovery = ""
 						replication = ""
 					}
 				}
@@ -5200,7 +5200,7 @@ func TestAgent_Token(t *testing.T) {
 			tokens {
 				default = ""
 				agent = ""
-				agent_master = ""
+				agent_recovery = ""
 				replication = ""
 			}
 		}
