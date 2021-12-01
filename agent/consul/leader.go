@@ -435,13 +435,13 @@ func (s *Server) initializeACLs(ctx context.Context) error {
 			if token == nil {
 				accessor, err := lib.GenerateUUID(s.checkTokenUUID)
 				if err != nil {
-					return fmt.Errorf("failed to generate the accessor ID for the master token: %v", err)
+					return fmt.Errorf("failed to generate the accessor ID for the initial management token: %v", err)
 				}
 
 				token := structs.ACLToken{
 					AccessorID:  accessor,
 					SecretID:    master,
-					Description: "Master Token",
+					Description: "Initial Management Token",
 					Policies: []structs.ACLTokenPolicyLink{
 						{
 							ID: structs.ACLPolicyGlobalManagementID,
