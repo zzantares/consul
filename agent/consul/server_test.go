@@ -75,7 +75,7 @@ func testServerACLConfig(cb func(*Config)) func(*Config) {
 	return func(c *Config) {
 		c.PrimaryDatacenter = "dc1"
 		c.ACLsEnabled = true
-		c.ACLInitialManagemTestDefaultInitialManagementTokenMasterToken
+		c.ACLInitialManagementToken = TestDefaultInitialManagementToken
 		c.ACLResolverSettings.ACLDefaultPolicy = "deny"
 
 		if cb != nil {
