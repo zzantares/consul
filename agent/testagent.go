@@ -502,6 +502,12 @@ func TestACLConfig() string {
 	})
 }
 
+func TestACLConfigWithModifications(fn func(*TestACLConfigParams)) string {
+	params := DefaulTestACLConfigParams()
+	fn(params)
+	return TestACLConfigWithParams(params)
+}
+
 var aclConfigTpl = template.Must(template.New("ACL Config").Parse(`
    {{- if ne .PrimaryDatacenter "" -}}
 	primary_datacenter = "{{ .PrimaryDatacenter }}"
