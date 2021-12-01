@@ -1262,7 +1262,7 @@ func TestAgent_HealthServicesACLEnforcement(t *testing.T) {
 	t.Run("root-token-health-by-id", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/v1/agent/health/service/id/foo1", nil)
 		require.NoError(t, err)
-		req.Header.Add("X-Consul-Token", TestDefaultMasterToken)
+		req.Header.Add("X-Consul-Token", TestDefaultInitialManagementToken)
 		resp := httptest.NewRecorder()
 		_, err = a.srv.AgentHealthServiceByID(resp, req)
 		require.NotEqual(t, acl.ErrPermissionDenied, err)
@@ -1271,7 +1271,7 @@ func TestAgent_HealthServicesACLEnforcement(t *testing.T) {
 	t.Run("root-token-health-by-name", func(t *testing.T) {
 		req, err := http.NewRequest("GET", "/v1/agent/health/service/name/foo", nil)
 		require.NoError(t, err)
-		req.Header.Add("X-Consul-Token", TestDefaultMasterToken)
+		req.Header.Add("X-Consul-Token", TestDefaultInitialManagementToken)
 		resp := httptest.NewRecorder()
 		_, err = a.srv.AgentHealthServiceByName(resp, req)
 		require.NotEqual(t, acl.ErrPermissionDenied, err)
@@ -2527,7 +2527,7 @@ func TestAgent_RegisterCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfigNew())
+	a := NewTestAgent(t, TestACLConfig())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -5092,7 +5092,7 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 			Rules: `node_prefix "" { policy = "write" }`,
 		}
 
-		req, err := http.NewRequest("PUT", "/v1/acl/policy?token=root", jsonBody(policy))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/v1/acl/policy?token=%s", TestDefaultInitialManagementToken), jsonBody(policy))
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()
@@ -5114,7 +5114,7 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 			},
 		}
 
-		req, err := http.NewRequest("PUT", "/v1/acl/token?token=root", jsonBody(token))
+		req, err := http.NewRequest("PUT", fmt.Sprintf("/v1/acl/token?token=%s", TestDefaultInitialManagementToken), jsonBody(token))
 		require.NoError(t, err)
 
 		resp := httptest.NewRecorder()
@@ -5151,18 +5151,15 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 	for _, tt := range cases {
 		tt := tt
 		t.Run(tt.path, func(t *testing.T) {
-			url := fmt.Sprintf("/v1/agent/token/%s?token=root", tt.path)
+			url := fmt.Sprintf("/v1/agent/token/%s?token=%s", tt.path, TestDefaultInitialManagementToken)
 
-			a := NewTestAgent(t, TestACLConfig()+`
-				acl {
-					tokens {
-						default = ""
-						agent = ""
-						agent_recovery = ""
-						replication = ""
-					}
-				}
-			`)
+			params := DefaulTestACLConfigParams()
+			params.DefaultToken = ""
+			params.AgentToken = ""
+			params.AgentRecoveryToken = ""
+			params.ReplicationToken = ""
+
+			a := NewTestAgent(t, TestACLConfigWithParams(params))
 			defer a.Shutdown()
 			testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -5179,7 +5176,7 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 			require.Equal(t, token.SecretID, tt.tokenGetFn(a.tokens))
 
 			testrpc.WaitForTestAgent(t, a.RPC, "dc1",
-				testrpc.WithToken("root"),
+				testrpc.WithToken(TestDefaultInitialManagementToken),
 				testrpc.WaitForAntiEntropySync())
 		})
 	}
@@ -5195,16 +5192,13 @@ func TestAgent_Token(t *testing.T) {
 	// The behavior of this handler when ACLs are disabled is vetted over
 	// in TestACL_Disabled_Response since there's already good infra set
 	// up over there to test this, and it calls the common function.
-	a := NewTestAgent(t, TestACLConfig()+`
-		acl {
-			tokens {
-				default = ""
-				agent = ""
-				agent_recovery = ""
-				replication = ""
-			}
-		}
-	`)
+	params := DefaulTestACLConfigParams()
+	params.InitialManagementToken = "root"
+	params.DefaultToken = ""
+	params.AgentToken = ""
+	params.AgentRecoveryToken = ""
+	params.ReplicationToken = ""
+	a := NewTestAgent(t, TestACLConfigWithParams(params))
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 

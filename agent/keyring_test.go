@@ -302,11 +302,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	dataDir := testutil.TempDir(t, "keyfile")
 	writeKeyRings(t, key1, dataDir)
 
-	a := StartTestAgent(t, TestAgent{HCL: TestACLConfig() + `
-		acl_datacenter = "dc1"
-		acl_master_token = "root"
-		acl_default_policy = "deny"
-	`, DataDir: dataDir})
+	a := StartTestAgent(t, TestAgent{HCL: TestACLConfig(), DataDir: dataDir})
 	defer a.Shutdown()
 
 	// List keys without access fails
@@ -316,7 +312,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	}
 
 	// List keys with access works
-	_, err = a.ListKeys("root", false, 0)
+	_, err = a.ListKeys(TestDefaultInitialManagementToken, false, 0)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -328,7 +324,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	}
 
 	// Install with access works
-	_, err = a.InstallKey(key2, "root", 0)
+	_, err = a.InstallKey(key2, TestDefaultInitialManagementToken, 0)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -340,7 +336,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	}
 
 	// Use with access works
-	_, err = a.UseKey(key2, "root", 0)
+	_, err = a.UseKey(key2, TestDefaultInitialManagementToken, 0)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}
@@ -352,7 +348,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	}
 
 	// Remove with access works
-	_, err = a.RemoveKey(key1, "root", 0)
+	_, err = a.RemoveKey(key1, TestDefaultInitialManagementToken, 0)
 	if err != nil {
 		t.Fatalf("err: %s", err)
 	}

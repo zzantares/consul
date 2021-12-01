@@ -64,9 +64,7 @@ func TestEventFire_token(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig()+`
-		acl_default_policy = "deny"
-	`)
+	a := NewTestAgent(t, TestACLConfig())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 

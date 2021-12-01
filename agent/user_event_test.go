@@ -203,9 +203,7 @@ func TestUserEventToken(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig()+`
-		acl_default_policy = "deny"
-	`)
+	a := NewTestAgent(t, TestACLConfig())
 	defer a.Shutdown()
 
 	token := createToken(t, a, testEventPolicy)
