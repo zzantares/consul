@@ -266,13 +266,13 @@ type ACLResolver struct {
 	agentRecoveryAuthz acl.Authorizer
 }
 
-func agentMasterAuthorizer(nodeName string, entMeta *structs.EnterpriseMeta) (acl.Authorizer, error) {
+func agentRecoveryAuthorizer(nodeName string, entMeta *structs.EnterpriseMeta) (acl.Authorizer, error) {
 	// TODO(partitions,acls): this function likely needs split so that the generated policy can be partitioned appropriately
 
 	// TODO(partitions,acls): after this all works, write a test for this function when partitioned
 
-	// Build a policy for the agent master token.
-	// The builtin agent master policy allows reading any node information
+	// Build a policy for the agent recovery token.
+	// The builtin agent recovery policy allows reading any node information
 	// and allows writes to the agent with the node name of the running agent
 	// only. This used to allow a prefix match on agent names but that seems
 	// entirely unnecessary so it is now using an exact match.
@@ -327,9 +327,9 @@ func NewACLResolver(config *ACLResolverConfig) (*ACLResolver, error) {
 		return nil, fmt.Errorf("invalid ACL down policy %q", config.Config.ACLDownPolicy)
 	}
 
-	authz, err := agentMasterAuthorizer(config.Config.NodeName, &config.Config.EnterpriseMeta)
+	authz, err := agentRecoveryAuthorizer(config.Config.NodeName, &config.Config.EnterpriseMeta)
 	if err != nil {
-		return nil, fmt.Errorf("failed to initialize the agent master authorizer")
+		return nil, fmt.Errorf("failed to initialize the agent recovery authorizer")
 	}
 
 	return &ACLResolver{
