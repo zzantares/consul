@@ -3354,7 +3354,7 @@ func TestACLResolver_AgentMaster(t *testing.T) {
 	ident, authz, err := r.ResolveTokenToIdentityAndAuthorizer("9a184a11-5599-459e-b71a-550e5f9a5a23")
 	require.NoError(t, err)
 	require.NotNil(t, ident)
-	require.Equal(t, "agent-master:foo", ident.ID())
+	require.Equal(t, "agent-recovery:foo", ident.ID())
 	require.NotNil(t, authz)
 	require.Equal(t, r.agentRecoveryAuthz, authz)
 	require.Equal(t, acl.Allow, authz.AgentWrite("foo", nil))
