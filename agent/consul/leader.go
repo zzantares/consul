@@ -421,7 +421,7 @@ func (s *Server) initializeACLs(ctx context.Context) error {
 		}
 
 		// Check for configured master token.
-		if master := s.config.ACLMasterToken; len(master) > 0 {
+		if master := s.config.ACLInitialManagementToken; len(master) > 0 {
 			state := s.fsm.State()
 			if _, err := uuid.ParseUUID(master); err != nil {
 				s.logger.Warn("Configuring a non-UUID master token is deprecated")

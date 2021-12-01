@@ -3435,7 +3435,7 @@ func TestACLResolver_ResolveTokenToIdentityAndAuthorizer_UpdatesPurgeTheCache(t 
 			Name:  "the-policy",
 			Rules: `key_prefix "" { policy = "read"}`,
 		},
-		WriteRequest: structs.WriteRequest{Token: TestDefaultMasterToken},
+		WriteRequest: structs.WriteRequest{Token: TestDefaultInitialManagementToken},
 	}
 	var respPolicy = structs.ACLPolicy{}
 	err := msgpackrpc.CallWithCodec(codec, "ACL.PolicySet", &reqPolicy, &respPolicy)
@@ -3450,7 +3450,7 @@ func TestACLResolver_ResolveTokenToIdentityAndAuthorizer_UpdatesPurgeTheCache(t 
 			SecretID: token,
 			Policies: []structs.ACLTokenPolicyLink{{Name: "the-policy"}},
 		},
-		WriteRequest: structs.WriteRequest{Token: TestDefaultMasterToken},
+		WriteRequest: structs.WriteRequest{Token: TestDefaultInitialManagementToken},
 	}
 	var respToken structs.ACLToken
 	err = msgpackrpc.CallWithCodec(codec, "ACL.TokenSet", &reqToken, &respToken)
@@ -3471,7 +3471,7 @@ func TestACLResolver_ResolveTokenToIdentityAndAuthorizer_UpdatesPurgeTheCache(t 
 				Name:  "the-policy",
 				Rules: `{"key_prefix": {"": {"policy": "deny"}}}`,
 			},
-			WriteRequest: structs.WriteRequest{Token: TestDefaultMasterToken},
+			WriteRequest: structs.WriteRequest{Token: TestDefaultInitialManagementToken},
 		}
 		err := msgpackrpc.CallWithCodec(codec, "ACL.PolicySet", &reqPolicy, &structs.ACLPolicy{})
 		require.NoError(t, err)
@@ -3486,7 +3486,7 @@ func TestACLResolver_ResolveTokenToIdentityAndAuthorizer_UpdatesPurgeTheCache(t 
 		req := structs.ACLTokenDeleteRequest{
 			Datacenter:   "dc1",
 			TokenID:      respToken.AccessorID,
-			WriteRequest: structs.WriteRequest{Token: TestDefaultMasterToken},
+			WriteRequest: structs.WriteRequest{Token: TestDefaultInitialManagementToken},
 		}
 		var resp string
 		err := msgpackrpc.CallWithCodec(codec, "ACL.TokenDelete", &req, &resp)
