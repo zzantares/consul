@@ -163,7 +163,7 @@ func TestConnectCAConfig_GetSet_ACLDeny(t *testing.T) {
 	dir1, s1 := testServerWithConfig(t, func(c *Config) {
 		c.PrimaryDatacenter = "dc1"
 		c.ACLsEnabled = true
-		c.ACLInitialManagemTestDefaultInitialManagementTokenMasterToken
+		c.ACLInitialManagementToken = TestDefaultInitialManagementToken
 		c.ACLResolverSettings.ACLDefaultPolicy = "deny"
 	})
 	defer os.RemoveAll(dir1)
