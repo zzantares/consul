@@ -5361,7 +5361,7 @@ func TestLoad_FullConfig(t *testing.T) {
 			ACLRoleTTL:       9876 * time.Second,
 		},
 		ACLEnableKeyListPolicy:           true,
-		ACLMasterToken:                   "3820e09a",
+		ACLInitialManagementToken:                   "3820e09a",
 		ACLTokenReplication:              true,
 		AdvertiseAddrLAN:                 ipAddr("17.99.29.16"),
 		AdvertiseAddrWAN:                 ipAddr("78.63.37.19"),
