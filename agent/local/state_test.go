@@ -785,10 +785,7 @@ func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := agent.NewTestAgent(t, `
-		acl_datacenter = "dc1"
-		acl_master_token = "root"
-		acl_default_policy = "deny" `)
+	a := agent.NewTestAgent(t, agent.TestACLConfigWithParams(agent.DefaulTestACLConfigParams()))
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -830,7 +827,7 @@ func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 			Datacenter: "dc1",
 			Node:       a.Config.NodeName,
 			QueryOptions: structs.QueryOptions{
-				Token: "root",
+				Token: agent.TestDefaultInitialManagementToken,
 			},
 		}
 		var services structs.IndexedNodeServices
@@ -875,7 +872,7 @@ func TestAgentAntiEntropy_Services_ACLDeny(t *testing.T) {
 			Datacenter: "dc1",
 			Node:       a.Config.NodeName,
 			QueryOptions: structs.QueryOptions{
-				Token: "root",
+				Token: agent.TestDefaultInitialManagementToken,
 			},
 		}
 		var services structs.IndexedNodeServices
@@ -927,7 +924,7 @@ func createToken(t *testing.T, rpc RPC, policyRules string) string {
 			Name:  "the-policy",
 			Rules: policyRules,
 		},
-		WriteRequest: structs.WriteRequest{Token: "root"},
+		WriteRequest: structs.WriteRequest{Token: agent.TestDefaultInitialManagementToken},
 	}
 	err := rpc.RPC("ACL.PolicySet", &reqPolicy, &structs.ACLPolicy{})
 	require.NoError(t, err)
@@ -941,7 +938,7 @@ func createToken(t *testing.T, rpc RPC, policyRules string) string {
 			SecretID: token,
 			Policies: []structs.ACLTokenPolicyLink{{Name: "the-policy"}},
 		},
-		WriteRequest: structs.WriteRequest{Token: "root"},
+		WriteRequest: structs.WriteRequest{Token: agent.TestDefaultInitialManagementToken},
 	}
 	err = rpc.RPC("ACL.TokenSet", &reqToken, &structs.ACLToken{})
 	require.NoError(t, err)
@@ -1229,21 +1226,16 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	dc := "dc1"
-	a := &agent.TestAgent{HCL: `
-		acl_datacenter = "` + dc + `"
-		acl_master_token = "root"
-		acl_default_policy = "deny" `}
-	if err := a.Start(t); err != nil {
-		t.Fatal(err)
-	}
+
+	a := agent.NewTestAgent(t, agent.TestACLConfigWithParams(agent.DefaulTestACLConfigParams()))
 	defer a.Shutdown()
 
+	dc := "dc1"
 	testrpc.WaitForLeader(t, a.RPC, dc)
 
 	token := createToken(t, a, testRegisterRules)
 
-	// Create services using the root token
+	// Create services using the initial management token
 	srv1 := &structs.NodeService{
 		ID:      "mysql",
 		Service: "mysql",
@@ -1255,7 +1247,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 		},
 		EnterpriseMeta: *structs.DefaultEnterpriseMetaInDefaultPartition(),
 	}
-	a.State.AddService(srv1, "root")
+	a.State.AddService(srv1, agent.TestDefaultInitialManagementToken)
 	srv2 := &structs.NodeService{
 		ID:      "api",
 		Service: "api",
@@ -1267,7 +1259,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 		},
 		EnterpriseMeta: *structs.DefaultEnterpriseMetaInDefaultPartition(),
 	}
-	a.State.AddService(srv2, "root")
+	a.State.AddService(srv2, agent.TestDefaultInitialManagementToken)
 
 	if err := a.State.SyncFull(); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1279,7 +1271,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 			Datacenter: dc,
 			Node:       a.Config.NodeName,
 			QueryOptions: structs.QueryOptions{
-				Token: "root",
+				Token: agent.TestDefaultInitialManagementToken,
 			},
 		}
 		var services structs.IndexedNodeServices
@@ -1347,7 +1339,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 		Datacenter: dc,
 		Node:       a.Config.NodeName,
 		QueryOptions: structs.QueryOptions{
-			Token: "root",
+			Token: agent.TestDefaultInitialManagementToken,
 		},
 	}
 	var checks structs.IndexedHealthChecks
@@ -1391,7 +1383,7 @@ func TestAgentAntiEntropy_Checks_ACLDeny(t *testing.T) {
 			Datacenter: dc,
 			Node:       a.Config.NodeName,
 			QueryOptions: structs.QueryOptions{
-				Token: "root",
+				Token: agent.TestDefaultInitialManagementToken,
 			},
 		}
 		var checks structs.IndexedHealthChecks
