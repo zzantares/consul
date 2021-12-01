@@ -3356,7 +3356,7 @@ func TestACLResolver_AgentMaster(t *testing.T) {
 	require.NotNil(t, ident)
 	require.Equal(t, "agent-master:foo", ident.ID())
 	require.NotNil(t, authz)
-	require.Equal(t, r.agentMasterAuthz, authz)
+	require.Equal(t, r.agentRecoveryAuthz, authz)
 	require.Equal(t, acl.Allow, authz.AgentWrite("foo", nil))
 	require.Equal(t, acl.Allow, authz.NodeRead("bar", nil))
 	require.Equal(t, acl.Deny, authz.NodeWrite("bar", nil))

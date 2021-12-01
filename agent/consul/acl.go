@@ -263,7 +263,7 @@ type ACLResolver struct {
 	// disabledLock synchronizes access to disabledUntil
 	disabledLock sync.RWMutex
 
-	agentMasterAuthz acl.Authorizer
+	agentRecoveryAuthz acl.Authorizer
 }
 
 func agentMasterAuthorizer(nodeName string, entMeta *structs.EnterpriseMeta) (acl.Authorizer, error) {
@@ -341,7 +341,7 @@ func NewACLResolver(config *ACLResolverConfig) (*ACLResolver, error) {
 		disableDuration:  config.DisableDuration,
 		down:             down,
 		tokens:           config.Tokens,
-		agentMasterAuthz: authz,
+		agentRecoveryAuthz: authz,
 	}, nil
 }
 
@@ -1054,7 +1054,7 @@ func (r *ACLResolver) resolveLocallyManagedToken(token string) (structs.ACLIdent
 	}
 
 	if r.tokens.IsAgentRecoveryToken(token) {
-		return structs.NewAgentMasterTokenIdentity(r.config.NodeName, token), r.agentMasterAuthz, true
+		return structs.NewAgentMasterTokenIdentity(r.config.NodeName, token), r.agentRecoveryAuthz, true
 	}
 
 	return r.resolveLocallyManagedEnterpriseToken(token)
