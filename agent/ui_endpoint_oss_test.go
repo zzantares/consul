@@ -39,7 +39,7 @@ func TestUIEndpoint_MetricsProxy_ACLDeny(t *testing.T) {
 
 	backendURL := backend.URL + "/some/prefix"
 
-	a := NewTestAgent(t, TestACLConfig()+fmt.Sprintf(`
+	a := NewTestAgent(t, TestACLConfigOld()+fmt.Sprintf(`
 		ui_config {
 			enabled = true
 			metrics_proxy {

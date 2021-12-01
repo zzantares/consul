@@ -203,7 +203,7 @@ func TestUserEventToken(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	token := createToken(t, a, testEventPolicy)

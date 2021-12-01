@@ -492,7 +492,7 @@ func (p *TestACLConfigParams) HasConfiguredTokens() bool {
 		p.ReplicationToken != ""
 }
 
-func TestACLConfig() string {
+func TestACLConfigOld() string {
 	return TestACLConfigWithParams(&TestACLConfigParams{
 		PrimaryDatacenter:      "dc1",
 		DefaultPolicy:          "deny",
@@ -504,7 +504,9 @@ func TestACLConfig() string {
 
 func TestACLConfigWithModifications(fn func(*TestACLConfigParams)) string {
 	params := DefaulTestACLConfigParams()
-	fn(params)
+	if fn != nil {
+		fn(params)
+	}
 	return TestACLConfigWithParams(params)
 }
 

@@ -319,7 +319,7 @@ func TestCoordinate_Update_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 

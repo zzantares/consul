@@ -335,7 +335,7 @@ func TestAgent_Services_ACLFilter(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -379,7 +379,7 @@ func TestAgent_Service(t *testing.T) {
 
 	t.Parallel()
 
-	a := NewTestAgent(t, TestACLConfig()+`
+	a := NewTestAgent(t, TestACLConfigOld()+`
 	services {
 		name = "web"
 		port = 8181
@@ -1284,7 +1284,7 @@ func TestAgent_Checks_ACLFilter(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1395,7 +1395,7 @@ func TestAgent_Self_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1428,7 +1428,7 @@ func TestAgent_Metrics_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1777,7 +1777,7 @@ func TestAgent_Reload_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1858,7 +1858,7 @@ func TestAgent_Members_ACLFilter(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1961,7 +1961,7 @@ func TestAgent_Join_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a1 := NewTestAgent(t, TestACLConfig())
+	a1 := NewTestAgent(t, TestACLConfigOld())
 	defer a1.Shutdown()
 	a2 := NewTestAgent(t, "")
 	defer a2.Shutdown()
@@ -2077,7 +2077,7 @@ func TestAgent_Leave_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -2173,7 +2173,7 @@ func TestAgent_ForceLeave_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -2527,7 +2527,7 @@ func TestAgent_RegisterCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -2695,7 +2695,7 @@ func TestAgent_DeregisterCheckACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForTestAgent(t, a.RPC, "dc1", testrpc.WithToken("root"))
 
@@ -2757,7 +2757,7 @@ func TestAgent_PassCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -2820,7 +2820,7 @@ func TestAgent_WarnCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -2883,7 +2883,7 @@ func TestAgent_FailCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -3003,7 +3003,7 @@ func TestAgent_UpdateCheck_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -3524,7 +3524,7 @@ func TestAgent_RegisterService_ACLDeny(t *testing.T) {
 func testAgent_RegisterService_ACLDeny(t *testing.T, extraHCL string) {
 	t.Helper()
 
-	a := NewTestAgent(t, TestACLConfig()+" "+extraHCL)
+	a := NewTestAgent(t, TestACLConfigOld()+" "+extraHCL)
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -4163,7 +4163,7 @@ func testAgent_RegisterServiceDeregisterService_Sidecar(t *testing.T, extraHCL s
 			}
 			`
 			if tt.enableACL {
-				hcl = hcl + TestACLConfig()
+				hcl = hcl + TestACLConfigOld()
 			}
 
 			a := NewTestAgent(t, hcl+" "+extraHCL)
@@ -4500,7 +4500,7 @@ func TestAgent_DeregisterService_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -4662,7 +4662,7 @@ func TestAgent_ServiceMaintenance_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -4783,7 +4783,7 @@ func TestAgent_NodeMaintenance_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -5059,7 +5059,7 @@ func TestAgent_Monitor_ACLDeny(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -5576,7 +5576,7 @@ func TestAgentConnectCALeafCert_aclDefaultDeny(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 	testrpc.WaitForActiveCARoot(t, a.RPC, "dc1", nil)
@@ -5616,7 +5616,7 @@ func TestAgentConnectCALeafCert_aclServiceWrite(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 	testrpc.WaitForActiveCARoot(t, a.RPC, "dc1", nil)
@@ -5686,7 +5686,7 @@ func TestAgentConnectCALeafCert_aclServiceReadDeny(t *testing.T) {
 	t.Parallel()
 
 	require := require.New(t)
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 	testrpc.WaitForActiveCARoot(t, a.RPC, "dc1", nil)
@@ -6696,7 +6696,7 @@ func TestAgentConnectAuthorize_serviceWrite(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 
@@ -6722,7 +6722,7 @@ func TestAgentConnectAuthorize_defaultDeny(t *testing.T) {
 	t.Parallel()
 
 	assert := assert.New(t)
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
 

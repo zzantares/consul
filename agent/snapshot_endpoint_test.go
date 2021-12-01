@@ -67,7 +67,7 @@ func TestSnapshot_Options(t *testing.T) {
 	t.Parallel()
 	for _, method := range []string{"GET", "PUT"} {
 		t.Run(method, func(t *testing.T) {
-			a := NewTestAgent(t, TestACLConfig())
+			a := NewTestAgent(t, TestACLConfigOld())
 			defer a.Shutdown()
 
 			body := bytes.NewBuffer(nil)
@@ -80,7 +80,7 @@ func TestSnapshot_Options(t *testing.T) {
 		})
 
 		t.Run(method, func(t *testing.T) {
-			a := NewTestAgent(t, TestACLConfig())
+			a := NewTestAgent(t, TestACLConfigOld())
 			defer a.Shutdown()
 
 			body := bytes.NewBuffer(nil)
@@ -93,7 +93,7 @@ func TestSnapshot_Options(t *testing.T) {
 		})
 
 		t.Run(method, func(t *testing.T) {
-			a := NewTestAgent(t, TestACLConfig())
+			a := NewTestAgent(t, TestACLConfigOld())
 			defer a.Shutdown()
 
 			body := bytes.NewBuffer(nil)

@@ -167,7 +167,7 @@ func TestACL_Version8EnabledByDefault(t *testing.T) {
 		called = true
 		return nil, nil, acl.ErrNotFound
 	}
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), resolveFn, nil)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), resolveFn, nil)
 
 	_, err := a.delegate.ResolveTokenAndDefaultMeta("nope", nil, nil)
 	require.Error(t, err)
@@ -257,7 +257,7 @@ func catalogIdent(token string) (structs.ACLIdentity, error) {
 
 func TestACL_vetServiceRegister(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	// Register a new service, with permission.
 	err := a.vetServiceRegister(serviceRWSecret, &structs.NodeService{
@@ -288,7 +288,7 @@ func TestACL_vetServiceRegister(t *testing.T) {
 
 func TestACL_vetServiceUpdateWithAuthorizer(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	vetServiceUpdate := func(token string, serviceID structs.ServiceID) error {
 		authz, err := a.delegate.ResolveTokenAndDefaultMeta(token, nil, nil)
@@ -320,7 +320,7 @@ func TestACL_vetServiceUpdateWithAuthorizer(t *testing.T) {
 
 func TestACL_vetCheckRegisterWithAuthorizer(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	vetCheckRegister := func(token string, check *structs.HealthCheck) error {
 		authz, err := a.delegate.ResolveTokenAndDefaultMeta(token, nil, nil)
@@ -394,7 +394,7 @@ func TestACL_vetCheckRegisterWithAuthorizer(t *testing.T) {
 
 func TestACL_vetCheckUpdateWithAuthorizer(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	vetCheckUpdate := func(token string, checkID structs.CheckID) error {
 		authz, err := a.delegate.ResolveTokenAndDefaultMeta(token, nil, nil)
@@ -443,7 +443,7 @@ func TestACL_vetCheckUpdateWithAuthorizer(t *testing.T) {
 
 func TestACL_filterMembers(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	var members []serf.Member
 	require.NoError(t, a.filterMembers(nodeROSecret, &members))
@@ -462,7 +462,7 @@ func TestACL_filterMembers(t *testing.T) {
 
 func TestACL_filterServicesWithAuthorizer(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	filterServices := func(token string, services *map[structs.ServiceID]*structs.NodeService) error {
 		authz, err := a.delegate.ResolveTokenAndDefaultMeta(token, nil, nil)
@@ -485,7 +485,7 @@ func TestACL_filterServicesWithAuthorizer(t *testing.T) {
 
 func TestACL_filterChecksWithAuthorizer(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), catalogPolicy, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), catalogPolicy, catalogIdent)
 
 	filterChecks := func(token string, checks *map[structs.CheckID]*structs.HealthCheck) error {
 		authz, err := a.delegate.ResolveTokenAndDefaultMeta(token, nil, nil)
@@ -525,7 +525,7 @@ func TestACL_filterChecksWithAuthorizer(t *testing.T) {
 // TODO: remove?
 func TestACL_ResolveIdentity(t *testing.T) {
 	t.Parallel()
-	a := NewTestACLAgent(t, t.Name(), TestACLConfig(), nil, catalogIdent)
+	a := NewTestACLAgent(t, t.Name(), TestACLConfigOld(), nil, catalogIdent)
 
 	// this test is meant to ensure we are calling the correct function
 	// which is ResolveTokenToIdentity on the Agent delegate. Our

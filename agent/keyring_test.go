@@ -302,7 +302,7 @@ func TestAgentKeyring_ACL(t *testing.T) {
 	dataDir := testutil.TempDir(t, "keyfile")
 	writeKeyRings(t, key1, dataDir)
 
-	a := StartTestAgent(t, TestAgent{HCL: TestACLConfig(), DataDir: dataDir})
+	a := StartTestAgent(t, TestAgent{HCL: TestACLConfigOld(), DataDir: dataDir})
 	defer a.Shutdown()
 
 	// List keys without access fails

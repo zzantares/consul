@@ -144,7 +144,7 @@ func TestACL_HTTP(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -1142,7 +1142,7 @@ func TestACL_LoginProcedure_HTTP(t *testing.T) {
 
 	// This tests AuthMethods, BindingRules, Login, and Logout.
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	testrpc.WaitForLeader(t, a.RPC, "dc1")
@@ -2344,7 +2344,7 @@ func TestHTTPHandlers_ACLReplicationStatus(t *testing.T) {
 	}
 
 	t.Parallel()
-	a := NewTestAgent(t, TestACLConfig())
+	a := NewTestAgent(t, TestACLConfigOld())
 	defer a.Shutdown()
 
 	req, _ := http.NewRequest("GET", "/v1/acl/replication", nil)
