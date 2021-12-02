@@ -6205,13 +6205,10 @@ func TestDNS_ServiceLookup_FilterACL(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run("ACLToken == "+tt.token, func(t *testing.T) {
-			a := NewTestAgent(t, `
-				acl_token = "`+tt.token+`"
-				acl_master_token = "root"
-				acl_datacenter = "dc1"
-				acl_down_policy = "deny"
-				acl_default_policy = "deny"
-			`)
+			a := NewTestAgent(t, TestACLConfig(func(p *TestACLConfigParams) {
+				p.DefaultToken = tt.token
+				p.InitialManagementToken = "root"
+			}))
 			defer a.Shutdown()
 			testrpc.WaitForLeader(t, a.RPC, "dc1")
 
