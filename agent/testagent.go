@@ -502,10 +502,23 @@ func TestACLConfigOld() string {
 	})
 }
 
-func TestACLConfigWithModifications(fn func(*TestACLConfigParams)) string {
+// TestACLConfig generates an HCL-formatted ACL config stanza, from the values
+// in DefaulTestACLConfigParams. Callers may optionally supply a function to
+// modify its parameters.
+//
+// Examples:
+//
+//	a := NewTestAgent(t, TestACLConfig())
+//
+//	a := NewTestAgent(t, TestACLConfig(func(p *TestACLConfigParams) {
+//		p.DefaultPolicy = "allow"
+//	}))
+func TestACLConfig(fn ...func(*TestACLConfigParams)) string {
 	params := DefaulTestACLConfigParams()
-	if fn != nil {
-		fn(params)
+	// Note: fn is varadic to allow callers not to pass it at all (but could also
+	// technically be used to pass multiple functions).
+	for _, f := range fn {
+		f(params)
 	}
 	return TestACLConfigWithParams(params)
 }

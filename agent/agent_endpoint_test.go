@@ -5153,7 +5153,7 @@ func TestAgent_TokenTriggersFullSync(t *testing.T) {
 		t.Run(tt.path, func(t *testing.T) {
 			url := fmt.Sprintf("/v1/agent/token/%s?token=%s", tt.path, TestDefaultInitialManagementToken)
 
-			a := NewTestAgent(t, TestACLConfigWithModifications(func(p *TestACLConfigParams) {
+			a := NewTestAgent(t, TestACLConfig(func(p *TestACLConfigParams) {
 				p.DefaultPolicy = ""
 				p.AgentToken = ""
 				p.AgentRecoveryToken = ""
@@ -5191,7 +5191,7 @@ func TestAgent_Token(t *testing.T) {
 	// The behavior of this handler when ACLs are disabled is vetted over
 	// in TestACL_Disabled_Response since there's already good infra set
 	// up over there to test this, and it calls the common function.
-	a := NewTestAgent(t, TestACLConfigWithModifications(func(p *TestACLConfigParams) {
+	a := NewTestAgent(t, TestACLConfig(func(p *TestACLConfigParams) {
 		p.InitialManagementToken = "root"
 		p.DefaultToken = ""
 		p.AgentToken = ""
