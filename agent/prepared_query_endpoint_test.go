@@ -147,7 +147,8 @@ func TestPreparedQuery_Create(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	req, _ := http.NewRequest("POST", "/v1/query?token=my-token", body)
+	req, _ := http.NewRequest("POST", "/v1/query", body)
+	req.Header.Add("X-Consul-Token", "my-token")
 	resp := httptest.NewRecorder()
 	obj, err := a.srv.PreparedQueryGeneral(resp, req)
 	if err != nil {
@@ -233,7 +234,8 @@ func TestPreparedQuery_List(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query?token=my-token&consistent=true", body)
+		req, _ := http.NewRequest("GET", "/v1/query?consistent=true", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQueryGeneral(resp, req)
 		if err != nil {
@@ -328,7 +330,8 @@ func TestPreparedQuery_Execute(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?token=my-token&consistent=true&near=my-node&limit=5", body)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?consistent=true&near=my-node&limit=5", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQuerySpecific(resp, req)
 		if err != nil {
@@ -384,7 +387,8 @@ func TestPreparedQuery_Execute(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?token=my-token&consistent=true&near=_ip&limit=5", body)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?consistent=true&near=_ip&limit=5", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		req.Header.Add("X-Forwarded-For", "127.0.0.1")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQuerySpecific(resp, req)
@@ -441,7 +445,8 @@ func TestPreparedQuery_Execute(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?token=my-token&consistent=true&near=_ip&limit=5", body)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/execute?consistent=true&near=_ip&limit=5", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		req.Header.Add("X-Forwarded-For", "198.18.0.1")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQuerySpecific(resp, req)
@@ -459,7 +464,8 @@ func TestPreparedQuery_Execute(t *testing.T) {
 			t.Fatalf("bad: %v", r)
 		}
 
-		req, _ = http.NewRequest("GET", "/v1/query/my-id/execute?token=my-token&consistent=true&near=_ip&limit=5", body)
+		req, _ = http.NewRequest("GET", "/v1/query/my-id/execute?consistent=true&near=_ip&limit=5", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		req.Header.Add("X-Forwarded-For", "198.18.0.1, 198.19.0.1")
 		resp = httptest.NewRecorder()
 		obj, err = a.srv.PreparedQuerySpecific(resp, req)
@@ -733,7 +739,8 @@ func TestPreparedQuery_Explain(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query/my-id/explain?token=my-token&consistent=true&near=my-node&limit=5", body)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id/explain?consistent=true&near=my-node&limit=5", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQuerySpecific(resp, req)
 		if err != nil {
@@ -825,7 +832,8 @@ func TestPreparedQuery_Get(t *testing.T) {
 		}
 
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query/my-id?token=my-token&consistent=true", body)
+		req, _ := http.NewRequest("GET", "/v1/query/my-id?consistent=true", body)
+		req.Header.Add("X-Consul-Token", "my-token")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQuerySpecific(resp, req)
 		if err != nil {
@@ -931,7 +939,8 @@ func TestPreparedQuery_Update(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	req, _ := http.NewRequest("PUT", "/v1/query/my-id?token=my-token", body)
+	req, _ := http.NewRequest("PUT", "/v1/query/my-id", body)
+	req.Header.Add("X-Consul-Token", "my-token")
 	resp := httptest.NewRecorder()
 	if _, err := a.srv.PreparedQuerySpecific(resp, req); err != nil {
 		t.Fatalf("err: %v", err)
@@ -983,7 +992,8 @@ func TestPreparedQuery_Delete(t *testing.T) {
 		t.Fatalf("err: %v", err)
 	}
 
-	req, _ := http.NewRequest("DELETE", "/v1/query/my-id?token=my-token", body)
+	req, _ := http.NewRequest("DELETE", "/v1/query/my-id", body)
+	req.Header.Add("X-Consul-Token", "my-token")
 	resp := httptest.NewRecorder()
 	if _, err := a.srv.PreparedQuerySpecific(resp, req); err != nil {
 		t.Fatalf("err: %v", err)
@@ -1082,7 +1092,8 @@ func TestPreparedQuery_Integration(t *testing.T) {
 	// List them all.
 	{
 		body := bytes.NewBuffer(nil)
-		req, _ := http.NewRequest("GET", "/v1/query?token=root", body)
+		req, _ := http.NewRequest("GET", "/v1/query", body)
+		req.Header.Add("X-Consul-Token", "root")
 		resp := httptest.NewRecorder()
 		obj, err := a.srv.PreparedQueryGeneral(resp, req)
 		if err != nil {
