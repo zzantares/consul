@@ -109,21 +109,6 @@ func TestRemoteExecGetSpec(t *testing.T) {
 	testRemoteExecGetSpec(t, "", "", true, "")
 }
 
-func TestRemoteExecGetSpec_ACLToken(t *testing.T) {
-	if testing.Short() {
-		t.Skip("too slow for testing.Short")
-	}
-
-	t.Parallel()
-	dc := "dc1"
-	testRemoteExecGetSpec(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_token = "root"
-		acl_default_policy = "deny"
-	`, "root", true, dc)
-}
-
 func TestRemoteExecGetSpec_ACLAgentToken(t *testing.T) {
 	if testing.Short() {
 		t.Skip("too slow for testing.Short")
@@ -131,12 +116,25 @@ func TestRemoteExecGetSpec_ACLAgentToken(t *testing.T) {
 
 	t.Parallel()
 	dc := "dc1"
-	testRemoteExecGetSpec(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_agent_token = "root"
-		acl_default_policy = "deny"
-	`, "root", true, dc)
+
+	testRemoteExecGetSpec(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = "root"
+	}), "root", true, dc)
+}
+
+func TestRemoteExecGetSpec_ACLToken(t *testing.T) {
+	if testing.Short() {
+		t.Skip("too slow for testing.Short")
+	}
+
+	t.Parallel()
+	dc := "dc1"
+	testRemoteExecGetSpec(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = ""
+		p.DefaultToken = "root"
+	}), "root", true, dc)
 }
 
 func TestRemoteExecGetSpec_ACLDeny(t *testing.T) {
@@ -146,11 +144,11 @@ func TestRemoteExecGetSpec_ACLDeny(t *testing.T) {
 
 	t.Parallel()
 	dc := "dc1"
-	testRemoteExecGetSpec(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_default_policy = "deny"
-	`, "root", false, dc)
+	testRemoteExecGetSpec(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = ""
+		p.DefaultToken = ""
+	}), "root", false, dc)
 }
 
 func testRemoteExecGetSpec(t *testing.T, hcl string, token string, shouldSucceed bool, dc string) {
@@ -206,12 +204,11 @@ func TestRemoteExecWrites_ACLToken(t *testing.T) {
 
 	t.Parallel()
 	dc := "dc1"
-	testRemoteExecWrites(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_token = "root"
-		acl_default_policy = "deny"
-	`, "root", true, dc)
+	testRemoteExecWrites(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = ""
+		p.DefaultToken = "root"
+	}), "root", true, dc)
 }
 
 func TestRemoteExecWrites_ACLAgentToken(t *testing.T) {
@@ -221,12 +218,10 @@ func TestRemoteExecWrites_ACLAgentToken(t *testing.T) {
 
 	t.Parallel()
 	dc := "dc1"
-	testRemoteExecWrites(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_agent_token = "root"
-		acl_default_policy = "deny"
-	`, "root", true, dc)
+	testRemoteExecWrites(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = "root"
+	}), "root", true, dc)
 }
 
 func TestRemoteExecWrites_ACLDeny(t *testing.T) {
@@ -236,11 +231,11 @@ func TestRemoteExecWrites_ACLDeny(t *testing.T) {
 
 	t.Parallel()
 	dc := "dc1"
-	testRemoteExecWrites(t, `
-		acl_datacenter = "`+dc+`"
-		acl_master_token = "root"
-		acl_default_policy = "deny"
-	`, "root", false, dc)
+	testRemoteExecWrites(t, TestACLConfig(func(p *TestACLConfigParams) {
+		p.InitialManagementToken = "root"
+		p.AgentToken = ""
+		p.DefaultToken = ""
+	}), "root", false, dc)
 }
 
 func testRemoteExecWrites(t *testing.T, hcl string, token string, shouldSucceed bool, dc string) {
