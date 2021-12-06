@@ -280,7 +280,38 @@ func (s *ResourceGenerator) makeGatewayServiceClusters(
 	clusters := make([]proto.Message, 0, len(services))
 
 	for svc := range services {
+		if rawCluster, ok := cfgSnap.ServiceMeta[fmt.Sprintf("%s-%s", structs.MetaTerminatingCluster, svc.Name)]; ok {
+			cluster, err := makeClusterFromUserConfig(rawCluster)
+			fmt.Println(cluster, err)
+
+			if err != nil {
+				s.Logger.Error("Sometimes bad things happen when parsing a cluster", "error", err)
+			}
+			clusters = append(clusters, cluster)
+			continue
+		}
+
 		clusterName := connect.ServiceSNI(svc.Name, "", svc.NamespaceOrDefault(), svc.PartitionOrDefault(), cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain)
+
+		if rawCluster, ok := cfgSnap.ServiceMeta[fmt.Sprintf("%s-%s", structs.MetaTerminatingCluster, svc.Name)]; ok {
+			cluster, err := makeClusterFromUserConfig(rawCluster)
+			fmt.Println(cluster, err)
+
+			if err != nil {
+				s.Logger.Error("Sometimes bad things happen when parsing a cluster", "error", err)
+			}
+			if cluster != nil {
+				cluster.Name = clusterName
+				if cluster.LoadAssignment != nil {
+					cluster.LoadAssignment.ClusterName = clusterName
+				}
+			}
+			if cluster != nil {
+				clusters = append(clusters, cluster)
+			}
+			continue
+		}
+
 		resolver, hasResolver := resolvers[svc]
 
 		var loadBalancer *structs.LoadBalancer

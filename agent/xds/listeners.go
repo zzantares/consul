@@ -595,6 +595,19 @@ func makeListenerFromUserConfig(configJSON string) (*envoy_listener_v3.Listener,
 	return &l, nil
 }
 
+func makeTCPReplacementFilter(configJSON string) (*envoy_listener_v3.Filter, error) {
+	// Type field is present so decode it as a any.Any
+	var any any.Any
+	if err := jsonpb.UnmarshalString(configJSON, &any); err != nil {
+		return nil, err
+	}
+	var f envoy_listener_v3.Filter
+	if err := proto.Unmarshal(any.Value, &f); err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
 // Ensure that the first filter in each filter chain of a public listener is
 // the authz filter to prevent unauthorized access.
 func (s *ResourceGenerator) injectConnectFilters(cfgSnap *proxycfg.ConfigSnapshot, listener *envoy_listener_v3.Listener) error {
@@ -1110,10 +1123,24 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 		opts.useRDS = true
 	}
 
-	filter, err := makeListenerFilter(opts)
-	if err != nil {
-		return nil, err
+	var filter *envoy_listener_v3.Filter
+
+	if rawFilter, ok := cfgSnap.ServiceMeta[fmt.Sprintf("%s-%s", structs.MetaTerminatingListener, service.Name)]; ok {
+		filter, err = makeTCPReplacementFilter(rawFilter)
+		s.Logger.Error("GOT CUSTOM FILTER", "error", err, "filter", filter)
+
+		if err != nil {
+			s.Logger.Error("Sometimes bad things happen when parsing a filter", "error", err)
+		}
 	}
+
+	if filter == nil {
+		filter, err = makeListenerFilter(opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	filterChain.Filters = append(filterChain.Filters, filter)
 
 	return filterChain, nil

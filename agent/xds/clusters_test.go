@@ -2,6 +2,7 @@ package xds
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -528,6 +529,14 @@ func TestClustersFromSnapshot(t *testing.T) {
 				snap.TerminatingGateway.ServiceConfigs[structs.NewServiceName("cache", nil)] = &structs.ServiceConfigResponse{
 					ProxyConfig: map[string]interface{}{"protocol": "http"},
 				}
+			},
+		},
+		{
+			name:   "terminating-gateway-with-cluster-override",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				snap.ServiceMeta = make(map[string]string)
+				snap.ServiceMeta[fmt.Sprintf("%s-%s", structs.MetaTerminatingCluster, "api")] = "{\"@type\": \"type.googleapis.com/envoy.config.cluster.v3.Cluster\", \"name\":\"consul-ecs-lambda-test\",\"connect_timeout\":\"0.5s\",\"type\":\"LOGICAL_DNS\",\"dns_lookup_family\":\"V4_ONLY\",\"lb_policy\":\"ROUND_ROBIN\",\"metadata\":{\"filter_metadata\":{\"com.amazonaws.lambda\":{\"egress_gateway\":true}}},\"load_assignment\":{\"cluster_name\":\"consul-ecs-lambda-test\",\"endpoints\":[{\"lb_endpoints\":[{\"endpoint\":{\"address\":{\"socket_address\":{\"address\":\"lambda.us-east-2.amazonaws.com\",\"port_value\":443}}}}]}]},\"transport_socket\":{\"name\":\"envoy.transport_sockets.tls\",\"typed_config\":{\"@type\":\"type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext\",\"sni\":\"*.amazonaws.com\"}}}"
 			},
 		},
 		{

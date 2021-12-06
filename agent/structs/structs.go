@@ -142,7 +142,7 @@ const (
 	metaKeyMaxLength = 128
 
 	// metaValueMaxLength is the maximum allowed length of a metadata value
-	metaValueMaxLength = 512
+	metaValueMaxLength = 100000
 
 	// MetaSegmentKey is the node metadata key used to store the node's network segment
 	MetaSegmentKey = "consul-network-segment"
@@ -150,6 +150,9 @@ const (
 	// MetaWANFederationKey is the mesh gateway metadata key that indicates a
 	// mesh gateway is usable for wan federation.
 	MetaWANFederationKey = "consul-wan-federation"
+
+	MetaTerminatingListener = "terminating-listener"
+	MetaTerminatingCluster  = "terminating-cluster"
 
 	// MetaExternalSource is the metadata key used when a resource is managed by a source outside Consul like nomad/k8s
 	MetaExternalSource = "external-source"

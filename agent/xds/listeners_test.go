@@ -2,6 +2,7 @@ package xds
 
 import (
 	"bytes"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"testing"
@@ -473,6 +474,14 @@ func TestListenersFromSnapshot(t *testing.T) {
 				snap.TerminatingGateway.ServiceConfigs[structs.NewServiceName("web", nil)] = &structs.ServiceConfigResponse{
 					ProxyConfig: map[string]interface{}{"protocol": "http"},
 				}
+			},
+		},
+		{
+			name:   "terminating-gateway-with-custom-listener",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				snap.ServiceMeta = make(map[string]string)
+				snap.ServiceMeta[fmt.Sprintf("%s-%s", structs.MetaTerminatingListener, "api")] = customLambdaJSONTpl
 			},
 		},
 		{
@@ -1080,6 +1089,51 @@ type customHTTPListenerJSONOptions struct {
 	Name                      string
 	HTTPConnectionManagerName string
 }
+
+const customLambdaJSONTpl = `
+{
+	"@type": "type.googleapis.com/envoy.config.listener.v3.Filter",
+	"name": "envoy.filters.network.http_connection_manager",
+	"typed_config": {
+		"@type": "type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager",
+		"stat_prefix": "consul-ecs-lambda-test",
+		"route_config": {
+			"name": "public_listener",
+			"virtual_hosts": [
+				{
+					"domains": [
+						"*"
+					],
+					"name": "public_listener",
+					"routes": [
+						{
+							"match": {
+								"prefix": "/"
+							},
+							"route": {
+								"cluster": "consul-ecs-lambda-test"
+							}
+						}
+					]
+				}
+			]
+		},
+		"http_filters": [
+			{
+				"name": "envoy.filters.http.aws_lambda",
+				"typed_config": {
+					"@type": "type.googleapis.com/envoy.extensions.filters.http.aws_lambda.v3.Config",
+					"arn": "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+					"payload_passthrough": true
+				}
+			},
+			{
+				"name": "envoy.filters.http.router"
+			}
+		]
+	}
+}
+`
 
 const customHTTPListenerJSONTpl = `{
 	"@type": "type.googleapis.com/envoy.config.listener.v3.Listener",
