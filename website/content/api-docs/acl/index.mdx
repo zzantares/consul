@@ -16,7 +16,7 @@ the [ACL tutorial](https://learn.hashicorp.com/tutorials/consul/access-control-s
 ## Bootstrap ACLs
 
 This endpoint does a special one-time bootstrap of the ACL system, making the first
-management token if the [`acl.tokens.master`](/docs/agent/options#acl_tokens_master)
+management token if the [`acl.tokens.initial_management`](/docs/agent/options#acl_tokens_initial_management)
 configuration entry is not specified in the Consul server configuration and if the
 cluster has not been bootstrapped previously. This is available in Consul 0.9.1 and later,
 and requires all Consul servers to be upgraded in order to operate.
@@ -144,7 +144,7 @@ $ curl \
 
 - `ReplicationType` - The type of replication that is currently in use.
 
-  - `legacy` - ACL replication is in legacy mode and is replicating legacy ACL tokens.
+  - `legacy` - (removed in Consul 1.11.0) ACL replication is in legacy mode and is replicating legacy ACL tokens.
 
   - `policies` - ACL replication is only replicating policies as token replication
     is disabled.
@@ -181,8 +181,8 @@ $ curl \
 
 ## Translate Rules
 
--> **Deprecated** - This endpoint was introduced in Consul 1.4.0 for migration from the previous ACL system. It
-will be removed in a future major Consul version when support for legacy ACLs is removed.
+-> **Deprecated** - This endpoint was removed in Consul 1.11.0.
+This endpoint was introduced in Consul 1.4.0 for migration from the previous ACL system.
 
 This endpoint translates the legacy rule syntax into the latest syntax. It is intended
 to be used by operators managing Consul's ACLs and performing legacy token to new policy
@@ -226,8 +226,8 @@ agent_prefix "" {
 
 ## Translate a Legacy Token's Rules
 
--> **Deprecated** - This endpoint was introduced in Consul 1.4.0 for migration from the previous ACL system.. It
-will be removed in a future major Consul version when support for legacy ACLs is removed.
+-> **Deprecated** - This endpoint was removed in Consul 1.11.0.
+This endpoint was introduced in Consul 1.4.0 for migration from the previous ACL system.
 
 This endpoint translates the legacy rules embedded within a legacy ACL into the latest
 syntax. It is intended to be used by operators managing Consul's ACLs and performing

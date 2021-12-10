@@ -25,7 +25,7 @@ export default function HomePage({ serviceMeshIngressGatewayCode }) {
             external: false,
             title: 'Try HCP Consul',
             url:
-              'https://portal.cloud.hashicorp.com/sign-up?utm_source=docs&utm_content=consul_hero',
+              'https://portal.cloud.hashicorp.com/sign-up?utm_source=consul_io&utm_content=consul_hero',
           },
           {
             external: false,
