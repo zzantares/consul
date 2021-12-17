@@ -28,6 +28,10 @@ export default class Outlet extends Component {
     return this.args.model || {};
   }
 
+  get name() {
+    return this.args.name;
+  }
+
   setAppRoute(name) {
     if (name !== 'loading' || name === 'oidc-provider-debug') {
       const doc = this.element.ownerDocument.documentElement;
@@ -53,9 +57,6 @@ export default class Outlet extends Component {
           this.setAppState('loading');
           this.setAppRoute(this.router.currentRouteName);
         }
-        break;
-      case 'model':
-        this.route._model = this.args.model;
         break;
     }
   }

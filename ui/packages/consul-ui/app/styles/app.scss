@@ -13,3 +13,19 @@
 @import 'routes';
 /* global control of themeable components */
 @import 'themes';
+%debug-box {
+  color: red;
+  background-color: rgb(255 255 255 / 70%);
+  position: absolute;
+  /* hi */
+  z-index: 100000;
+}
+// section[data-outlet] {
+//   position: relative;
+// }
+// section[data-outlet]::before {
+//   @extend %p3;
+//   @extend %debug-box;
+//   content: attr(data-outlet);
+//   display: inline;
+// }

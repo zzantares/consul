@@ -7,24 +7,15 @@ export default class RouteComponent extends Component {
   @service('routlet') routlet;
   @service('router') router;
 
-  @tracked _model;
-
   get params() {
     return this.routlet.paramsFor(this.args.name);
   }
 
   get model() {
-    if(this.args.name) {
-      const temp = this.args.name.split('.');
-      temp.pop();
-      const name = temp.join('.');
-      let model = this.routlet.modelFor(name);
-      if(Object.keys(model).length === 0) {
-        return null;
-      }
-      return model;
+    if (this.args.name) {
+      const outlet = this.routlet.outletFor(this.args.name);
+      return this.routlet.modelFor(outlet.name);
     }
-    return null;
   }
 
   @action

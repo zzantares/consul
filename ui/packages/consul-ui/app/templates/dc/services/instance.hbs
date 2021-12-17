@@ -166,11 +166,14 @@ as |item|}}
                             (hash label="Tags & Meta" href=(href-to "dc.services.instance.metadata") selected=(is-href "dc.services.instance.metadata"))
                     )
               }}/>
+              ===Length Outside: {{item.ProxyInstance.Checks.length}}===<br />
+              ===ID outside: {{item.ID}}===<br />
             <Outlet
               @name={{routeName}}
               @model={{assign (hash
                 proxy=proxy
                 item=item
+                length=item.ProxyInstance.Checks.length
               ) route.model}}
             as |o|>
               {{outlet}}
