@@ -109,7 +109,10 @@ export default class DataSource extends Component {
     switch (name) {
       case 'src':
         if (this.loading === 'eager' || this.isIntersecting) {
-          this.open();
+          if(this._value !== value) {
+            this.open();
+          }
+          this._value = value;
         }
         break;
     }

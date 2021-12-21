@@ -383,7 +383,7 @@
 
     <:main>
       {{yield (hash
-        login=(if (env 'CONSUL_ACLS_ENABLED') this.modal (hash open=undefined))
+        login=(if (can 'use acls') this.modal (hash open=undefined))
       )}}
     </:main>
 

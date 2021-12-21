@@ -121,13 +121,13 @@ export default class RoutletService extends Service {
 
   addOutlet(name, outlet) {
     outlets.set(name, outlet);
-    console.log(`Connected outlet: ${name}`);
+    // console.log(`Connected outlet: ${name}`);
   }
 
   removeOutlet(name) {
     schedule('afterRender', () => {
       outlets.delete(name);
-      console.log(`Removed outlet: ${name}`);
+      // console.log(`Removed outlet: ${name}`);
     });
   }
 
@@ -146,7 +146,7 @@ export default class RoutletService extends Service {
       // TODO: Try to avoid the double computation bug
       schedule('afterRender', () => {
         outlet.routeName = name;
-        console.log(`Connected: ${name} to ${outlet.name}`);
+        // console.log(`Connected: ${name} to ${outlet.name}`);
       });
     }
   }
@@ -156,7 +156,7 @@ export default class RoutletService extends Service {
     if (typeof outlet !== 'undefined') {
       schedule('afterRender', () => {
         outlet.route = undefined;
-        console.log(`Removed ${name} from ${outlet.name}`);
+        // console.log(`Removed ${name} from ${outlet.name}`);
       });
     }
   }

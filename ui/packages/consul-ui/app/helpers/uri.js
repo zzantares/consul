@@ -15,6 +15,7 @@ export default class UriHelper extends Helper {
   }
 
   compute([template, vars]) {
+    return render(template, vars);
     return this.data.uri(render(template, vars));
   }
 }

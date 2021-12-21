@@ -1,5 +1,6 @@
 {{did-insert this.connect}}
 {{will-destroy this.disconnect}}
+{{#if (not this.error)}}
 {{yield (hash
   model=this.model
   params=this.params
@@ -10,3 +11,11 @@
   Title=(component "route/title")
   Announcer=(component "route/announcer")
 )}}
+{{else}}
+  <AppError
+    @error={{hash
+      status=this.error.statusCode
+    }}
+    @login={{this.model.app.login.open}}
+  />
+{{/if}}

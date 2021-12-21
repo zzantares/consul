@@ -96,16 +96,16 @@ export default class DataSourceService extends Service {
     if (!(uri instanceof URI) && typeof uri !== 'string') {
       return this.unwrap(uri, ref);
     }
-    runInDebug(_ => {
-      if (!(uri instanceof URI)) {
-        console.error(
-          new Error(
-            `DataSource '${uri}' does not use the uri helper. Please ensure you use the uri helper to ensure correct encoding`
-          )
-        );
-      }
-    });
-    uri = uri.toString();
+    // runInDebug(_ => {
+    //   if (!(uri instanceof URI)) {
+    //     console.error(
+    //       new Error(
+    //         `DataSource '${uri}' does not use the uri helper. Please ensure you use the uri helper to ensure correct encoding`
+    //       )
+    //     );
+    //   }
+    // });
+    // uri = uri.toString();
     let source;
     // Check the cache for an EventSource that is already being used
     // for this uri. If we don't have one, set one up.

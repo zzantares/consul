@@ -58,6 +58,11 @@ export default class Outlet extends Component {
           this.setAppRoute(this.router.currentRouteName);
         }
         break;
+      case 'model':
+        if(typeof this.route !== 'undefined') {
+          this.route._model = this.model;
+        }
+        break;
     }
   }
 
