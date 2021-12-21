@@ -2010,12 +2010,15 @@ func testConfigSnapshotTerminatingGateway(t testing.T, populateServices bool) *C
 		}
 
 		snap.TerminatingGateway = configSnapshotTerminatingGateway{
+			ServiceEnvoyConfigApplications: make(map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry),
+			EnvoyConfigs:                   make(map[structs.ApplyEnvoyPatchSetIdentifier]*structs.EnvoyPatchSetConfigEntry),
 			ServiceGroups: map[structs.ServiceName]structs.CheckServiceNodes{
 				web:   webNodes,
 				api:   apiNodes,
 				db:    dbNodes,
 				cache: cacheNodes,
 			},
+			ServiceResolvers: make(map[structs.ServiceName]*structs.ServiceResolverConfigEntry),
 			ServiceResolversSet: map[structs.ServiceName]bool{
 				web:   true,
 				api:   true,

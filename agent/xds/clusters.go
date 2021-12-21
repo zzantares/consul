@@ -1,9 +1,11 @@
 package xds
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"sort"
+	"text/template"
 	"time"
 
 	envoy_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
@@ -272,6 +274,11 @@ func (s *ResourceGenerator) clustersFromSnapshotMeshGateway(cfgSnap *proxycfg.Co
 	return clusters, nil
 }
 
+type CustomClusterOptions struct {
+	ClusterName string
+	Meta        map[string]string
+}
+
 func (s *ResourceGenerator) makeGatewayServiceClusters(
 	cfgSnap *proxycfg.ConfigSnapshot,
 	services map[structs.ServiceName]structs.CheckServiceNodes,
@@ -287,8 +294,10 @@ func (s *ResourceGenerator) makeGatewayServiceClusters(
 
 	clusters := make([]proto.Message, 0, len(services))
 
+Outer:
 	for svc := range services {
 		clusterName := connect.ServiceSNI(svc.Name, "", svc.NamespaceOrDefault(), svc.PartitionOrDefault(), cfgSnap.Datacenter, cfgSnap.Roots.TrustDomain)
+
 		resolver, hasResolver := resolvers[svc]
 
 		var loadBalancer *structs.LoadBalancer
@@ -297,6 +306,43 @@ func (s *ResourceGenerator) makeGatewayServiceClusters(
 			// Use a zero value resolver with no timeout and no subsets
 			resolver = &structs.ServiceResolverConfigEntry{}
 		}
+
+		// This is ugly but it sees if there is an envoy config override for the
+		// service and that the patch associated with it exists. If so it uses that
+		// cluster.
+		if cfgSnap.Kind == structs.ServiceKindTerminatingGateway {
+			if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[svc]; ok {
+				if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
+					for i, patch := range patch.Patches {
+						if patch.ApplyTo == structs.ApplyToServiceCluster && patch.Mode == structs.PatchModeTerminatingGateway && patch.Type == structs.Replace {
+							t, err := template.New(fmt.Sprintf("%s/%d", apply.Name, i)).Parse(patch.Value)
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when making a cluster template", "error", err)
+							}
+
+							var raw bytes.Buffer
+							err = t.Execute(&raw, CustomClusterOptions{
+								ClusterName: clusterName,
+								Meta:        apply.Meta,
+							})
+
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when compiling a cluster", "error", err)
+							}
+
+							cluster, err := makeClusterFromUserConfig(raw.String())
+
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when parsing a cluster", "error", err)
+							}
+							clusters = append(clusters, cluster)
+							continue Outer
+						}
+					}
+				}
+			}
+		}
+
 		if resolver.LoadBalancer != nil {
 			loadBalancer = resolver.LoadBalancer
 		}

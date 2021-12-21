@@ -532,6 +532,42 @@ func TestClustersFromSnapshot(t *testing.T) {
 				}
 			},
 		},
+
+		{
+			name:   "terminating-gateway-with-cluster-override",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				serviceName := structs.NewServiceName("web", nil)
+				id := structs.ApplyEnvoyPatchSetIdentifier{
+					Name:    "lambda-patch",
+					Version: "0.0.1",
+				}
+				snap.TerminatingGateway.EnvoyConfigs[id] = &structs.EnvoyPatchSetConfigEntry{
+					Patches: []structs.Patch{
+						{
+							ApplyTo: structs.ApplyToServiceCluster,
+							Mode:    structs.PatchModeTerminatingGateway,
+							Type:    structs.Replace,
+							Path:    "/",
+							Value:   envoyClusterOverrideTpl,
+						},
+					},
+				}
+
+				snap.TerminatingGateway.ServiceEnvoyConfigApplications[serviceName] = &structs.ApplyEnvoyPatchSetConfigEntry{
+					EnvoyPatchSet: structs.ApplyEnvoyPatchSetIdentifier{
+						Name:    "lambda-patch",
+						Version: "0.0.1",
+					},
+					Filter: structs.ApplyEnvoyPatchSetFilter{
+						Service: "web",
+					},
+					Meta: map[string]string{
+						"Region": "us-west-2",
+					},
+				}
+			},
+		},
 		{
 			name:   "terminating-gateway-hostname-service-subsets",
 			create: proxycfg.TestConfigSnapshotTerminatingGateway,
@@ -780,6 +816,49 @@ type customClusterJSONOptions struct {
 	Name       string
 	TLSContext string
 }
+
+var envoyClusterOverrideTpl = `{
+  "@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",
+  "name": "{{ .ClusterName }}",
+  "connect_timeout": "0.5s",
+  "type": "LOGICAL_DNS",
+  "dns_lookup_family": "V4_ONLY",
+  "lb_policy": "ROUND_ROBIN",
+  "metadata": {
+    "filter_metadata": {
+      "com.amazonaws.lambda": {
+        "egress_gateway": true
+      }
+    }
+  },
+  "load_assignment": {
+    "cluster_name": "{{ .ClusterName }}",
+    "endpoints": [
+      {
+        "lb_endpoints": [
+          {
+            "endpoint": {
+              "address": {
+                "socket_address": {
+                  "address": "lambda.{{index .Meta "Region" }}.amazonaws.com",
+                  "port_value": 443
+                }
+              }
+            }
+          }
+        ]
+      }
+    ]
+  },
+  "transport_socket": {
+    "name": "envoy.transport_sockets.tls",
+    "typed_config": {
+      "@type": "type.googleapis.com/envoy.extensions.transport_sockets.tls.v3.UpstreamTlsContext",
+      "sni": "*.amazonaws.com"
+    }
+  }
+}
+`
 
 var customAppClusterJSONTpl = `{
 	"@type": "type.googleapis.com/envoy.config.cluster.v3.Cluster",

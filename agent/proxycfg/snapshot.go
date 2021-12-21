@@ -117,6 +117,21 @@ type configSnapshotConnectProxy struct {
 
 	MeshConfig    *structs.MeshConfigEntry
 	MeshConfigSet bool
+
+	// WatchedServiceConfigs is a map of ServiceName to a cancel function. This cancel
+	// function is tied to the watch of service configs for linked services. As
+	// with WatchedServices, service config watches will be cancelled when
+	// services are no longer linked to the gateway.
+	WatchedServiceConfigs map[structs.ServiceName]context.CancelFunc
+
+	// ServiceConfigs is a map of service name to the resolved service config
+	// for that service.
+	ServiceConfigs map[structs.ServiceName]*structs.ServiceConfigResponse
+
+	// EnvoyConfigs is an array of envoy patch name to the resolved envoy config patches.
+	EnvoyConfigs                   map[structs.ApplyEnvoyPatchSetIdentifier]*structs.EnvoyPatchSetConfigEntry
+	EnvoyConfigApplications        []*structs.ApplyEnvoyPatchSetConfigEntry
+	ServiceEnvoyConfigApplications map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry
 }
 
 func (c *configSnapshotConnectProxy) IsEmpty() bool {
@@ -171,11 +186,11 @@ type configSnapshotTerminatingGateway struct {
 	// on the service that the caller is trying to reach.
 	ServiceLeaves map[structs.ServiceName]*structs.IssuedCert
 
-	// WatchedConfigs is a map of ServiceName to a cancel function. This cancel
+	// WatchedServiceConfigs is a map of ServiceName to a cancel function. This cancel
 	// function is tied to the watch of service configs for linked services. As
 	// with WatchedServices, service config watches will be cancelled when
 	// services are no longer linked to the gateway.
-	WatchedConfigs map[structs.ServiceName]context.CancelFunc
+	WatchedServiceConfigs map[structs.ServiceName]context.CancelFunc
 
 	// ServiceConfigs is a map of service name to the resolved service config
 	// for that service.
@@ -204,6 +219,11 @@ type configSnapshotTerminatingGateway struct {
 	// HostnameServices is a map of service name to service instances with a hostname as the address.
 	// If hostnames are configured they must be provided to Envoy via CDS not EDS.
 	HostnameServices map[structs.ServiceName]structs.CheckServiceNodes
+
+	// EnvoyConfigs is an array of envoy patch name to the resolved envoy config patches.
+	EnvoyConfigs                   map[structs.ApplyEnvoyPatchSetIdentifier]*structs.EnvoyPatchSetConfigEntry
+	EnvoyConfigApplications        []*structs.ApplyEnvoyPatchSetConfigEntry
+	ServiceEnvoyConfigApplications map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry
 }
 
 // ValidServices returns the list of service keys that have enough data to be emitted.
@@ -252,7 +272,7 @@ func (c *configSnapshotTerminatingGateway) IsEmpty() bool {
 		len(c.ServiceResolversSet) == 0 &&
 		len(c.WatchedResolvers) == 0 &&
 		len(c.ServiceConfigs) == 0 &&
-		len(c.WatchedConfigs) == 0 &&
+		len(c.WatchedServiceConfigs) == 0 &&
 		len(c.GatewayServices) == 0 &&
 		len(c.HostnameServices) == 0
 }
@@ -491,7 +511,7 @@ func (s *ConfigSnapshot) Clone() (*ConfigSnapshot, error) {
 		snap.TerminatingGateway.WatchedServices = nil
 		snap.TerminatingGateway.WatchedIntentions = nil
 		snap.TerminatingGateway.WatchedLeaves = nil
-		snap.TerminatingGateway.WatchedConfigs = nil
+		snap.TerminatingGateway.WatchedServiceConfigs = nil
 		snap.TerminatingGateway.WatchedResolvers = nil
 	case structs.ServiceKindMeshGateway:
 		snap.MeshGateway.WatchedGateways = nil

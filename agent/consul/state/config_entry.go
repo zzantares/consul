@@ -396,6 +396,8 @@ func validateProposedConfigEntryInGraph(
 	case structs.ServiceIntentions:
 	case structs.MeshConfig:
 	case structs.ExportedServices:
+	case structs.EnvoyPatchSet:
+	case structs.ApplyEnvoyPatchSet:
 	default:
 		return fmt.Errorf("unhandled kind %q during validation of %q", kindName.Kind, kindName.Name)
 	}

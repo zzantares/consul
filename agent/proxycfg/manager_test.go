@@ -212,6 +212,9 @@ func TestManager_BasicLifecycle(t *testing.T) {
 				TaggedAddresses: make(map[string]structs.ServiceAddress),
 				Roots:           roots,
 				ConnectProxy: configSnapshotConnectProxy{
+					WatchedServiceConfigs:          make(map[structs.ServiceName]context.CancelFunc),
+					ServiceConfigs:                 make(map[structs.ServiceName]*structs.ServiceConfigResponse),
+					ServiceEnvoyConfigApplications: map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry{},
 					ConfigSnapshotUpstreams: ConfigSnapshotUpstreams{
 						Leaf: leaf,
 						DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{
@@ -269,6 +272,9 @@ func TestManager_BasicLifecycle(t *testing.T) {
 				TaggedAddresses: make(map[string]structs.ServiceAddress),
 				Roots:           roots,
 				ConnectProxy: configSnapshotConnectProxy{
+					WatchedServiceConfigs:          make(map[structs.ServiceName]context.CancelFunc),
+					ServiceConfigs:                 make(map[structs.ServiceName]*structs.ServiceConfigResponse),
+					ServiceEnvoyConfigApplications: map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry{},
 					ConfigSnapshotUpstreams: ConfigSnapshotUpstreams{
 						Leaf: leaf,
 						DiscoveryChain: map[string]*structs.CompiledDiscoveryChain{

@@ -381,6 +381,41 @@ func ingressConfigWatchEvent(gwTLS bool, mixedTLS bool) cache.UpdateEvent {
 	}
 }
 
+var envoyPatchSet = &structs.EnvoyPatchSetConfigEntry{
+	Name:    "patch1",
+	Version: "0.0.1",
+	Kind:    structs.EnvoyPatchSet,
+	Patches: []structs.Patch{
+		{
+			Type:  structs.Replace,
+			Path:  "/",
+			Value: `{"a": 1}`,
+		},
+	},
+}
+
+var serviceEnvoyPatchSetApplication = &structs.ApplyEnvoyPatchSetConfigEntry{
+	Name: "patch1",
+	Kind: structs.EnvoyPatchSet,
+	EnvoyPatchSet: structs.ApplyEnvoyPatchSetIdentifier{
+		Name:    "patch1",
+		Version: "0.0.1",
+	},
+	Filter: structs.ApplyEnvoyPatchSetFilter{
+		Service: "foo",
+	},
+}
+
+var envoyPatchSetApplication = &structs.ApplyEnvoyPatchSetConfigEntry{
+	Name: "patch1",
+	Kind: structs.EnvoyPatchSet,
+	EnvoyPatchSet: structs.ApplyEnvoyPatchSetIdentifier{
+		Name:    "patch1",
+		Version: "0.0.1",
+	},
+	ApplyIndex: 1,
+}
+
 func upstreamIDForDC2(name string) string {
 	return fmt.Sprintf("%s?dc=dc2", name)
 }
@@ -622,6 +657,20 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					},
 					Err: nil,
 				},
+				{
+					CorrelationID: envoyConfigPatchesID,
+					Result: structs.IndexedConfigEntries{
+						Entries: []structs.ConfigEntry{envoyPatchSet},
+					},
+					Err: nil,
+				},
+				{
+					CorrelationID: envoyConfigApplicationID,
+					Result: structs.IndexedConfigEntries{
+						Entries: []structs.ConfigEntry{serviceEnvoyPatchSetApplication, envoyPatchSetApplication},
+					},
+					Err: nil,
+				},
 			},
 			verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 				require.True(t, snap.Valid())
@@ -640,6 +689,11 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 
 				require.True(t, snap.ConnectProxy.IntentionsSet)
 				require.Equal(t, ixnMatch.Matches[0], snap.ConnectProxy.Intentions)
+
+				require.True(t, snap.Valid(), "gateway with service list is valid")
+				require.Len(t, snap.ConnectProxy.EnvoyConfigs, 1)
+				require.Len(t, snap.ConnectProxy.EnvoyConfigApplications, 1)
+				require.Len(t, snap.ConnectProxy.ServiceEnvoyConfigApplications, 1)
 			},
 		}
 
@@ -1369,10 +1423,10 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 						require.Contains(t, snap.TerminatingGateway.WatchedLeaves, billing)
 						require.Contains(t, snap.TerminatingGateway.WatchedLeaves, api)
 
-						require.Len(t, snap.TerminatingGateway.WatchedConfigs, 3)
-						require.Contains(t, snap.TerminatingGateway.WatchedConfigs, db)
-						require.Contains(t, snap.TerminatingGateway.WatchedConfigs, billing)
-						require.Contains(t, snap.TerminatingGateway.WatchedConfigs, api)
+						require.Len(t, snap.TerminatingGateway.WatchedServiceConfigs, 3)
+						require.Contains(t, snap.TerminatingGateway.WatchedServiceConfigs, db)
+						require.Contains(t, snap.TerminatingGateway.WatchedServiceConfigs, billing)
+						require.Contains(t, snap.TerminatingGateway.WatchedServiceConfigs, api)
 
 						require.Len(t, snap.TerminatingGateway.WatchedResolvers, 3)
 						require.Contains(t, snap.TerminatingGateway.WatchedResolvers, db)
@@ -1602,6 +1656,30 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 
 						require.Len(t, snap.TerminatingGateway.ServiceResolvers, 1)
 						require.Equal(t, dbResolver.Entries[0], snap.TerminatingGateway.ServiceResolvers[db])
+					},
+				},
+				{
+					events: []cache.UpdateEvent{
+						{
+							CorrelationID: envoyConfigPatchesID,
+							Result: structs.IndexedConfigEntries{
+								Entries: []structs.ConfigEntry{envoyPatchSet},
+							},
+							Err: nil,
+						},
+						{
+							CorrelationID: envoyConfigApplicationID,
+							Result: structs.IndexedConfigEntries{
+								Entries: []structs.ConfigEntry{serviceEnvoyPatchSetApplication, envoyPatchSetApplication},
+							},
+							Err: nil,
+						},
+					},
+					verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
+						require.True(t, snap.Valid(), "gateway with service list is valid")
+						require.Len(t, snap.TerminatingGateway.EnvoyConfigs, 1)
+						require.Len(t, snap.TerminatingGateway.EnvoyConfigApplications, 1)
+						require.Len(t, snap.TerminatingGateway.ServiceEnvoyConfigApplications, 1)
 					},
 				},
 				{

@@ -23,6 +23,8 @@ const (
 	ServiceIntentions  string = "service-intentions"
 	MeshConfig         string = "mesh"
 	ExportedServices   string = "exported-services"
+	EnvoyPatchSet      string = "envoy-patch-set"
+	ApplyEnvoyPatchSet string = "apply-envoy-patch-set"
 
 	ProxyConfigGlobal string = "global"
 	MeshConfigMesh    string = "mesh"
@@ -273,6 +275,10 @@ func makeConfigEntry(kind, name string) (ConfigEntry, error) {
 		return &IngressGatewayConfigEntry{Kind: kind, Name: name}, nil
 	case TerminatingGateway:
 		return &TerminatingGatewayConfigEntry{Kind: kind, Name: name}, nil
+	case EnvoyPatchSet:
+		return &EnvoyPatchSetConfigEntry{Kind: kind, Name: name}, nil
+	case ApplyEnvoyPatchSet:
+		return &ApplyEnvoyPatchSetConfigEntry{Kind: kind, Name: name}, nil
 	case ServiceIntentions:
 		return &ServiceIntentionsConfigEntry{Kind: kind, Name: name}, nil
 	case MeshConfig:

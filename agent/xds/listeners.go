@@ -1,6 +1,7 @@
 package xds
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"net"
@@ -9,6 +10,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"text/template"
 	"time"
 
 	"github.com/hashicorp/consul/agent/connect/ca"
@@ -602,6 +604,19 @@ func makeListenerFromUserConfig(configJSON string) (*envoy_listener_v3.Listener,
 	return &l, nil
 }
 
+func makeTCPReplacementFilter(configJSON string) (*envoy_listener_v3.Filter, error) {
+	// Type field is present so decode it as a any.Any
+	var any any.Any
+	if err := jsonpb.UnmarshalString(configJSON, &any); err != nil {
+		return nil, err
+	}
+	var f envoy_listener_v3.Filter
+	if err := proto.Unmarshal(any.Value, &f); err != nil {
+		return nil, err
+	}
+	return &f, nil
+}
+
 // Ensure that the first filter in each filter chain of a public listener is
 // the authz filter to prevent unauthorized access.
 func (s *ResourceGenerator) injectConnectFilters(cfgSnap *proxycfg.ConfigSnapshot, listener *envoy_listener_v3.Listener) error {
@@ -1054,6 +1069,11 @@ func (s *ResourceGenerator) makeTerminatingGatewayListener(
 	return l, nil
 }
 
+type CustomFilterOptions struct {
+	ClusterName string
+	Meta        map[string]string
+}
+
 func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 	cfgSnap *proxycfg.ConfigSnapshot,
 	cluster string,
@@ -1117,10 +1137,50 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 		opts.useRDS = true
 	}
 
-	filter, err := makeListenerFilter(opts)
-	if err != nil {
-		return nil, err
+	var filter *envoy_listener_v3.Filter
+
+	if cfgSnap.Kind == structs.ServiceKindTerminatingGateway {
+		if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[service]; ok {
+			if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
+				for i, patch := range patch.Patches {
+					if patch.ApplyTo == structs.ApplyToServiceFilter && patch.Mode == structs.PatchModeTerminatingGateway && patch.Type == structs.Replace {
+						t, err := template.New(fmt.Sprintf("%s/%d", apply.Name, i)).Parse(patch.Value)
+						if err != nil {
+							s.Logger.Error("Sometimes bad things happen when making a listener template", "error", err)
+						}
+
+						var raw bytes.Buffer
+						s.Logger.Error("Options", "opts", CustomFilterOptions{
+							ClusterName: cluster,
+							Meta:        apply.Meta,
+						})
+						err = t.Execute(&raw, CustomFilterOptions{
+							ClusterName: cluster,
+							Meta:        apply.Meta,
+						})
+
+						if err != nil {
+							s.Logger.Error("Sometimes bad things happen when making a filter template", "error", err)
+						}
+
+						filter, err = makeTCPReplacementFilter(raw.String())
+
+						if err != nil {
+							s.Logger.Error("Sometimes bad things happen when making the filter go type", "error", err, "raw", raw.String())
+						}
+					}
+				}
+			}
+		}
 	}
+
+	if filter == nil {
+		filter, err = makeListenerFilter(opts)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	filterChain.Filters = append(filterChain.Filters, filter)
 
 	return filterChain, nil

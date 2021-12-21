@@ -37,6 +37,8 @@ const (
 	datacentersWatchID                 = "datacenters"
 	serviceResolversWatchID            = "service-resolvers"
 	gatewayServicesWatchID             = "gateway-services"
+	envoyConfigPatchesID               = "envoy-config-patches"
+	envoyConfigApplicationID           = "envoy-config-application"
 	gatewayConfigWatchID               = "gateway-config"
 	externalServiceIDPrefix            = "external-service:"
 	serviceLeafIDPrefix                = "service-leaf:"

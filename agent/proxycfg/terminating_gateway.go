@@ -40,12 +40,36 @@ func (s *handlerTerminatingGateway) initialize(ctx context.Context) (ConfigSnaps
 		return snap, err
 	}
 
+	// Watch for Envoy patches
+	err = s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+		Kind:           structs.EnvoyPatchSet,
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, envoyConfigPatchesID, s.ch)
+	if err != nil {
+		s.logger.Error("failed to register watch for envoy config patches", "error", err)
+		return snap, err
+	}
+
+	// Watch for Envoy patch applications
+	err = s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+		Kind:           structs.ApplyEnvoyPatchSet,
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, envoyConfigApplicationID, s.ch)
+	if err != nil {
+		s.logger.Error("failed to register watch for envoy config patch applications", "error", err)
+		return snap, err
+	}
+
 	snap.TerminatingGateway.WatchedServices = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.WatchedIntentions = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.Intentions = make(map[structs.ServiceName]structs.Intentions)
 	snap.TerminatingGateway.WatchedLeaves = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.ServiceLeaves = make(map[structs.ServiceName]*structs.IssuedCert)
-	snap.TerminatingGateway.WatchedConfigs = make(map[structs.ServiceName]context.CancelFunc)
+	snap.TerminatingGateway.WatchedServiceConfigs = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.ServiceConfigs = make(map[structs.ServiceName]*structs.ServiceConfigResponse)
 	snap.TerminatingGateway.WatchedResolvers = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.ServiceResolvers = make(map[structs.ServiceName]*structs.ServiceResolverConfigEntry)
@@ -53,6 +77,7 @@ func (s *handlerTerminatingGateway) initialize(ctx context.Context) (ConfigSnaps
 	snap.TerminatingGateway.ServiceGroups = make(map[structs.ServiceName]structs.CheckServiceNodes)
 	snap.TerminatingGateway.GatewayServices = make(map[structs.ServiceName]structs.GatewayService)
 	snap.TerminatingGateway.HostnameServices = make(map[structs.ServiceName]structs.CheckServiceNodes)
+	snap.TerminatingGateway.ServiceEnvoyConfigApplications = make(map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry)
 	return snap, nil
 }
 
@@ -69,6 +94,65 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		snap.Roots = roots
+
+	case u.CorrelationID == envoyConfigPatchesID:
+		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
+
+		if !ok {
+			return fmt.Errorf("invalid type for response thingy: %T, %+v", u.Result, u.Result)
+		}
+
+		patchSet := make(map[structs.ApplyEnvoyPatchSetIdentifier]*structs.EnvoyPatchSetConfigEntry)
+		for _, e := range configEntries.Entries {
+			envoyConfigPatch, ok := e.(*structs.EnvoyPatchSetConfigEntry)
+
+			if !ok {
+				return fmt.Errorf("invalid type for response stuff: %T, %+v", u.Result, u.Result)
+			}
+			patchSet[envoyConfigPatch.GetEnvoyPatchSetIdentifier()] = envoyConfigPatch
+		}
+
+		if !ok {
+			return fmt.Errorf("invalid type for response asf: %T", u.Result)
+		}
+
+		snap.TerminatingGateway.EnvoyConfigs = patchSet
+
+	case u.CorrelationID == envoyConfigApplicationID:
+		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
+
+		if !ok {
+			return fmt.Errorf("invalid type for response thingy: %T", u.Result)
+		}
+
+		var patchSetApplications []*structs.ApplyEnvoyPatchSetConfigEntry
+		servicePatchSetApplications := make(map[structs.ServiceName]*structs.ApplyEnvoyPatchSetConfigEntry)
+		for _, e := range configEntries.Entries {
+			a, ok := e.(*structs.ApplyEnvoyPatchSetConfigEntry)
+
+			if !ok {
+				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
+			}
+
+			if a.Filter.Service == "" {
+				patchSetApplications = append(patchSetApplications, a)
+			} else {
+				serviceName := structs.ServiceName{
+					Name: a.Filter.Service,
+					// TODO Enterprise Meta. This might break.
+				}
+				// Only allow take the last one for new because POC. We might want to enforce this
+				// elsewhere at some point.
+				servicePatchSetApplications[serviceName] = a
+			}
+		}
+
+		if !ok {
+			return fmt.Errorf("invalid type for response asf: %T", u.Result)
+		}
+
+		snap.TerminatingGateway.EnvoyConfigApplications = patchSetApplications
+		snap.TerminatingGateway.ServiceEnvoyConfigApplications = servicePatchSetApplications
 
 	// Update watches based on the current list of services associated with the terminating-gateway
 	case u.CorrelationID == gatewayServicesWatchID:
@@ -163,7 +247,7 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 
 			// Watch service configs for the service.
 			// These are used to determine the protocol for the target service.
-			if _, ok := snap.TerminatingGateway.WatchedConfigs[svc.Service]; !ok {
+			if _, ok := snap.TerminatingGateway.WatchedServiceConfigs[svc.Service]; !ok {
 				ctx, cancel := context.WithCancel(ctx)
 				err := s.cache.Notify(ctx, cachetype.ResolvedServiceConfigName, &structs.ServiceConfigRequest{
 					Datacenter:     s.source.Datacenter,
@@ -180,7 +264,7 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 					cancel()
 					return err
 				}
-				snap.TerminatingGateway.WatchedConfigs[svc.Service] = cancel
+				snap.TerminatingGateway.WatchedServiceConfigs[svc.Service] = cancel
 			}
 
 			// Watch service resolvers for the service
@@ -242,10 +326,10 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 		}
 
 		// Cancel service config watches for services that were not in the update
-		for sn, cancelFn := range snap.TerminatingGateway.WatchedConfigs {
+		for sn, cancelFn := range snap.TerminatingGateway.WatchedServiceConfigs {
 			if _, ok := svcMap[sn]; !ok {
 				logger.Debug("canceling watch for resolved service config", "service", sn.String())
-				delete(snap.TerminatingGateway.WatchedConfigs, sn)
+				delete(snap.TerminatingGateway.WatchedServiceConfigs, sn)
 				delete(snap.TerminatingGateway.ServiceConfigs, sn)
 				cancelFn()
 			}
