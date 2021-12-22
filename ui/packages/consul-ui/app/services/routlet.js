@@ -70,12 +70,11 @@ export default class RoutletService extends Service {
     return key;
   }
 
-  // modelFor gets the model for Outlet specified by `name`, not the Route
-  modelFor(name) {
-    const outlet = outlets.get(name);
-    if (typeof outlet !== 'undefined') {
-      return outlet.model || outlet._model;
-    }
+  outletFor(routeName) {
+    const keys = [...outlets.keys()];
+    const pos = keys.indexOf(routeName);
+    const key = pos + 1;
+    return outlets.get(keys[key]);
   }
 
   paramsFor(name) {
@@ -119,29 +118,18 @@ export default class RoutletService extends Service {
     };
   }
 
-  addOutlet(name, outlet) {
-    outlets.set(name, outlet);
-    // console.log(`Connected outlet: ${name}`);
-  }
 
-  removeOutlet(name) {
-    schedule('afterRender', () => {
-      outlets.delete(name);
-      // console.log(`Removed outlet: ${name}`);
-    });
-  }
-
-  outletFor(routeName) {
-    const keys = [...outlets.keys()];
-    const pos = keys.indexOf(routeName);
-    const key = pos + 1;
-    return outlets.get(keys[key]);
+  // modelFor gets the model for Outlet specified by `name`, not the Route
+  modelFor(name) {
+    const outlet = outlets.get(name);
+    if (typeof outlet !== 'undefined') {
+      return outlet.model;
+    }
   }
 
   addRoute(name, route) {
     const outlet = this.outletFor(name);
     if (typeof outlet !== 'undefined') {
-      route._model = outlet.model;
       outlet.route = route;
       // TODO: Try to avoid the double computation bug
       schedule('afterRender', () => {
@@ -153,11 +141,24 @@ export default class RoutletService extends Service {
 
   removeRoute(name, route) {
     const outlet = this.outletFor(name);
+    route._model = undefined;
     if (typeof outlet !== 'undefined') {
       schedule('afterRender', () => {
         outlet.route = undefined;
         // console.log(`Removed ${name} from ${outlet.name}`);
       });
     }
+  }
+
+  addOutlet(name, outlet) {
+    outlets.set(name, outlet);
+    // console.log(`Connected outlet: ${name}`);
+  }
+
+  removeOutlet(name) {
+    schedule('afterRender', () => {
+      outlets.delete(name);
+      // console.log(`Removed outlet: ${name}`);
+    });
   }
 }

@@ -27,15 +27,11 @@ as |route|>
       )
     )
 
-    route.model.item.MeshChecks
+    (merge-checks (array route.model.item.Checks route.model.proxy.Checks) route.model.proxy.ServiceProxy.Expose.Checks)
 
   as |sort filters items|}}
   ---{{route.model.user.token.SecretID}}---<br />
   ---ID inside: {{route.model.item.ID}}---<br />
-  ---Length inside: {{route.model.item.ProxyInstance.Checks.length}}---<br />
-  ---Length passed: {{route.model.length}}---<br />
-  <a href={{href-to 'dc.services.instance.healthchecks' 'backend' '21091a93b2a8' 'backend'}}>backend</a><br />
-  <a href={{href-to 'dc.services.instance.healthchecks' 'backend' '21091a93b2a8' 'backend-v2'}}>backend-v2</a><br />
   <div class="tab-section">
 
       {{#if (gt items.length 0) }}

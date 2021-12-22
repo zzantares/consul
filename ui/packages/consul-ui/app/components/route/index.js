@@ -20,27 +20,22 @@ export default class RouteComponent extends Component {
   get model() {
     if(this._model) {
       return this._model;
-
     }
     if (this.args.name) {
       const outlet = this.routlet.outletFor(this.args.name);
       return this.routlet.modelFor(outlet.name);
     }
+    return;
   }
 
   /**
    * Inspects a custom `abilities` array on the router for this route. Every
-   * abililty needs to 'pass' for the route not to throw a 403 error. Anything
+   * ability needs to 'pass' for the route not to throw a 403 error. Anything
    * more complex then this (say ORs) should use a single ability and perform
    * the OR logic in the test for the ability. Note, this ability check happens
    * before any calls to the backend for this model/route.
    */
-  beforeModel() {
-    // remove any references to index as it is the same as the root routeName
-    const routeName = this.args.name
-      .split('.')
-      .filter(item => item !== 'index')
-      .join('.');
+  authorize(routeName, routes) {
     const abilities = get(routes, `${routeName}._options.abilities`) || [];
     if (abilities.length > 0) {
       if (!abilities.every(ability => this.permissions.can(ability))) {
@@ -51,7 +46,7 @@ export default class RouteComponent extends Component {
 
   @action
   connect() {
-    this.beforeModel();
+    this.authorize(this.args.name, routes);
     this.routlet.addRoute(this.args.name, this);
   }
 
