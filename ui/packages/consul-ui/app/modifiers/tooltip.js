@@ -16,6 +16,9 @@ export default modifier(($element, [content], hash = {}) => {
   if (typeof options.triggerTarget === 'string') {
     const $el = $anchor;
     switch (options.triggerTarget) {
+      // TODO: We no longer need parentNode as our Tooltip component has gone
+      // Plus we also have unique-id now so using this little temporary hack
+      // is no longer needed, so we can probably rmeove this
       case 'parentNode':
         $anchor = $anchor.parentNode;
         break;

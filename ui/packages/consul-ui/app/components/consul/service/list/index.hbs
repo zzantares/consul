@@ -10,18 +10,18 @@
       <dt>
         Health
       </dt>
-      <dd>
-        <Tooltip @position="top-start">
-          {{#if (eq 'critical' item.MeshStatus)}}
-            At least one health check on one instance is failing.
-          {{else if (eq 'warning' item.MeshStatus)}}
-            At least one health check on one instance has a warning.
-          {{else if (eq 'passing' item.MeshStatus)}}
-            All health checks are passing.
-          {{else}}
-            There are no health checks.
-          {{/if}}
-        </Tooltip>
+      <dd
+        {{tooltip}}
+      >
+        {{#if (eq 'critical' item.MeshStatus)}}
+          At least one health check on one instance is failing.
+        {{else if (eq 'warning' item.MeshStatus)}}
+          At least one health check on one instance has a warning.
+        {{else if (eq 'passing' item.MeshStatus)}}
+          All health checks are passing.
+        {{else}}
+          There are no health checks.
+        {{/if}}
       </dd>
     </dl>
 {{#if (gt item.InstanceCount 0)}}
@@ -64,10 +64,10 @@
   {{/if}}
   {{#if (or item.ConnectedWithGateway item.ConnectedWithProxy)}}
     <dl class="mesh">
-      <dt>
-        <Tooltip>
-          This service uses a proxy for the Consul service mesh
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        This service uses a proxy for the Consul service mesh
       </dt>
       {{#if (and item.ConnectedWithGateway item.ConnectedWithProxy )}}
         <dd data-test-mesh>

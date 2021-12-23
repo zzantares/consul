@@ -19,8 +19,6 @@ props](https://atomiks.github.io/tippyjs/v5/all-props/) can be used to control
 tooltips, including `tippy.js` plugins.
 
 ```hbs preview-template
-
-
 <span
   {{tooltip "Tooltip message" options=(hash
     showOnCreate=true
@@ -36,4 +34,16 @@ An options hash has been chosen to begin, as and when its clear what common
 groups of settings are used throughout the app we can add new properties to
 the modifer without the risk of clashing with any `tippy.js` props.
 
-We also have a Tooltip component but this modifier is preferred over that.
+Specific styles for the tooltip are kept in the components/tooltip folder.
+
+## Positional Arguments
+
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `value` | `String` |  | The text to be shown in the tooltip. If left unspecified it will use the DOM content of the DOM node you are modifying |
+
+## Named Arguments
+
+| Argument | Type | Default | Description |
+| --- | --- | --- | --- |
+| `options` | `Object` | `{}` | An object containing any documented tippy.js options |

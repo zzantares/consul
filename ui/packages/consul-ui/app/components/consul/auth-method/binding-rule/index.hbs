@@ -1,22 +1,21 @@
-<div class="consul-auth-method-binding-list">
+<div
+  class="consul-auth-method-binding-rule"
+  ...attributes
+>
   <h2>{{@item.BindName}}</h2>
   <dl>
     <dt class="type">{{t "models.binding-rule.BindType"}}</dt>
     <dd>
       {{@item.BindType}}
-      <span>
+      <span
+        {{tooltip}}
+      >
         {{#if (eq @item.BindType 'service')}}
-        <Tooltip>
           {{t "components.consul.auth-method.binding-list.bind-type.service"}}
-        </Tooltip>
         {{else if (eq @item.BindType 'node')}}
-        <Tooltip>
           {{t "components.consul.auth-method.binding-list.bind-type.node"}}
-        </Tooltip>
         {{else if (eq @item.BindType 'role')}}
-        <Tooltip>
            {{t "components.consul.auth-method.binding-list.bind-type.role"}}
-        </Tooltip>
         {{/if}}
       </span>
     </dd>

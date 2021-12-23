@@ -1,19 +1,26 @@
-## Consul::Token::List
+# Consul::Token::List
 
-```hbs
-<Consul::Token::List
-  @items={{items}}
-  @token={{userToken}}
-  @onuse={{action 'use'}}
-  @ondelete={{action 'delete'}}
-  @onlogout={{action 'logout'}}
-  @onclone={{action 'clone'}}
-/>
+A presentational component for rendering Consul ACL tokens. Note the `@token`
+argument is used to highlight a certain token, so you'll mostly want to pass
+the users current token in here, which will therefore be highlighted as the
+your current token.
+
+```hbs preview-template
+<DataSource @src={{uri '/partition/default/dc-1/tokens'}} as |source|>
+  <Consul::Token::List
+    @items={{source.data}}
+    @token={{hash
+      AccessorID='00000000-0000-0000-0000-000000000002'
+    }}
+    @onuse={{noop}}
+    @ondelete={{noop}}
+    @onlogout={{noop}}
+    @onclone={{noop}}
+  />
+</DataSource>
 ```
 
-A presentational component for rendering Consul ACL tokens
-
-### Arguments
+## Arguments
 
 | Argument/Attribute | Type | Default | Description |
 | --- | --- | --- | --- |
@@ -24,7 +31,7 @@ A presentational component for rendering Consul ACL tokens
 | `onlogout` | `function` |  | An action to execute when the `Logout` action is clicked |
 | `onclone` | `function` |  | An action to execute when the `Clone/Duplicate` action is clicked |
 
-### See
+## See
 
 - [Component Source Code](./index.js)
 - [Template Source Code](./index.hbs)

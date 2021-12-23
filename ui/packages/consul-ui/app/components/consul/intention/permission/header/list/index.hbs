@@ -7,10 +7,10 @@
 as |item|>
   <BlockSlot @name="details">
     <dl>
-      <dt>
-        <Tooltip>
-          Header
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        Header
       </dt>
       <dd>
         {{item.Name}} {{route-match item}}

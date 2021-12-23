@@ -7,18 +7,18 @@ as |item index|>
       <dt>
         Health
       </dt>
-      <dd>
-        <Tooltip @position="top-start">
-          {{#if (eq 'critical' item.Status)}}
-            At least one health check on this node is failing.
-          {{else if (eq 'warning' item.Status)}}
-            At least one health check on this node has a warning.
-          {{else if (eq 'passing' item.Status)}}
-            All health checks are passing.
-          {{else}}
-            There are no health checks.
-          {{/if}}
-        </Tooltip>
+      <dd
+        {{tooltip}}
+      >
+        {{#if (eq 'critical' item.Status)}}
+          At least one health check on this node is failing.
+        {{else if (eq 'warning' item.Status)}}
+          At least one health check on this node has a warning.
+        {{else if (eq 'passing' item.Status)}}
+          All health checks are passing.
+        {{else}}
+          There are no health checks.
+        {{/if}}
       </dd>
     </dl>
     <a data-test-node href={{href-to "dc.nodes.show" item.Node}}>

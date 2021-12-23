@@ -31,10 +31,10 @@
   <div class="details">
   {{#if (and (env 'CONSUL_NSPACES_ENABLED') (not-eq @item.Namespace @service.Namespace))}}
     <dl class="nspace">
-      <dt>
-        <Tooltip>
-            Namespace
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        Namespace
       </dt>
       <dd>
         {{@item.Namespace}}
@@ -62,10 +62,10 @@
   {{/let}}
 {{else}}
     <dl class="health">
-      <dt>
-        <Tooltip>
-            We are unable to determine the health status of services in remote datacenters.
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        We are unable to determine the health status of services in remote datacenters.
       </dt>
       <dd>
         Health

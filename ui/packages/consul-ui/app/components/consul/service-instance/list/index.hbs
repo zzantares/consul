@@ -25,10 +25,10 @@ as |item index|>
   {{/if}}
 {{#if item.ProxyInstance}}
     <dl class="mesh">
-      <dt>
-        <Tooltip>
-          This service uses a proxy for the Consul service mesh
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        This service uses a proxy for the Consul service mesh
       </dt>
       <dd data-test-mesh>
         in service mesh with proxy
@@ -37,10 +37,10 @@ as |item index|>
 {{/if}}
 {{#if (not @node)}}
     <dl class="node">
-      <dt>
-        <Tooltip>
-          Node
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        Node
       </dt>
       <dd>
         <a href={{href-to 'dc.nodes.show' item.Node.Node}}>{{item.Node.Node}}</a>
@@ -49,10 +49,10 @@ as |item index|>
 {{/if}}
 {{#if item.Service.Port}}
     <dl class="address" data-test-address>
-      <dt>
-        <Tooltip>
-          IP Address and Port
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        IP Address and Port
       </dt>
       <dd>
         {{#if (not-eq item.Service.Address '')}}
@@ -64,7 +64,9 @@ as |item index|>
     </dl>
 {{else if item.Service.SocketPath}}
     <dl class="socket" data-test-socket>
-      <dt {{tooltip}}>
+      <dt
+        {{tooltip}}
+      >
         Socket Path
       </dt>
       <dd>

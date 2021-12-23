@@ -11,10 +11,10 @@
   {{#if (not this.emptyColumn)}}
     <div>
       <p>{{@dc.Name}}</p>
-      <span>
-        <Tooltip>
-          Only showing downstreams within the current datacenter for {{@service.Service.Service}}.
-        </Tooltip>
+      <span
+        {{tooltip}}
+      >
+        Only showing downstreams within the current datacenter for {{@service.Service.Service}}.
       </span>
     </div>
   {{/if}}

@@ -5,10 +5,10 @@ as |item|>
     <BlockSlot @name="header">
 {{#if (eq item.AccessorID @token.AccessorID)}}
         <dl rel="me">
-          <dd>
-            <Tooltip @position="top-start">
-              Your token
-            </Tooltip>
+          <dd
+            {{tooltip}}
+          >
+            Your token
           </dd>
         </dl>
 {{/if}}

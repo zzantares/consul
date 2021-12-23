@@ -6,10 +6,10 @@ as |item|>
 {{#if (eq (policy/typeof item) 'policy-management')}}
         <dl class="policy-management">
           <dt>Type</dt>
-          <dd>
-            <Tooltip>
-              Global Management Policy
-            </Tooltip>
+          <dd
+            {{tooltip}}
+          >
+            Global Management Policy
           </dd>
         </dl>
 {{/if}}
@@ -17,8 +17,10 @@ as |item|>
     </BlockSlot>
     <BlockSlot @name="details">
         <dl class="datacenter">
-          <dt>
-            <Tooltip>Datacenters</Tooltip>
+          <dt
+            {{tooltip}}
+          >
+            Datacenters
           </dt>
           <dd>
               {{join ', ' (policy/datacenters item)}}

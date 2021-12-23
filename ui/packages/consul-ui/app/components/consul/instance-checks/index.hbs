@@ -1,28 +1,28 @@
   {{#if (eq this.healthCheck.check 'empty') }}
     <dl class={{this.healthCheck.check}}>
-      <dt>
-        <Tooltip>
-          {{capitalize @type}} Checks
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        {{capitalize @type}} Checks
       </dt>
       <dd>No {{@type}} checks</dd>
     </dl>
   {{else}}
     {{#if (eq this.healthCheck.count @items.length)}}
     <dl class={{this.healthCheck.check}}>
-      <dt>
-        <Tooltip>
-          {{capitalize @type}} Checks
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        {{capitalize @type}} Checks
       </dt>
       <dd>All {{@type}} checks {{this.healthCheck.status}}</dd>
     </dl>
     {{else}}
     <dl class={{this.healthCheck.check}}>
-      <dt>
-        <Tooltip>
-          {{capitalize @type}} Checks
-        </Tooltip>
+      <dt
+        {{tooltip}}
+      >
+        {{capitalize @type}} Checks
       </dt>
       <dd>{{this.healthCheck.count}}/{{@items.length}} {{@type}} checks {{this.healthCheck.status}}</dd>
     </dl>

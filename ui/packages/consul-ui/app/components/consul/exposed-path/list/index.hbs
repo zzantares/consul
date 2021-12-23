@@ -23,10 +23,10 @@
       <div class="detail">
       {{#if path.Protocol}}
         <dl class="protocol">
-          <dt>
-            <Tooltip>
-                Protocol
-            </Tooltip>
+          <dt
+            {{tooltip}}
+          >
+            Protocol
           </dt>
           <dd>
             {{path.Protocol}}
@@ -35,10 +35,10 @@
       {{/if}}
       {{#if path.ListenerPort}}
         <dl class="port">
-          <dt>
-            <Tooltip>
+          <dt
+            {{tooltip}}
+          >
               Listener Port
-            </Tooltip>
           </dt>
           <dd>
             listening on :{{path.ListenerPort}}
@@ -47,10 +47,10 @@
       {{/if}}
       {{#if path.LocalPathPort}}
         <dl class="port">
-          <dt>
-            <Tooltip>
-              Local Path Port
-            </Tooltip>
+          <dt
+            {{tooltip}}
+          >
+            Local Path Port
           </dt>
           <dd>
             local port :{{path.LocalPathPort}}
@@ -59,10 +59,10 @@
       {{/if}}
       {{#if path.Path}}
         <dl class="path">
-          <dt>
-            <Tooltip>
-              Path
-            </Tooltip>
+          <dt
+            {{tooltip}}
+          >
+            Path
           </dt>
           <dd>
             {{path.Path}}
