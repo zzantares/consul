@@ -28,34 +28,41 @@ import (
 
 // clustersFromSnapshot returns the xDS API representation of the "clusters" in the snapshot.
 func (s *ResourceGenerator) clustersFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
+	var err error
+	var res []proto.Message
+
 	if cfgSnap == nil {
 		return nil, errors.New("nil config given")
 	}
 
 	switch cfgSnap.Kind {
 	case structs.ServiceKindConnectProxy:
-		return s.clustersFromSnapshotConnectProxy(cfgSnap)
+		res, err = s.clustersFromSnapshotConnectProxy(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
 	case structs.ServiceKindTerminatingGateway:
-		res, err := s.makeGatewayServiceClusters(cfgSnap, cfgSnap.TerminatingGateway.ServiceGroups, cfgSnap.TerminatingGateway.ServiceResolvers)
+		res, err = s.makeGatewayServiceClusters(cfgSnap, cfgSnap.TerminatingGateway.ServiceGroups, cfgSnap.TerminatingGateway.ServiceResolvers)
 		if err != nil {
 			return nil, err
 		}
-		return res, nil
 	case structs.ServiceKindMeshGateway:
-		res, err := s.clustersFromSnapshotMeshGateway(cfgSnap)
+		res, err = s.clustersFromSnapshotMeshGateway(cfgSnap)
 		if err != nil {
 			return nil, err
 		}
-		return res, nil
 	case structs.ServiceKindIngressGateway:
-		res, err := s.clustersFromSnapshotIngressGateway(cfgSnap)
+		res, err = s.clustersFromSnapshotIngressGateway(cfgSnap)
 		if err != nil {
 			return nil, err
 		}
-		return res, nil
 	default:
 		return nil, fmt.Errorf("Invalid service kind: %v", cfgSnap.Kind)
 	}
+
+	// TODO add and remove clusters here along with any other non-service specific envoy tweaks.
+
+	return res, nil
 }
 
 // clustersFromSnapshot returns the xDS API representation of the "clusters"
@@ -307,14 +314,22 @@ Outer:
 			resolver = &structs.ServiceResolverConfigEntry{}
 		}
 
+		// This has ALL of the service specific override logic. All other overrides
+		// will live at the top level and will be less context aware.
+		//
 		// This is ugly but it sees if there is an envoy config override for the
 		// service and that the patch associated with it exists. If so it uses that
 		// cluster.
-		if cfgSnap.Kind == structs.ServiceKindTerminatingGateway {
-			if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[svc]; ok {
-				if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
-					for i, patch := range patch.Patches {
-						if patch.ApplyTo == structs.ApplyToServiceCluster && patch.Mode == structs.PatchModeTerminatingGateway && patch.Type == structs.Replace {
+		if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[svc]; ok {
+			if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
+				if !patch.Service {
+					continue
+				}
+				for i, patch := range patch.Patches {
+					if patch.Entity == structs.EntityCluster && patch.Mode == structs.PatchModeTerminatingGateway {
+						// TODO add cases for merge, add fields, delete fields and/or similar.
+						switch patch.Type {
+						case structs.Replace:
 							t, err := template.New(fmt.Sprintf("%s/%d", apply.Name, i)).Parse(patch.Value)
 							if err != nil {
 								s.Logger.Error("Sometimes bad things happen when making a cluster template", "error", err)
@@ -323,7 +338,7 @@ Outer:
 							var raw bytes.Buffer
 							err = t.Execute(&raw, CustomClusterOptions{
 								ClusterName: clusterName,
-								Meta:        apply.Meta,
+								Meta:        apply.Arguments,
 							})
 
 							if err != nil {

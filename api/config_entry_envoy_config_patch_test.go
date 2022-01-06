@@ -21,13 +21,14 @@ func TestAPI_ConfigEntries_EnvoyPatchSet(t *testing.T) {
 			"foo": "bar",
 			"gir": "zim",
 		},
+		Service: true,
 		Patches: []Patch{
 			{
-				Mode:    PatchModeTerminatingGateway,
-				ApplyTo: ApplyToServiceFilter,
-				Type:    Replace,
-				Path:    "/",
-				Value:   "{}",
+				Mode:   PatchModeTerminatingGateway,
+				Entity: EntityFilter,
+				Type:   Replace,
+				Path:   "/",
+				Value:  "{}",
 			},
 		},
 	}
@@ -75,11 +76,11 @@ func TestAPI_ConfigEntries_EnvoyPatchSet(t *testing.T) {
 	// update no cas
 	patchSet1.Patches = []Patch{
 		{
-			Mode:    PatchModeConnectProxy,
-			ApplyTo: ApplyToServiceFilter,
-			Type:    Replace,
-			Path:    "/",
-			Value:   "not the same",
+			Mode:   PatchModeConnectProxy,
+			Entity: EntityFilter,
+			Type:   Replace,
+			Path:   "/",
+			Value:  "not the same",
 		},
 	}
 	_, wm, err = config_entries.Set(patchSet1, nil)
@@ -129,10 +130,8 @@ func TestAPI_ConfigEntries_ApplyEnvoyPatchSet(t *testing.T) {
 			Version: "0.0.1",
 			Name:    "foo-patch-set",
 		},
-		Filter: ApplyEnvoyPatchSetFilter{
-			Service: "service-name",
-		},
-		Meta: map[string]string{
+		Service: "service-name",
+		Arguments: map[string]string{
 			"foo": "bar",
 			"gir": "zim",
 		},
@@ -155,7 +154,7 @@ func TestAPI_ConfigEntries_ApplyEnvoyPatchSet(t *testing.T) {
 	require.Equal(t, applyPatchSet1.Kind, readPatchSet.Kind)
 	require.Equal(t, applyPatchSet1.Name, readPatchSet.Name)
 	require.Equal(t, applyPatchSet1.Meta, readPatchSet.Meta)
-	require.Equal(t, applyPatchSet1.Meta, readPatchSet.GetMeta())
+	require.Equal(t, applyPatchSet1.Arguments, readPatchSet.Arguments)
 
 	// update it
 	applyPatchSet1.EnvoyPatchSet.Version = "0.0.2"
@@ -194,7 +193,7 @@ func TestAPI_ConfigEntries_ApplyEnvoyPatchSet(t *testing.T) {
 	require.Equal(t, applyPatchSet1.Kind, readPatchSet.Kind)
 	require.Equal(t, applyPatchSet1.Name, readPatchSet.Name)
 	require.Equal(t, applyPatchSet1.Meta, readPatchSet.Meta)
-	require.Equal(t, applyPatchSet1.Filter, readPatchSet.Filter)
+	require.Equal(t, applyPatchSet1.Service, readPatchSet.Service)
 	require.Equal(t, applyPatchSet1.EnvoyPatchSet, readPatchSet.EnvoyPatchSet)
 	require.Equal(t, applyPatchSet1.Meta, readPatchSet.GetMeta())
 

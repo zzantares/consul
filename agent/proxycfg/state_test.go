@@ -401,9 +401,7 @@ var serviceEnvoyPatchSetApplication = &structs.ApplyEnvoyPatchSetConfigEntry{
 		Name:    "patch1",
 		Version: "0.0.1",
 	},
-	Filter: structs.ApplyEnvoyPatchSetFilter{
-		Service: "foo",
-	},
+	Service: "foo",
 }
 
 var envoyPatchSetApplication = &structs.ApplyEnvoyPatchSetConfigEntry{

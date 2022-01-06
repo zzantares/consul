@@ -543,13 +543,14 @@ func TestClustersFromSnapshot(t *testing.T) {
 					Version: "0.0.1",
 				}
 				snap.TerminatingGateway.EnvoyConfigs[id] = &structs.EnvoyPatchSetConfigEntry{
+					Service: true,
 					Patches: []structs.Patch{
 						{
-							ApplyTo: structs.ApplyToServiceCluster,
-							Mode:    structs.PatchModeTerminatingGateway,
-							Type:    structs.Replace,
-							Path:    "/",
-							Value:   envoyClusterOverrideTpl,
+							Entity: structs.EntityCluster,
+							Mode:   structs.PatchModeTerminatingGateway,
+							Type:   structs.Replace,
+							Path:   "/",
+							Value:  envoyClusterOverrideTpl,
 						},
 					},
 				}
@@ -559,10 +560,8 @@ func TestClustersFromSnapshot(t *testing.T) {
 						Name:    "lambda-patch",
 						Version: "0.0.1",
 					},
-					Filter: structs.ApplyEnvoyPatchSetFilter{
-						Service: "web",
-					},
-					Meta: map[string]string{
+					Service: "web",
+					Arguments: map[string]string{
 						"Region": "us-west-2",
 					},
 				}
