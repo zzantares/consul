@@ -6,17 +6,35 @@ import (
 	"github.com/hashicorp/consul/acl"
 )
 
+type Patch struct {
+	Mode   PatchMode
+	Entity Entity
+	Type   PatchType
+	Path   string // Should just straight up work with reflection.
+	Value  string
+
+	// Can use reflection to use json patch path syntax:
+	// {
+	//   "/filterChains/0/filters/name": "envoy.filters.network.tcp_proxy"
+	// }
+	// This gives us the ability to do arbitrary matching without introducing a
+	// complicated new syntax.
+	PathMatches map[string]interface{}
+	// TODO add schema. This isn't strictly necessary, but it would result in a better user
+	// experience and simpler downstream code. What is the best way to do this in Go?
+}
+
 type PatchType string
 
 const (
 	Replace PatchType = "replace"
 )
 
-type ApplyTo string
+type Entity string
 
 const (
-	ApplyToServiceFilter  ApplyTo = "service_filter"
-	ApplyToServiceCluster ApplyTo = "service_cluster"
+	EntityFilter  Entity = "filter"
+	EntityCluster Entity = "cluster"
 )
 
 type PatchMode string
@@ -26,26 +44,19 @@ const (
 	PatchModeTerminatingGateway PatchMode = "terminating_gateway"
 )
 
-type Patch struct {
-	ApplyTo ApplyTo
-	Mode    PatchMode
-	Type    PatchType
-	Path    string
-	Value   string
-}
-
 // EnvoyPatchSetConfigEntry manages the configuration for an Envoy patch sets
 // with the given name.
 type EnvoyPatchSetConfigEntry struct {
 	// Kind of the config entry. This should be set to api.EnvoyPatchSet.
 	Kind string
 
+	// Either Service or Patch.PathMatches should be populated.
+	Service bool
+
 	// Name is used to identify the patch set.
 	Name string
 
 	Version string
-
-	// TODO why are namespace and partition not here?
 
 	Meta map[string]string `json:",omitempty"`
 
@@ -155,9 +166,10 @@ type ApplyEnvoyPatchSetConfigEntry struct {
 
 	ApplyIndex int
 
-	Filter ApplyEnvoyPatchSetFilter
+	Service string
 
-	// TODO why are namespace and partition not here?
+	// Eventually this will match the schema in the patch and be of type map[string]interface{}
+	Arguments map[string]string `json:",omitempty"`
 
 	Meta map[string]string `json:",omitempty"`
 
@@ -170,10 +182,6 @@ type ApplyEnvoyPatchSetConfigEntry struct {
 type ApplyEnvoyPatchSetIdentifier struct {
 	Name    string
 	Version string
-}
-
-type ApplyEnvoyPatchSetFilter struct {
-	Service string
 }
 
 func (e *ApplyEnvoyPatchSetConfigEntry) GetKind() string {
@@ -252,11 +260,11 @@ func (e *ApplyEnvoyPatchSetConfigEntry) Validate() error {
 		return fmt.Errorf("Patch set application Version cannot be blank.")
 	}
 
-	if e.Filter.Service == "" && e.ApplyIndex == 0 {
+	if e.Service == "" && e.ApplyIndex == 0 {
 		return fmt.Errorf("Either the filter service or apply index must be populated")
 	}
 
-	if e.Filter.Service != "" && e.ApplyIndex > 0 {
+	if e.Service != "" && e.ApplyIndex > 0 {
 		return fmt.Errorf("Both the filter service or apply index can't be populated")
 	}
 

@@ -486,13 +486,14 @@ func TestListenersFromSnapshot(t *testing.T) {
 					Version: "0.0.1",
 				}
 				snap.TerminatingGateway.EnvoyConfigs[id] = &structs.EnvoyPatchSetConfigEntry{
+					Service: true,
 					Patches: []structs.Patch{
 						{
-							ApplyTo: structs.ApplyToServiceFilter,
-							Mode:    structs.PatchModeTerminatingGateway,
-							Type:    structs.Replace,
-							Path:    "/",
-							Value:   customLambdaJSONTpl,
+							Entity: structs.EntityFilter,
+							Mode:   structs.PatchModeTerminatingGateway,
+							Type:   structs.Replace,
+							Path:   "/",
+							Value:  customLambdaJSONTpl,
 						},
 					},
 				}
@@ -502,10 +503,8 @@ func TestListenersFromSnapshot(t *testing.T) {
 						Name:    "lambda-patch",
 						Version: "0.0.1",
 					},
-					Filter: structs.ApplyEnvoyPatchSetFilter{
-						Service: "web",
-					},
-					Meta: map[string]string{
+					Service: "web",
+					Arguments: map[string]string{
 						"ARN":                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
 						"PayloadPassthrough": "true",
 					},

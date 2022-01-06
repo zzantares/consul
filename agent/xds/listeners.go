@@ -40,22 +40,41 @@ const virtualIPTag = "virtual"
 
 // listenersFromSnapshot returns the xDS API representation of the "listeners" in the snapshot.
 func (s *ResourceGenerator) listenersFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
+	var err error
+	var res []proto.Message
+
 	if cfgSnap == nil {
 		return nil, errors.New("nil config given")
 	}
 
 	switch cfgSnap.Kind {
 	case structs.ServiceKindConnectProxy:
-		return s.listenersFromSnapshotConnectProxy(cfgSnap)
+		res, err = s.listenersFromSnapshotConnectProxy(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
 	case structs.ServiceKindTerminatingGateway:
-		return s.listenersFromSnapshotGateway(cfgSnap)
+		res, err = s.listenersFromSnapshotGateway(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
 	case structs.ServiceKindMeshGateway:
-		return s.listenersFromSnapshotGateway(cfgSnap)
+		res, err = s.listenersFromSnapshotGateway(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
 	case structs.ServiceKindIngressGateway:
-		return s.listenersFromSnapshotGateway(cfgSnap)
+		res, err = s.listenersFromSnapshotGateway(cfgSnap)
+		if err != nil {
+			return nil, err
+		}
 	default:
 		return nil, fmt.Errorf("Invalid service kind: %v", cfgSnap.Kind)
 	}
+
+	// TODO add and remove listeners here along with any other non-service specific envoy tweaks.
+
+	return res, nil
 }
 
 // listenersFromSnapshotConnectProxy returns the "listeners" for a connect proxy service
@@ -1137,47 +1156,45 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 		opts.useRDS = true
 	}
 
-	var filter *envoy_listener_v3.Filter
+	filter, err := makeListenerFilter(opts)
+	if err != nil {
+		return nil, err
+	}
 
-	if cfgSnap.Kind == structs.ServiceKindTerminatingGateway {
-		if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[service]; ok {
-			if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
+	// This has ALL of the service specific override logic. All other overrides
+	// will live at the top level and will be less context aware.
+	if apply, ok := cfgSnap.TerminatingGateway.ServiceEnvoyConfigApplications[service]; ok {
+		if patch, ok := cfgSnap.TerminatingGateway.EnvoyConfigs[apply.EnvoyPatchSet]; ok {
+			if patch.Service {
 				for i, patch := range patch.Patches {
-					if patch.ApplyTo == structs.ApplyToServiceFilter && patch.Mode == structs.PatchModeTerminatingGateway && patch.Type == structs.Replace {
-						t, err := template.New(fmt.Sprintf("%s/%d", apply.Name, i)).Parse(patch.Value)
-						if err != nil {
-							s.Logger.Error("Sometimes bad things happen when making a listener template", "error", err)
-						}
+					if patch.Entity == structs.EntityFilter && patch.Mode == structs.PatchModeTerminatingGateway {
+						// TODO add cases for merge, add fields, delete fields and/or similar.
+						switch patch.Type {
+						case structs.Replace:
+							t, err := template.New(fmt.Sprintf("%s/%d", apply.Name, i)).Parse(patch.Value)
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when making a listener template", "error", err)
+							}
 
-						var raw bytes.Buffer
-						s.Logger.Error("Options", "opts", CustomFilterOptions{
-							ClusterName: cluster,
-							Meta:        apply.Meta,
-						})
-						err = t.Execute(&raw, CustomFilterOptions{
-							ClusterName: cluster,
-							Meta:        apply.Meta,
-						})
+							var raw bytes.Buffer
+							err = t.Execute(&raw, CustomFilterOptions{
+								ClusterName: cluster,
+								Meta:        apply.Arguments,
+							})
 
-						if err != nil {
-							s.Logger.Error("Sometimes bad things happen when making a filter template", "error", err)
-						}
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when making a filter template", "error", err)
+							}
 
-						filter, err = makeTCPReplacementFilter(raw.String())
+							filter, err = makeTCPReplacementFilter(raw.String())
 
-						if err != nil {
-							s.Logger.Error("Sometimes bad things happen when making the filter go type", "error", err, "raw", raw.String())
+							if err != nil {
+								s.Logger.Error("Sometimes bad things happen when making the filter go type", "error", err, "raw", raw.String())
+							}
 						}
 					}
 				}
 			}
-		}
-	}
-
-	if filter == nil {
-		filter, err = makeListenerFilter(opts)
-		if err != nil {
-			return nil, err
 		}
 	}
 

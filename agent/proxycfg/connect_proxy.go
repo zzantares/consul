@@ -266,11 +266,11 @@ func (s *handlerConnectProxy) handleUpdate(ctx context.Context, u cache.UpdateEv
 				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
 			}
 
-			if a.Filter.Service == "" {
+			if a.Service == "" {
 				patchSetApplications = append(patchSetApplications, a)
 			} else {
 				serviceName := structs.ServiceName{
-					Name: a.Filter.Service,
+					Name: a.Service,
 					// TODO Enterprise Meta. This might break.
 				}
 				// Only allow take the last one for new because POC. We might want to enforce this
