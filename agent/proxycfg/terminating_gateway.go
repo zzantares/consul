@@ -99,7 +99,7 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
 
 		if !ok {
-			return fmt.Errorf("invalid type for response thingy: %T, %+v", u.Result, u.Result)
+			return fmt.Errorf("invalid type for response thingy: %T", u.Result)
 		}
 
 		patchSet := make(map[structs.ApplyEnvoyPatchSetIdentifier]*structs.EnvoyPatchSetConfigEntry)
@@ -107,7 +107,7 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 			envoyConfigPatch, ok := e.(*structs.EnvoyPatchSetConfigEntry)
 
 			if !ok {
-				return fmt.Errorf("invalid type for response stuff: %T, %+v", u.Result, u.Result)
+				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
 			}
 			patchSet[envoyConfigPatch.GetEnvoyPatchSetIdentifier()] = envoyConfigPatch
 		}

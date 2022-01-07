@@ -657,14 +657,16 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 				},
 				{
 					CorrelationID: envoyConfigPatchesID,
-					Result: structs.IndexedConfigEntries{
+					Result: &structs.IndexedConfigEntries{
+						Kind:    structs.EnvoyPatchSet,
 						Entries: []structs.ConfigEntry{envoyPatchSet},
 					},
 					Err: nil,
 				},
 				{
 					CorrelationID: envoyConfigApplicationID,
-					Result: structs.IndexedConfigEntries{
+					Result: &structs.IndexedConfigEntries{
+						Kind:    structs.ApplyEnvoyPatchSet,
 						Entries: []structs.ConfigEntry{serviceEnvoyPatchSetApplication, envoyPatchSetApplication},
 					},
 					Err: nil,
@@ -1660,14 +1662,14 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					events: []cache.UpdateEvent{
 						{
 							CorrelationID: envoyConfigPatchesID,
-							Result: structs.IndexedConfigEntries{
+							Result: &structs.IndexedConfigEntries{
 								Entries: []structs.ConfigEntry{envoyPatchSet},
 							},
 							Err: nil,
 						},
 						{
 							CorrelationID: envoyConfigApplicationID,
-							Result: structs.IndexedConfigEntries{
+							Result: &structs.IndexedConfigEntries{
 								Entries: []structs.ConfigEntry{serviceEnvoyPatchSetApplication, envoyPatchSetApplication},
 							},
 							Err: nil,
