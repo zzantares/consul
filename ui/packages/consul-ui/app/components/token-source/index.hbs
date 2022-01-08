@@ -7,7 +7,7 @@ as |State Guard Action dispatch state|>
     @cond={{this.isSecret}}
   />
   {{#let
-    (uri '/${partition}/{$nspace}/${dc}'
+    (uri '/${partition}/${nspace}/${dc}'
       (hash
         partition=@partition
         nspace=@nspace
