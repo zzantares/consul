@@ -34,8 +34,8 @@ export default function ConfigEntryReference({ keys, topLevel = true }) {
   const kubeKeys = topLevel ? toKubeKeys(keys) : keys
   return (
     <Tabs>
-      <Tab heading="HCL">{renderKeys(keys, true)}</Tab>
-      <Tab heading="Kubernetes YAML">{renderKeys(kubeKeys, false)}</Tab>
+      <Tab heading="HCL">{renderKeys(keys, "", true)}</Tab>
+      <Tab heading="Kubernetes YAML">{renderKeys(kubeKeys, "", false)}</Tab>
     </Tabs>
   )
 }
@@ -43,22 +43,29 @@ export default function ConfigEntryReference({ keys, topLevel = true }) {
 /**
  * Renders keys as HTML. It works recursively through all keys.
  * @param {array} keys
+ * @param {string} prefix
  * @param {boolean} isHCLTab
  * @returns {JSX.Element|null}
  */
-function renderKeys(keys, isHCLTab) {
+function renderKeys(keys, prefix, isHCLTab) {
   if (!keys) return null
-  return <ul>{keys.map((key) => renderKey(key, isHCLTab))}</ul>
+  if (prefix != "") {
+    return <>{keys.map((key) => renderKey(key, prefix, isHCLTab))}</>
+  }
+  return <table><thead><tr><th>Parameter</th><th>Type</th><th>Description</th><th>Required</th><th>Default</th></tr></thead><tbody>
+        {keys.map((key) => renderKey(key, prefix, isHCLTab))}
+        </tbody></table>
 }
 
 /**
  * Renders a single key as its HTML element.
  *
  * @param {object} key
+ * @param {string} prefix
  * @param {boolean} isHCLTab
  * @returns {JSX.Element|null}
  */
-function renderKey(key, isHCLTab) {
+function renderKey(key, prefix, isHCLTab) {
   if (!key.name) return null
   if (isHCLTab && key.hcl === false) return null
   if (!isHCLTab && key.yaml === false) return null
@@ -76,32 +83,55 @@ function renderKey(key, isHCLTab) {
     }
   }
 
+  let defaultValue = 'None'
+  if (key.defaultValue) {
+    if (typeof key.defaultValue === 'string') {
+      defaultValue = key.defaultValue
+    } else if (!isHCLTab && key.defaultValue.yaml) {
+      defaultValue = key.defaultValue.yaml
+    } else if (key.defaultValue.hcl) {
+      defaultValue = key.defaultValue.hcl
+    }
+  }
+
+  let required = (key.required === true) ? 'Required' : 'Optional'
+
   const htmlDescription = description && markdownToHtml(' - ' + description)
   const type = key.type && <code>{`(${key.type})`}</code>
   const enterpriseAlert = key.enterprise && <EnterpriseAlert inline />
   const keyLower = keyName.toLowerCase()
+  const fullName = prefix + keyName
+  const nextPrefix = fullName + "."
 
   // NOTE: This code copies from https://github.com/hashicorp/remark-plugins/blob/df606efc844319a2532ec54e4cf6ff2d575108ff/plugins/anchor-links/index.js
   // to ensure the styling of each bullet is correct. The two locations should be kept
   // in sync.
-  return (
-    <li key={keyLower} className="g-type-long-body">
-      <a id={keyLower} className="__target-lic" aria-hidden="" />
-      <p>
+
+  return <> <tr key={keyLower} className="g-type-long-body">
+      <td>
+        <a id={keyLower} className="__target-lic" aria-hidden="" />
         <a
           href={'#' + keyLower}
-          aria-label={keyLower + ' permalink'}
-          className="__permalink-lic"
-        >
-          <code>{keyName}</code>
+           aria-label={keyLower + ' permalink'}
+           className="__permalink-lic"
+         >
+           <code>{fullName}</code>
         </a>{' '}
+      </td>
+      <td>
         {type}
         {enterpriseAlert}
+      </td>
+      <td>
         <span dangerouslySetInnerHTML={{ __html: htmlDescription }} />
-      </p>
-      {renderKeys(key.children, isHCLTab)}
-    </li>
-  )
+      </td>
+      <td>
+        {required}
+      </td>
+      <td>
+        {defaultValue}
+      </td>
+    </tr> {renderKeys(key.children, nextPrefix, isHCLTab)} </>
 }
 
 /**
