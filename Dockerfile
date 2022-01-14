@@ -27,8 +27,10 @@ LABEL org.opencontainers.image.authors="Consul Team <consul@hashicorp.com>" \
 # Set up certificates and base tools.
 # libc6-compat is needed to symlink the shared libraries for ARM builds
 RUN apk add --no-cache ca-certificates 
-RUN apk add --update curl && \
-    rm -rf /var/cache/apk/*
+RUN apk update && \
+        apk upgrade --available && \
+        apk add --no-cache \
+        curl
 RUN apk add --no-cache dumb-init 
 RUN apk add --no-cache gnupg 
 RUN apk add --no-cache libcap 
