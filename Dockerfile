@@ -1,5 +1,5 @@
 # This Dockerfile creates a production release image for the project using crt release flow.
-FROM alpine:3.13 as  default
+FROM alpine:3.13
 
 ARG VERSION
 ARG BIN_NAME
@@ -26,7 +26,9 @@ LABEL org.opencontainers.image.authors="Consul Team <consul@hashicorp.com>" \
 
 # Set up certificates and base tools.
 # libc6-compat is needed to symlink the shared libraries for ARM builds
+RUN apk update
 RUN apk add --no-cache ca-certificates 
+RUN update-ca-certificates 
 RUN apk add --no-cache dumb-init 
 RUN apk add --no-cache gnupg 
 RUN apk add --no-cache libcap 
