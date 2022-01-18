@@ -31,7 +31,6 @@ RUN apk add --no-cache dumb-init
 RUN apk add --no-cache libcap 
 RUN apk add --no-cache openssl 
 RUN apk add --no-cache su-exec 
-RUN apk add --no-cache iputils 
 RUN apk add --no-cache jq 
 RUN apk add --no-cache libc6-compat 
 RUN apk add --no-cache iptables 
@@ -39,7 +38,7 @@ RUN apk add --no-cache tzdata
 RUN apk add --no-cache curl 
 RUN apk add --no-cache ca-certificates  
 RUN apk add --no-cache gnupg 
-
+RUN apk add --no-cache iputils 
 
 # Create a consul user and group first so the IDs get set the same way, even as
 # the rest of this may change over time.
