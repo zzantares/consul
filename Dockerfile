@@ -27,19 +27,8 @@ LABEL org.opencontainers.image.authors="Consul Team <consul@hashicorp.com>" \
 # Set up certificates and base tools.
 # libc6-compat is needed to symlink the shared libraries for ARM builds
 RUN apk update
-RUN apk add --no-cache ca-certificates 
-RUN update-ca-certificates 
-RUN apk add --no-cache dumb-init 
-RUN apk add --no-cache gnupg 
-RUN apk add --no-cache libcap 
-RUN apk add --no-cache openssl 
-RUN apk add --no-cache su-exec 
-RUN apk add --no-cache iputils 
-RUN apk add --no-cache jq 
-RUN apk add --no-cache libc6-compat 
-RUN apk add --no-cache iptables 
-RUN apk add --no-cache tzdata
-RUN apk add --no-cache curl 
+RUN set -eux && \
+    apk add --no-cache ca-certificates curl dumb-init gnupg libcap openssl su-exec iputils jq libc6-compat iptables tzdata
 
 # Create a consul user and group first so the IDs get set the same way, even as
 # the rest of this may change over time.
@@ -51,6 +40,10 @@ COPY dist/$TARGETOS/$TARGETARCH/$BIN_NAME /bin/
 RUN mkdir -p /consul/data && \
     mkdir -p /consul/config && \
     chown -R consul:consul /consul
+
+# Set up nsswitch.conf for Go's "netgo" implementation which is used by Consul,
+# otherwise DNS supercedes the container's hosts file, which we don't want.
+RUN test -e /etc/nsswitch.conf || echo 'hosts: files dns' > /etc/nsswitch.conf
 
 # Expose the consul data directory as a volume since there's mutable state in there.
 VOLUME /consul/data
