@@ -99,7 +99,7 @@ func (b *eventBuffer) AppendItem(item *bufferItem) {
 	b.head.Store(item)
 
 	// Now it's added invalidate the oldHead to notify waiters
-	close(oldHead.link.ch)
+	go close(oldHead.link.ch)
 	// don't set chan to nil since that will race with readers accessing it.
 }
 
