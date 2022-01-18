@@ -171,6 +171,14 @@ func newBufferItem(events []Event) *bufferItem {
 // Next return the next buffer item in the buffer. It may block until ctx is
 // cancelled or until the next item is published.
 func (i *bufferItem) Next(ctx context.Context, closed <-chan struct{}) (*bufferItem, error) {
+	if nextRaw := i.link.next.Load(); nextRaw != nil {
+		next := nextRaw.(*bufferItem)
+		if next.Err != nil {
+			return nil, next.Err
+		}
+		return next, nil
+	}
+
 	// See if there is already a next value, block if so. Note we don't rely on
 	// state change (chan nil) as that's not threadsafe but detecting close is.
 	select {
