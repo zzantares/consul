@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync/atomic"
 )
 
@@ -160,7 +161,7 @@ type bufferLink struct {
 // the fields set and be appended to a buffer.
 func newBufferItem(events []Event) *bufferItem {
 	return &bufferItem{
-		link:   &bufferLink{sema: NewSemaphore(1)},
+		link:   &bufferLink{sema: NewSemaphore(runtime.GOMAXPROCS(0))},
 		Events: events,
 	}
 }
