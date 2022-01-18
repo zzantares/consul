@@ -99,7 +99,7 @@ func (b *eventBuffer) AppendItem(item *bufferItem) {
 	b.head.Store(item)
 
 	// Now it's added invalidate the oldHead to notify waiters
-	close(oldHead.link.ch)
+	oldHead.link.sema.Unblock()
 	// don't set chan to nil since that will race with readers accessing it.
 }
 
@@ -152,18 +152,15 @@ type bufferLink struct {
 	// ch is closed.
 	next atomic.Value
 
-	// ch is closed when the next event is published. It should never be mutated
-	// (e.g. set to nil) as that is racey, but is closed once when the next event
-	// is published. the next pointer will have been set by the time this is
-	// closed.
-	ch chan struct{}
+	// sema is used to wake up subcribers when the item at next is ready.
+	sema Semaphore
 }
 
 // newBufferItem returns a blank buffer item with a link and chan ready to have
 // the fields set and be appended to a buffer.
 func newBufferItem(events []Event) *bufferItem {
 	return &bufferItem{
-		link:   &bufferLink{ch: make(chan struct{})},
+		link:   &bufferLink{sema: NewSemaphore(1)},
 		Events: events,
 	}
 }
@@ -178,7 +175,8 @@ func (i *bufferItem) Next(ctx context.Context, closed <-chan struct{}) (*bufferI
 		return nil, ctx.Err()
 	case <-closed:
 		return nil, fmt.Errorf("subscription closed")
-	case <-i.link.ch:
+	case done := <-i.link.sema.Wait():
+		defer done()
 	}
 
 	// If channel closed, there must be a next item to read
