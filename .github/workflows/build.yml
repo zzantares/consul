@@ -242,6 +242,12 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Print Docker Diagnostics
+        run: |
+          echo "==> docker version:"
+          docker version
+          echo "==> docker info:"
+          docker info
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
