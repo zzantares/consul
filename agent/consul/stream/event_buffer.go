@@ -99,7 +99,7 @@ func (b *eventBuffer) AppendItem(item *bufferItem) {
 	b.head.Store(item)
 
 	// Now it's added invalidate the oldHead to notify waiters
-	close(oldHead.link.ch)
+	oldHead.link.ch <- struct{}{}
 	// don't set chan to nil since that will race with readers accessing it.
 }
 
@@ -163,7 +163,7 @@ type bufferLink struct {
 // the fields set and be appended to a buffer.
 func newBufferItem(events []Event) *bufferItem {
 	return &bufferItem{
-		link:   &bufferLink{ch: make(chan struct{})},
+		link:   &bufferLink{ch: make(chan struct{}, 1)},
 		Events: events,
 	}
 }
@@ -178,7 +178,8 @@ func (i *bufferItem) Next(ctx context.Context, closed <-chan struct{}) (*bufferI
 		return nil, ctx.Err()
 	case <-closed:
 		return nil, fmt.Errorf("subscription closed")
-	case <-i.link.ch:
+	case v := <-i.link.ch:
+		defer func() { i.link.ch <- v }()
 	}
 
 	// If channel closed, there must be a next item to read
