@@ -1,5 +1,6 @@
 import * as React from 'react'
 import Head from 'next/head'
+import Link from 'next/link'
 import rivetQuery from '@hashicorp/nextjs-scripts/dato/client'
 import homepageQuery from './query.graphql'
 import { isInternalLink } from 'lib/utils'
@@ -55,7 +56,9 @@ export default function Homepage({ data }): React.ReactElement {
   return (
     <>
       <Head>{renderMetaTags(seo)}</Head>
-
+      <Link href="/api-docs/features">
+        <a>I am a bad link</a>
+      </Link>
       <IoHomeHero
         pattern="/img/home-hero-pattern.svg"
         brand="consul"
