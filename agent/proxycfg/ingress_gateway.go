@@ -3,6 +3,8 @@ package proxycfg
 import (
 	"context"
 	"fmt"
+	"net"
+	"strings"
 
 	"github.com/hashicorp/consul/agent/cache"
 	cachetype "github.com/hashicorp/consul/agent/cache-types"
@@ -253,7 +255,37 @@ func (s *handlerIngressGateway) generateIngressDNSSANs(snap *ConfigSnapshot) []s
 		}
 	}
 
-	dnsNames = append(dnsNames, snap.IngressGateway.Hosts...)
+	// Per section 4.2.1.6 of RFC5280, DNS Names in the Subject Alternative Name
+	// The name MUST be in the "preferred name syntax", as specified by
+	// Section 3.5 of RFC1034 and as modified by Section 2.1 of RFC1123.
+	//
+	// Strip port number if present on ingress hostnames as the colon separator
+	// is not a valid character per RFC1034.
+	ingressHostsWithoutPort := make(map[string]bool)
+	for _, ig_host := range snap.IngressGateway.Hosts {
+
+		if !strings.Contains(ig_host, ":") {
+			ingressHostsWithoutPort[ig_host] = true
+			continue
+		}
+
+		// Remove colons from hostnames with colon
+		host, _, err := net.SplitHostPort(ig_host)
+		if err != nil {
+			// TODO (blake): Raise error if this fails
+			continue
+		}
+		ingressHostsWithoutPort[host] = true
+	}
+
+	ingressDnsNames := make([]string, len(ingressHostsWithoutPort))
+	i := 0
+	for k := range ingressHostsWithoutPort {
+		ingressDnsNames[i] = k
+		i++
+	}
+
+	dnsNames = append(dnsNames, ingressDnsNames...)
 
 	return dnsNames
 }
