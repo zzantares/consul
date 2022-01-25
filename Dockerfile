@@ -27,20 +27,9 @@ LABEL org.opencontainers.image.authors="Consul Team <consul@hashicorp.com>" \
 # Set up certificates and base tools.
 # libc6-compat is needed to symlink the shared libraries for ARM builds
 RUN apk update
-RUN apk add -v --no-cache \
-		dumb-init \
-		libc6-compat \
-		iptables \
-		tzdata \
-		curl \
-		ca-certificates \
-		gnupg \
-		iputils \ 
-		libcap \
-		openssl \
-		su-exec \
-		jq 
-
+RUN set -eux && \
+    apk add --no-cache ca-certificates curl dumb-init gnupg libcap openssl su-exec iputils jq libc6-compat iptables tzdata
+    
 # Create a consul user and group first so the IDs get set the same way, even as
 # the rest of this may change over time.
 RUN addgroup $BIN_NAME && \
