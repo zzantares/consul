@@ -242,6 +242,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: test
+        run: update-binfmts --enable
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
