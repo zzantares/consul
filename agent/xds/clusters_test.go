@@ -162,6 +162,23 @@ func TestClustersFromSnapshot(t *testing.T) {
 			setup:  nil,
 		},
 		{
+			name:   "connect-proxy-with-external-service",
+			create: proxycfg.TestConfigSnapshotDiscoveryChain,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				serviceName := structs.NewServiceName("db", nil)
+				snap.ConnectProxy.ExternalServiceConfigs[serviceName] = &structs.ExternalServiceConfigEntry{
+					Kind: structs.ExternalService,
+					Name: "db",
+					Type: structs.ExternalServiceConfigEntryTypeAWSLambda,
+					AWSLambda: structs.ExternalServiceConfigEntryAWSLambda{
+						ARN:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						PayloadPassthrough: true,
+						Region:             "us-east-2",
+					},
+				}
+			},
+		},
+		{
 			name:   "connect-proxy-with-chain-external-sni",
 			create: proxycfg.TestConfigSnapshotDiscoveryChainExternalSNI,
 			setup:  nil,
@@ -632,6 +649,23 @@ func TestClustersFromSnapshot(t *testing.T) {
 				}
 				snap.TerminatingGateway.ServiceConfigs[structs.NewServiceName("web", nil)] = &structs.ServiceConfigResponse{
 					ProxyConfig: map[string]interface{}{"protocol": "http"},
+				}
+			},
+		},
+		{
+			name:   "terminating-gateway-for-external-service",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				serviceName := structs.NewServiceName("web", nil)
+				snap.TerminatingGateway.ExternalServiceConfigs[serviceName] = &structs.ExternalServiceConfigEntry{
+					Kind: structs.ExternalService,
+					Name: "web",
+					Type: structs.ExternalServiceConfigEntryTypeAWSLambda,
+					AWSLambda: structs.ExternalServiceConfigEntryAWSLambda{
+						ARN:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						PayloadPassthrough: true,
+						Region:             "us-east-2",
+					},
 				}
 			},
 		},

@@ -23,6 +23,7 @@ const (
 	ServiceIntentions  string = "service-intentions"
 	MeshConfig         string = "mesh"
 	ExportedServices   string = "exported-services"
+	ExternalService    string = "external-service"
 
 	ProxyConfigGlobal string = "global"
 	MeshConfigMesh    string = "mesh"
@@ -275,6 +276,8 @@ func makeConfigEntry(kind, name string) (ConfigEntry, error) {
 		return &TerminatingGatewayConfigEntry{Kind: kind, Name: name}, nil
 	case ServiceIntentions:
 		return &ServiceIntentionsConfigEntry{Kind: kind, Name: name}, nil
+	case ExternalService:
+		return &ExternalServiceConfigEntry{Kind: kind, Name: name}, nil
 	case MeshConfig:
 		return &MeshConfigEntry{}, nil
 	case ExportedServices:

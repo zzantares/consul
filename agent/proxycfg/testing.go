@@ -819,6 +819,7 @@ func testConfigSnapshotDiscoveryChain(t testing.T, variation string, additionalE
 		},
 		Roots: roots,
 		ConnectProxy: configSnapshotConnectProxy{
+			ExternalServiceConfigs: make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry),
 			ConfigSnapshotUpstreams: setupTestVariationConfigEntriesAndSnapshot(
 				t, variation, leaf, additionalEntries...,
 			),
@@ -2012,6 +2013,7 @@ func testConfigSnapshotTerminatingGateway(t testing.T, populateServices bool) *C
 		}
 
 		snap.TerminatingGateway = configSnapshotTerminatingGateway{
+			ExternalServiceConfigs: make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry),
 			ServiceGroups: map[structs.ServiceName]structs.CheckServiceNodes{
 				web:   webNodes,
 				api:   apiNodes,

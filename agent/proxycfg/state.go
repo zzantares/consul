@@ -38,6 +38,7 @@ const (
 	serviceResolversWatchID            = "service-resolvers"
 	gatewayServicesWatchID             = "gateway-services"
 	gatewayConfigWatchID               = "gateway-config"
+	externalServiceConfigEntryID       = "external-service-config-entry"
 	externalServiceIDPrefix            = "external-service:"
 	serviceLeafIDPrefix                = "service-leaf:"
 	serviceConfigIDPrefix              = "service-config:"

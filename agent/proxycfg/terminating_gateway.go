@@ -40,6 +40,17 @@ func (s *handlerTerminatingGateway) initialize(ctx context.Context) (ConfigSnaps
 		return snap, err
 	}
 
+	err = s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+		Kind:           structs.ExternalService,
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, externalServiceConfigEntryID, s.ch)
+	if err != nil {
+		s.logger.Error("failed to register watch for external service config entries", "error", err)
+		return snap, err
+	}
+
 	snap.TerminatingGateway.WatchedServices = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.WatchedIntentions = make(map[structs.ServiceName]context.CancelFunc)
 	snap.TerminatingGateway.Intentions = make(map[structs.ServiceName]structs.Intentions)
@@ -53,6 +64,7 @@ func (s *handlerTerminatingGateway) initialize(ctx context.Context) (ConfigSnaps
 	snap.TerminatingGateway.ServiceGroups = make(map[structs.ServiceName]structs.CheckServiceNodes)
 	snap.TerminatingGateway.GatewayServices = make(map[structs.ServiceName]structs.GatewayService)
 	snap.TerminatingGateway.HostnameServices = make(map[structs.ServiceName]structs.CheckServiceNodes)
+	snap.TerminatingGateway.ExternalServiceConfigs = make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry)
 	return snap, nil
 }
 
@@ -69,6 +81,31 @@ func (s *handlerTerminatingGateway) handleUpdate(ctx context.Context, u cache.Up
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		snap.Roots = roots
+
+	case u.CorrelationID == externalServiceConfigEntryID:
+		s.logger.Error("Setting external service configs")
+		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
+
+		if !ok {
+			return fmt.Errorf("invalid type for response thingy: %T", u.Result)
+		}
+
+		externalServices := make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry)
+		for _, e := range configEntries.Entries {
+			externalService, ok := e.(*structs.ExternalServiceConfigEntry)
+
+			if !ok {
+				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
+			}
+
+			externalServices[externalService.ServiceName()] = externalService
+		}
+
+		if !ok {
+			return fmt.Errorf("invalid type for response asf: %T", u.Result)
+		}
+
+		snap.TerminatingGateway.ExternalServiceConfigs = externalServices
 
 	// Update watches based on the current list of services associated with the terminating-gateway
 	case u.CorrelationID == gatewayServicesWatchID:

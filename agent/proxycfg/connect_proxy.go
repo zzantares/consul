@@ -28,6 +28,7 @@ func (s *handlerConnectProxy) initialize(ctx context.Context) (ConfigSnapshot, e
 	snap.ConnectProxy.PreparedQueryEndpoints = make(map[UpstreamID]structs.CheckServiceNodes)
 	snap.ConnectProxy.UpstreamConfig = make(map[UpstreamID]*structs.Upstream)
 	snap.ConnectProxy.PassthroughUpstreams = make(map[UpstreamID]ServicePassthroughAddrs)
+	snap.ConnectProxy.ExternalServiceConfigs = make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry)
 
 	// Watch for root changes
 	err := s.cache.Notify(ctx, cachetype.ConnectCARootName, &structs.DCSpecificRequest{
@@ -75,6 +76,17 @@ func (s *handlerConnectProxy) initialize(ctx context.Context) (ConfigSnapshot, e
 		EnterpriseMeta: s.proxyID.EnterpriseMeta,
 	}, svcChecksWatchIDPrefix+structs.ServiceIDString(s.proxyCfg.DestinationServiceID, &s.proxyID.EnterpriseMeta), s.ch)
 	if err != nil {
+		return snap, err
+	}
+
+	err = s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+		Kind:           structs.ExternalService,
+		Datacenter:     s.source.Datacenter,
+		QueryOptions:   structs.QueryOptions{Token: s.token},
+		EnterpriseMeta: s.proxyID.EnterpriseMeta,
+	}, externalServiceConfigEntryID, s.ch)
+	if err != nil {
+		s.logger.Error("failed to register watch for external service config entries", "error", err)
 		return snap, err
 	}
 
@@ -215,6 +227,31 @@ func (s *handlerConnectProxy) handleUpdate(ctx context.Context, u cache.UpdateEv
 			snap.ConnectProxy.Intentions = resp.Matches[0]
 		}
 		snap.ConnectProxy.IntentionsSet = true
+
+	case u.CorrelationID == externalServiceConfigEntryID:
+		s.logger.Error("Setting external service configs")
+		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
+
+		if !ok {
+			return fmt.Errorf("invalid type for response thingy: %T", u.Result)
+		}
+
+		externalServices := make(map[structs.ServiceName]*structs.ExternalServiceConfigEntry)
+		for _, e := range configEntries.Entries {
+			externalService, ok := e.(*structs.ExternalServiceConfigEntry)
+
+			if !ok {
+				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
+			}
+
+			externalServices[externalService.ServiceName()] = externalService
+		}
+
+		if !ok {
+			return fmt.Errorf("invalid type for response asf: %T", u.Result)
+		}
+
+		snap.ConnectProxy.ExternalServiceConfigs = externalServices
 
 	case u.CorrelationID == intentionUpstreamsID:
 		resp, ok := u.Result.(*structs.IndexedServiceList)

@@ -16,6 +16,7 @@ import (
 	envoy_core_v3 "github.com/envoyproxy/go-control-plane/envoy/config/core/v3"
 	envoy_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 	envoy_route_v3 "github.com/envoyproxy/go-control-plane/envoy/config/route/v3"
+	envoy_lambda_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/aws_lambda/v3"
 	envoy_grpc_stats_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/http/grpc_stats/v3"
 	envoy_http_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/http_connection_manager/v3"
 	envoy_tcp_proxy_v3 "github.com/envoyproxy/go-control-plane/envoy/extensions/filters/network/tcp_proxy/v3"
@@ -133,11 +134,12 @@ func (s *ResourceGenerator) listenersFromSnapshotConnectProxy(cfgSnap *proxycfg.
 		// Generate the upstream listeners for when they are explicitly set with a local bind port or socket path
 		if upstreamCfg != nil && upstreamCfg.HasLocalPortOrSocket() {
 			filterChain, err := s.makeUpstreamFilterChain(filterChainOpts{
-				routeName:   uid.EnvoyID(),
-				clusterName: clusterName,
-				filterName:  filterName,
-				protocol:    cfg.Protocol,
-				useRDS:      useRDS,
+				routeName:             uid.EnvoyID(),
+				clusterName:           clusterName,
+				filterName:            filterName,
+				protocol:              cfg.Protocol,
+				useRDS:                useRDS,
+				externalServiceConfig: cfgSnap.ConnectProxy.ExternalServiceConfigs[structs.ServiceNameFromString(chain.ServiceName)],
 			})
 			if err != nil {
 				return nil, err
@@ -1103,12 +1105,13 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 	// tcp proxy. For L7 this is a very hands-off HTTP proxy just to inject an
 	// HTTP filter to do intention checks here instead.
 	opts := listenerFilterOpts{
-		protocol:   protocol,
-		filterName: fmt.Sprintf("%s.%s.%s.%s", service.Name, service.NamespaceOrDefault(), service.PartitionOrDefault(), cfgSnap.Datacenter),
-		routeName:  cluster, // Set cluster name for route config since each will have its own
-		cluster:    cluster,
-		statPrefix: "upstream.",
-		routePath:  "",
+		protocol:              protocol,
+		filterName:            fmt.Sprintf("%s.%s.%s.%s", service.Name, service.NamespaceOrDefault(), service.PartitionOrDefault(), cfgSnap.Datacenter),
+		routeName:             cluster, // Set cluster name for route config since each will have its own
+		cluster:               cluster,
+		statPrefix:            "upstream.",
+		routePath:             "",
+		externalServiceConfig: cfgSnap.TerminatingGateway.ExternalServiceConfigs[service],
 	}
 
 	if useHTTPFilter {
@@ -1125,10 +1128,13 @@ func (s *ResourceGenerator) makeFilterChainTerminatingGateway(
 		opts.useRDS = true
 	}
 
-	filter, err := makeListenerFilter(opts)
+	var filter *envoy_listener_v3.Filter
+
+	filter, err = makeListenerFilter(opts)
 	if err != nil {
 		return nil, err
 	}
+
 	filterChain.Filters = append(filterChain.Filters, filter)
 
 	return filterChain, nil
@@ -1240,22 +1246,24 @@ func (s *ResourceGenerator) makeMeshGatewayListener(name, addr string, port int,
 }
 
 type filterChainOpts struct {
-	routeName   string
-	clusterName string
-	filterName  string
-	protocol    string
-	useRDS      bool
-	tlsContext  *envoy_tls_v3.DownstreamTlsContext
+	routeName             string
+	clusterName           string
+	filterName            string
+	protocol              string
+	useRDS                bool
+	tlsContext            *envoy_tls_v3.DownstreamTlsContext
+	externalServiceConfig *structs.ExternalServiceConfigEntry
 }
 
 func (s *ResourceGenerator) makeUpstreamFilterChain(opts filterChainOpts) (*envoy_listener_v3.FilterChain, error) {
 	filter, err := makeListenerFilter(listenerFilterOpts{
-		useRDS:     opts.useRDS,
-		protocol:   opts.protocol,
-		filterName: opts.filterName,
-		routeName:  opts.routeName,
-		cluster:    opts.clusterName,
-		statPrefix: "upstream.",
+		useRDS:                opts.useRDS,
+		protocol:              opts.protocol,
+		filterName:            opts.filterName,
+		routeName:             opts.routeName,
+		cluster:               opts.clusterName,
+		statPrefix:            "upstream.",
+		externalServiceConfig: opts.externalServiceConfig,
 	})
 	if err != nil {
 		return nil, err
@@ -1343,19 +1351,84 @@ func (s *ResourceGenerator) getAndModifyUpstreamConfigForListener(
 }
 
 type listenerFilterOpts struct {
-	useRDS           bool
-	protocol         string
-	filterName       string
-	routeName        string
-	cluster          string
-	statPrefix       string
-	routePath        string
-	requestTimeoutMs *int
-	ingressGateway   bool
-	httpAuthzFilter  *envoy_http_v3.HttpFilter
+	useRDS                bool
+	protocol              string
+	filterName            string
+	routeName             string
+	cluster               string
+	statPrefix            string
+	routePath             string
+	requestTimeoutMs      *int
+	ingressGateway        bool
+	httpAuthzFilter       *envoy_http_v3.HttpFilter
+	externalServiceConfig *structs.ExternalServiceConfigEntry
+}
+
+func makeExternalServiceListenerFilter(opts listenerFilterOpts) (*envoy_listener_v3.Filter, error) {
+	var filter *envoy_listener_v3.Filter
+	externalService := opts.externalServiceConfig
+	if externalService == nil {
+		return filter, fmt.Errorf("external service isn't defined")
+	}
+
+	switch opts.externalServiceConfig.Type {
+	case structs.ExternalServiceConfigEntryTypeAWSLambda:
+		httpFilter, err := makeEnvoyHTTPFilter(
+			"envoy.filters.http.aws_lambda",
+			&envoy_lambda_v3.Config{
+				Arn:                externalService.AWSLambda.ARN,
+				PayloadPassthrough: externalService.AWSLambda.PayloadPassthrough,
+			},
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		cfg := &envoy_http_v3.HttpConnectionManager{
+			HttpFilters: []*envoy_http_v3.HttpFilter{
+				httpFilter,
+				{Name: "envoy.filters.http.router"},
+			},
+			StatPrefix: makeStatPrefix(opts.statPrefix, opts.filterName),
+			RouteSpecifier: &envoy_http_v3.HttpConnectionManager_RouteConfig{
+				RouteConfig: &envoy_route_v3.RouteConfiguration{
+					Name: opts.routeName,
+					VirtualHosts: []*envoy_route_v3.VirtualHost{
+						{
+							Name:    opts.filterName,
+							Domains: []string{"*"},
+							Routes: []*envoy_route_v3.Route{
+								{
+									Match: &envoy_route_v3.RouteMatch{
+										PathSpecifier: &envoy_route_v3.RouteMatch_Prefix{
+											Prefix: "/",
+										},
+									},
+									Action: &envoy_route_v3.Route_Route{
+										Route: &envoy_route_v3.RouteAction{
+											ClusterSpecifier: &envoy_route_v3.RouteAction_Cluster{
+												Cluster: opts.cluster,
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		return makeFilter("envoy.filters.network.http_connection_manager", cfg)
+	default:
+		return filter, fmt.Errorf("Invalid external service config type %T", opts.externalServiceConfig.Type)
+	}
 }
 
 func makeListenerFilter(opts listenerFilterOpts) (*envoy_listener_v3.Filter, error) {
+	if opts.externalServiceConfig != nil {
+		return makeExternalServiceListenerFilter(opts)
+	}
+
 	switch opts.protocol {
 	case "grpc", "http2", "http":
 		return makeHTTPFilter(opts)

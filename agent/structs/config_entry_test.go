@@ -206,6 +206,7 @@ func testConfigEntries_ListRelatedServices_AndACLs(t *testing.T, cases []configE
 // TestDecodeConfigEntry is the 'structs' mirror image of
 // command/config/write/config_write_test.go:TestParseConfigEntry
 func TestDecodeConfigEntry(t *testing.T) {
+	// TODO add decoding tests and maybe others here.
 
 	for _, tc := range []struct {
 		name      string

@@ -186,6 +186,14 @@ func TestUsageReporter_emitNodeUsage_OSS(t *testing.T) {
 						{Name: "kind", Value: "exported-services"},
 					},
 				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
+					},
+				},
 			},
 			getMembersFunc: func() []serf.Member { return []serf.Member{} },
 		},
@@ -369,6 +377,14 @@ func TestUsageReporter_emitNodeUsage_OSS(t *testing.T) {
 					Labels: []metrics.Label{
 						{Name: "datacenter", Value: "dc1"},
 						{Name: "kind", Value: "exported-services"},
+					},
+				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
 					},
 				},
 			},
@@ -582,6 +598,14 @@ func TestUsageReporter_emitServiceUsage_OSS(t *testing.T) {
 					Labels: []metrics.Label{
 						{Name: "datacenter", Value: "dc1"},
 						{Name: "kind", Value: "exported-services"},
+					},
+				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
 					},
 				},
 			},
@@ -811,6 +835,14 @@ func TestUsageReporter_emitServiceUsage_OSS(t *testing.T) {
 						{Name: "kind", Value: "exported-services"},
 					},
 				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
+					},
+				},
 			},
 		},
 	}
@@ -1015,6 +1047,14 @@ func TestUsageReporter_emitKVUsage_OSS(t *testing.T) {
 						{Name: "kind", Value: "exported-services"},
 					},
 				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
+					},
+				},
 			},
 			getMembersFunc: func() []serf.Member { return []serf.Member{} },
 		},
@@ -1207,6 +1247,14 @@ func TestUsageReporter_emitKVUsage_OSS(t *testing.T) {
 					Labels: []metrics.Label{
 						{Name: "datacenter", Value: "dc1"},
 						{Name: "kind", Value: "exported-services"},
+					},
+				},
+				"consul.usage.test.consul.state.config_entries;datacenter=dc1;kind=external-service": {
+					Name:  "consul.usage.test.consul.state.config_entries",
+					Value: 0,
+					Labels: []metrics.Label{
+						{Name: "datacenter", Value: "dc1"},
+						{Name: "kind", Value: "external-service"},
 					},
 				},
 			},
