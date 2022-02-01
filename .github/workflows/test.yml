@@ -18,4 +18,6 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           workflow: build.yml
           workflow_conclusion: success
+          commit: ${{ github.event.pull_request.head.sha }}
       - run: ls -la
+      - run: cat metadata.json
