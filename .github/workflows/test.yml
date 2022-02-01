@@ -20,4 +20,6 @@ jobs:
           workflow_conclusion: success
           commit: ${{ github.event.pull_request.head.sha }}
       - run: ls -la
-      - run: cat metadata.json
+      - run: cd metadata.json && ls -la
+      - run: cd metdata.json && unzip metadata.json.zip && cat metadata.json
+      
