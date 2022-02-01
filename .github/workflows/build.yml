@@ -255,6 +255,6 @@ jobs:
   call-test-workflow:
     uses: ./.github/workflows/test.yml
     with:
-      product: ${{ env.PKG_NAME }}
+      product: consul
       commitSha: ${{ GITHUB_SHA::8 }}
       version: ${{ needs.get-product-version.outputs.product-version }}
