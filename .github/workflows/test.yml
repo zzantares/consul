@@ -1,13 +1,23 @@
 name: Run smoke tests against CI-built artifacts
 
 on:
-  workflow_run:
-    workflows: ["build"]
-    types:
-      - on-success
+  push:
+    # Sequence of patterns matched against refs/heads
+    branches: [ 
+      "main",
+      "gha-basic-artifact-validation"
+    ]
 
 jobs:
   download_artifacts:
     runs-on: ubuntu-latest
     steps:
-      - run: echo "success"
+      - name: Wait for build to succeed
+        uses: lewagon/wait-on-check-action@v1.0.0
+        with:
+          ref: ${{ github.ref }}
+          check-name: 'build'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 20
+          allowed-conclusions: success
+      - run: echo job build has succeeded! 
