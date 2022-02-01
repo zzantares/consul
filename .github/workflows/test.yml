@@ -1,4 +1,4 @@
-name: Run smoke tests against CI-built artifacts
+name: test CI-built artifacts
 
 on:
   push:
@@ -12,6 +12,7 @@ jobs:
   download_artifacts:
     runs-on: ubuntu-latest
     steps:
+      - run: echo ref ${{ github.ref }}
       - name: Wait for build to succeed
         uses: lewagon/wait-on-check-action@v1.0.0
         with:
@@ -21,3 +22,4 @@ jobs:
           wait-interval: 20
           allowed-conclusions: success
       - run: echo job build has succeeded! 
+  
