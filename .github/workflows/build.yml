@@ -251,10 +251,4 @@ jobs:
   #         tags: |
   #           docker.io/hashicorp/${{env.repo}}:${{env.version}}
   #           public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
-
-  call-test-workflow:
-    uses: ./.github/workflows/test.yml
-    with:
-      product: consul
-      commitSha: ${{ GITHUB_SHA::8 }}
-      version: ${{ needs.get-product-version.outputs.product-version }}
+  
