@@ -1,0 +1,21 @@
+name: Run smoke tests against CI-built artifacts
+
+on:
+  workflow_call:
+    inputs:
+      product:
+        required: true
+        type: string
+      commitSha:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+
+jobs:
+  
+  download_artifacts:
+    runs-on: ubuntu-latest
+    steps:
+      - run: echo ${{ inputs.username }} && echo ${{ inputs.commitSha }} && ${{ inputs.version }}
