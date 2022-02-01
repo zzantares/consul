@@ -253,7 +253,7 @@ jobs:
   #           public.ecr.aws/hashicorp/${{env.repo}}:${{env.version}}
 
   call-test-workflow:
-    uses: ./.github/workflows/test.yml@main
+    uses: ./.github/workflows/test.yml
     with:
       product: ${{ env.PKG_NAME }}
       commitSha: ${{ GITHUB_SHA::8 }}
