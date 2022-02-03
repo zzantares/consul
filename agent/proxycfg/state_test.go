@@ -380,6 +380,12 @@ func ingressConfigWatchEvent(gwTLS bool, mixedTLS bool) cache.UpdateEvent {
 	}
 }
 
+var serviceDefaults = &structs.ServiceConfigEntry{
+	Kind: structs.ServiceDefaults,
+	Name: "thingy",
+	Meta: map[string]string{"a": "1"},
+}
+
 func upstreamIDForDC2(uid UpstreamID) UpstreamID {
 	uid.Datacenter = "dc2"
 	return uid
@@ -626,6 +632,14 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 					},
 					Err: nil,
 				},
+				{
+					CorrelationID: serviceDefaultsConfigEntryID,
+					Result: &structs.IndexedConfigEntries{
+						Kind:    structs.ServiceDefaults,
+						Entries: []structs.ConfigEntry{serviceDefaults},
+					},
+					Err: nil,
+				},
 			},
 			verifySnapshot: func(t testing.TB, snap *ConfigSnapshot) {
 				require.True(t, snap.Valid())
@@ -644,6 +658,8 @@ func TestState_WatchesAndUpdates(t *testing.T) {
 
 				require.True(t, snap.ConnectProxy.IntentionsSet)
 				require.Equal(t, ixnMatch.Matches[0], snap.ConnectProxy.Intentions)
+
+				require.Len(t, snap.ConnectProxy.ServiceConfigs, 1)
 			},
 		}
 

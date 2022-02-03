@@ -406,6 +406,7 @@ func (c *ConfigEntry) ResolveServiceConfig(args *structs.ServiceConfigRequest, r
 				if !ok {
 					return fmt.Errorf("invalid service config type %T", serviceEntry)
 				}
+				thisReply.Meta = serviceConf.Meta
 				if serviceConf.Expose.Checks {
 					thisReply.Expose.Checks = true
 				}

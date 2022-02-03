@@ -10,6 +10,7 @@ import (
 
 	envoy_cluster_v3 "github.com/envoyproxy/go-control-plane/envoy/config/cluster/v3"
 
+	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes/wrappers"
 	testinf "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
@@ -215,6 +216,31 @@ func TestClustersFromSnapshot(t *testing.T) {
 			name:   "connect-proxy-with-tcp-chain-double-failover-through-local-gateway-triggered",
 			create: proxycfg.TestConfigSnapshotDiscoveryChainWithDoubleFailoverThroughLocalGatewayTriggered,
 			setup:  nil,
+		},
+		{
+			name: "connect-proxy-with-lambda-stuff",
+			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
+				snapshot := proxycfg.TestConfigSnapshotDiscoveryChainWithEntries(t,
+					&structs.ProxyConfigEntry{
+						Kind: structs.ProxyDefaults,
+						Name: structs.ProxyConfigGlobal,
+						Config: map[string]interface{}{
+							"protocol": "http",
+						},
+					},
+				)
+				serviceName := structs.NewServiceName("db", nil)
+				snapshot.ConnectProxy.ServiceConfigs[serviceName] = &structs.ServiceConfigEntry{
+					Meta: map[string]string{
+						lambdaEnabledTag:      "true",
+						arnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						payloadPassthroughTag: "true",
+						regionTag:             "us-east-2",
+					},
+				}
+				return snapshot
+			},
+			setup: nil,
 		},
 		{
 			name:   "splitter-with-resolver-redirect",
@@ -636,6 +662,22 @@ func TestClustersFromSnapshot(t *testing.T) {
 			},
 		},
 		{
+			name:   "terminating-gateway-with-serverless-service",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				serviceName := structs.NewServiceName("web", nil)
+				snap.TerminatingGateway.ServiceConfigs[serviceName] = &structs.ServiceConfigResponse{
+					ProxyConfig: map[string]interface{}{"protocol": "http"},
+					Meta: map[string]string{
+						lambdaEnabledTag:      "true",
+						arnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						payloadPassthroughTag: "true",
+						regionTag:             "us-east-2",
+					},
+				}
+			},
+		},
+		{
 			name:   "ingress-multiple-listeners-duplicate-service",
 			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersDuplicateService,
 			setup:  nil,
@@ -752,8 +794,20 @@ func TestClustersFromSnapshot(t *testing.T) {
 					g := newResourceGenerator(testutil.Logger(t), nil, nil, false)
 					g.ProxyFeatures = sf
 
-					clusters, err := g.clustersFromSnapshot(snap)
+					originalClusters, err := g.clustersFromSnapshot(snap)
 					require.NoError(t, err)
+
+					res := make(map[string][]proto.Message)
+					res[ClusterType] = originalClusters
+
+					indexedResources := indexResources(g.Logger, res)
+					newResourceMap, err := MutateIndexedResources(indexedResources, makeMutateConfiguration(snap))
+					require.NoError(t, err)
+
+					var clusters []proto.Message
+					for _, c := range newResourceMap.Index[ClusterType] {
+						clusters = append(clusters, c)
+					}
 
 					sort.Slice(clusters, func(i, j int) bool {
 						return clusters[i].(*envoy_cluster_v3.Cluster).Name < clusters[j].(*envoy_cluster_v3.Cluster).Name

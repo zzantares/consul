@@ -10,6 +10,7 @@ import (
 
 	envoy_listener_v3 "github.com/envoyproxy/go-control-plane/envoy/config/listener/v3"
 
+	"github.com/golang/protobuf/proto"
 	testinf "github.com/mitchellh/go-testing-interface"
 	"github.com/stretchr/testify/require"
 
@@ -212,6 +213,31 @@ func TestListenersFromSnapshot(t *testing.T) {
 			name:   "connect-proxy-with-tcp-chain",
 			create: proxycfg.TestConfigSnapshotDiscoveryChain,
 			setup:  nil,
+		},
+		{
+			name: "connect-proxy-with-lambda-stuff",
+			create: func(t testinf.T) *proxycfg.ConfigSnapshot {
+				snapshot := proxycfg.TestConfigSnapshotDiscoveryChainWithEntries(t,
+					&structs.ProxyConfigEntry{
+						Kind: structs.ProxyDefaults,
+						Name: structs.ProxyConfigGlobal,
+						Config: map[string]interface{}{
+							"protocol": "http",
+						},
+					},
+				)
+				serviceName := structs.NewServiceName("db", nil)
+				snapshot.ConnectProxy.ServiceConfigs[serviceName] = &structs.ServiceConfigEntry{
+					Meta: map[string]string{
+						lambdaEnabledTag:      "true",
+						arnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						payloadPassthroughTag: "true",
+						regionTag:             "us-east-2",
+					},
+				}
+				return snapshot
+			},
+			setup: nil,
 		},
 		{
 			name: "connect-proxy-with-http-chain",
@@ -491,6 +517,22 @@ func TestListenersFromSnapshot(t *testing.T) {
 				}
 				snap.TerminatingGateway.ServiceConfigs[structs.NewServiceName("web", nil)] = &structs.ServiceConfigResponse{
 					ProxyConfig: map[string]interface{}{"protocol": "http"},
+				}
+			},
+		},
+		{
+			name:   "terminating-gateway-with-serverless-service",
+			create: proxycfg.TestConfigSnapshotTerminatingGateway,
+			setup: func(snap *proxycfg.ConfigSnapshot) {
+				serviceName := structs.NewServiceName("web", nil)
+				snap.TerminatingGateway.ServiceConfigs[serviceName] = &structs.ServiceConfigResponse{
+					ProxyConfig: map[string]interface{}{"protocol": "http"},
+					Meta: map[string]string{
+						lambdaEnabledTag:      "true",
+						arnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+						payloadPassthroughTag: "true",
+						regionTag:             "us-east-2",
+					},
 				}
 			},
 		},
@@ -1325,8 +1367,19 @@ func TestListenersFromSnapshot(t *testing.T) {
 						tt.generatorSetup(g)
 					}
 
-					listeners, err := g.listenersFromSnapshot(snap)
+					originalListeners, err := g.listenersFromSnapshot(snap)
 					require.NoError(t, err)
+					res := make(map[string][]proto.Message)
+					res[ListenerType] = originalListeners
+
+					indexedResources := indexResources(g.Logger, res)
+					newResourceMap, err := MutateIndexedResources(indexedResources, makeMutateConfiguration(snap))
+					require.NoError(t, err)
+
+					var listeners []proto.Message
+					for _, l := range newResourceMap.Index[ListenerType] {
+						listeners = append(listeners, l)
+					}
 
 					// The order of listeners returned via LDS isn't relevant, so it's safe
 					// to sort these for the purposes of test comparisons.

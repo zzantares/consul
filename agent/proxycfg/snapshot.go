@@ -117,6 +117,10 @@ type configSnapshotConnectProxy struct {
 
 	MeshConfig    *structs.MeshConfigEntry
 	MeshConfigSet bool
+
+	// ServiceConfigs is a map of service name to the resolved service config
+	// for that service.
+	ServiceConfigs map[structs.ServiceName]*structs.ServiceConfigEntry
 }
 
 func (c *configSnapshotConnectProxy) IsEmpty() bool {
@@ -136,6 +140,7 @@ func (c *configSnapshotConnectProxy) IsEmpty() bool {
 		len(c.UpstreamConfig) == 0 &&
 		len(c.PassthroughUpstreams) == 0 &&
 		len(c.IntentionUpstreams) == 0 &&
+		len(c.ServiceConfigs) == 0 &&
 		!c.MeshConfigSet
 }
 
