@@ -211,6 +211,12 @@ func (s *Server) processDelta(stream ADSDeltaStream, reqCh <-chan *envoy_discove
 				s.ResourceMapMutateFn(newResourceMap)
 			}
 
+			newResourceMap, err = MutateIndexedResources(newResourceMap, makeMutateConfiguration(cfgSnap))
+
+			if err != nil {
+				generator.Logger.Warn("Error hacking indexed resources")
+			}
+
 			if err := populateChildIndexMap(newResourceMap); err != nil {
 				return status.Errorf(codes.Unavailable, "failed to index xDS resource versions: %v", err)
 			}
