@@ -4,7 +4,10 @@
 >
   <ul>
 {{#each @items as |item|}}
-    <li class={{concat 'health-check-output ' item.Status}}>
+    <li
+      data-test-health-check-id={{item.CheckID}}
+      class={{concat 'health-check-output ' item.Status}}
+    >
       <div>
         <header>
           <h2>{{item.Name}}</h2>
