@@ -38,22 +38,16 @@ export default class ProxyService extends RepositoryService {
   @dataSource('/:partition/:ns/:dc/proxy-instance/:serviceId/:node/:id')
   async findInstanceBySlug(params, configuration) {
     const items = await this.findAllBySlug(params, configuration);
-
-    let res = {};
+    let item = {};
     if (get(items, 'length') > 0) {
-      let instance = items
+      const instance = items
         .filterBy('ServiceProxy.DestinationServiceID', params.serviceId)
         .findBy('NodeName', params.node);
-      if (instance) {
-        res = instance;
-      } else {
-        instance = items.findBy('ServiceProxy.DestinationServiceName', params.id);
-        if (instance) {
-          res = instance;
-        }
+      if (typeof instance !== 'undefined') {
+        item = instance;
       }
     }
-    set(res, 'meta', get(items, 'meta'));
-    return res;
+    set(item, 'meta', get(items, 'meta'));
+    return item;
   }
 }
