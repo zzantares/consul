@@ -883,6 +883,9 @@ func (b *builder) build() (rt RuntimeConfig, err error) {
 		AutopilotServerStabilizationTime: b.durationVal("autopilot.server_stabilization_time", c.Autopilot.ServerStabilizationTime),
 		AutopilotUpgradeVersionTag:       stringVal(c.Autopilot.UpgradeVersionTag),
 
+		CatalogWriteRateLimit: float64Val(c.Limits.CatalogWriteRate),
+		CatalogWriteMaxBurst:  intVal(c.Limits.CatalogWriteMaxBurst),
+
 		// DNS
 		DNSAddrs:              dnsAddrs,
 		DNSAllowStale:         boolVal(c.DNS.AllowStale),
@@ -1445,6 +1448,10 @@ func (b *builder) validate(rt RuntimeConfig) error {
 
 	if rt.ServerMode && rt.AdvertiseReconnectTimeout != 0 {
 		return fmt.Errorf("advertise_reconnect_timeout can only be used on a client")
+	}
+
+	if rt.CatalogWriteRateLimit > 0 && !rt.ServerMode {
+		return fmt.Errorf("limits.catalog_write_rate can only be used on a server.")
 	}
 
 	// ----------------------------------------------------------------

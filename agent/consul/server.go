@@ -154,6 +154,10 @@ type Server struct {
 	// rate limiter to use when signing leaf certificates
 	caLeafLimiter connectSignRateLimiter
 
+	// catalogWriteLimiter is used to rate-limit catalog writes (e.g. service
+	// registrations).
+	catalogWriteLimiter atomic.Value
+
 	// Consul configuration
 	config *Config
 
@@ -409,6 +413,7 @@ func NewServer(config *Config, flat Deps) (*Server, error) {
 	initLeaderMetrics()
 
 	s.rpcLimiter.Store(rate.NewLimiter(config.RPCRateLimit, config.RPCMaxBurst))
+	s.catalogWriteLimiter.Store(rate.NewLimiter(config.CatalogWriteRateLimit, config.CatalogWriteMaxBurst))
 
 	configReplicatorConfig := ReplicatorConfig{
 		Name:     logging.ConfigEntry,
@@ -1451,6 +1456,8 @@ func (s *Server) ReloadConfig(config ReloadableConfig) error {
 	s.rpcConnLimiter.SetConfig(connlimit.Config{
 		MaxConnsPerClientIP: config.RPCMaxConnsPerClient,
 	})
+
+	s.catalogWriteLimiter.Store(rate.NewLimiter(config.CatalogWriteRateLimit, config.CatalogWriteMaxBurst))
 
 	if s.IsLeader() {
 		// only bootstrap the config entries if we are the leader

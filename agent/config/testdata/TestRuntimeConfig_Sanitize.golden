@@ -81,6 +81,8 @@
         "EntryFetchRate": 0.334,
         "Logger": null
     },
+    "CatalogWriteMaxBurst": 0,
+    "CatalogWriteRateLimit": 0,
     "CertFile": "",
     "CheckDeregisterIntervalMin": "0s",
     "CheckOutputMaxSize": 4096,

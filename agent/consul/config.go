@@ -75,6 +75,21 @@ type Config struct {
 	// of nodes.
 	BootstrapExpect int
 
+	// CatalogWriteRateLimit and CatalogWriteMaxBurst control how frequently
+	// catalog writes (e.g. service registrations) are allowed to happen.
+	//
+	// In any large enough time interval, rate limiter limits the rate to
+	// CatalogWriteRateLimit tokens per second, with a maximum burst size of
+	// CatalogWriteMaxBurst events.
+	//
+	// As a special case, if CatalogWriteRateLimit == Inf (the infinite rate),
+	// CatalogWriteMaxBurst is ignored.
+	//
+	// See https://en.wikipedia.org/wiki/Token_bucket for more about token
+	// buckets.
+	CatalogWriteRateLimit rate.Limit
+	CatalogWriteMaxBurst  int
+
 	// Datacenter is the datacenter this Consul server represents.
 	Datacenter string
 
@@ -604,6 +619,8 @@ type ReloadableConfig struct {
 	RaftSnapshotThreshold int
 	RaftSnapshotInterval  time.Duration
 	RaftTrailingLogs      int
+	CatalogWriteRateLimit rate.Limit
+	CatalogWriteMaxBurst  int
 }
 
 type RaftBoltDBConfig struct {

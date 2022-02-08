@@ -22,6 +22,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/cache"
@@ -5197,6 +5198,26 @@ func TestLoad_IntegrationWithFlags(t *testing.T) {
 			}`},
 		expectedErr: "advertise_reconnect_timeout can only be used on a client",
 	})
+
+	run(t, testCase{
+		desc: "limits.catalog_write_rate set on a client",
+		args: []string{
+			`-data-dir=` + dataDir,
+		},
+		hcl: []string{`
+			limits {
+				catalog_write_rate = 1000
+			}
+		`},
+		json: []string{`
+			{
+				"limits": {
+					"catalog_write_rate": 1000
+				}
+			}
+		`},
+		expectedErr: "limits.catalog_write_rate can only be used on a server.",
+	})
 }
 
 func (tc testCase) run(format string, dataDir string) func(t *testing.T) {
@@ -5376,6 +5397,8 @@ func TestLoad_FullConfig(t *testing.T) {
 		AutopilotRedundancyZoneTag:       "3IsufDJf",
 		AutopilotServerStabilizationTime: 23057 * time.Second,
 		AutopilotUpgradeVersionTag:       "W9pDwFAL",
+		CatalogWriteRateLimit:            rate.Limit(90872.13),
+		CatalogWriteMaxBurst:             270293,
 		BindAddr:                         ipAddr("16.99.34.17"),
 		BootstrapExpect:                  53,
 		Cache: cache.Options{

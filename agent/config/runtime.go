@@ -139,6 +139,23 @@ type RuntimeConfig struct {
 	// hcl: autopilot { upgrade_version_tag = string }
 	AutopilotUpgradeVersionTag string
 
+	// CatalogWriteRateLimit and CatalogWriteMaxBurst control how frequently
+	// catalog writes (e.g. service registrations) are allowed to happen.
+	//
+	// In any large enough time interval, rate limiter limits the rate to
+	// CatalogWriteRateLimit tokens per second, with a maximum burst size of
+	// CatalogWriteMaxBurst events.
+	//
+	// As a special case, if CatalogWriteRateLimit <= 0 (the infinite rate),
+	// CatalogWriteMaxBurst is ignored.
+	//
+	// See https://en.wikipedia.org/wiki/Token_bucket for more about token
+	// buckets.
+	//
+	// hcl: limit { catalog_write_rate = (float64|MaxFloat64) catalog_write_burst = int }
+	CatalogWriteRateLimit float64
+	CatalogWriteMaxBurst  int
+
 	// DNSAllowStale is used to enable lookups with stale
 	// data. This gives horizontal read scalability since
 	// any Consul server can service the query instead of

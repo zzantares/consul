@@ -11,6 +11,7 @@ import (
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
 	"github.com/hashicorp/go-uuid"
+	"golang.org/x/time/rate"
 
 	"github.com/hashicorp/consul/acl"
 	"github.com/hashicorp/consul/agent/consul/state"
@@ -52,6 +53,10 @@ var CatalogCounters = []prometheus.CounterDefinition{
 		Name: []string{"catalog", "connect", "not-found"},
 		Help: "Increments for each connect-based catalog query where the given service could not be found.",
 	},
+	{
+		Name: []string{"catalog", "write", "limit-exceeded"},
+		Help: "Increments for each catalog write that is prevented because the rate-limit has been exceeded.",
+	},
 }
 
 var CatalogSummaries = []prometheus.SummaryDefinition{
@@ -71,6 +76,16 @@ type Catalog struct {
 	logger hclog.Logger
 }
 
+// enforceWriteLimit enforces the global catalog write rate-limit.
+func (c *Catalog) enforceWriteLimit() error {
+	limiter := c.srv.catalogWriteLimiter.Load().(*rate.Limiter)
+	if limiter.Allow() {
+		return nil
+	}
+	metrics.IncrCounter([]string{"catalog", "write", "limit-exceeded"}, 1)
+	return structs.ErrRPCRateExceeded
+}
+
 // Register a service and/or check(s) in a node, creating the node if it doesn't exist.
 // It is valid to pass no service or checks to simply create the node itself.
 func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error {
@@ -78,6 +93,10 @@ func (c *Catalog) Register(args *structs.RegisterRequest, reply *struct{}) error
 		return err
 	}
 	defer metrics.MeasureSince([]string{"catalog", "register"}, time.Now())
+
+	if err := c.enforceWriteLimit(); err != nil {
+		return err
+	}
 
 	// Fetch the ACL token, if any.
 	authz, err := c.srv.ResolveTokenAndDefaultMeta(args.Token, &args.EnterpriseMeta, nil)
@@ -343,6 +362,10 @@ func (c *Catalog) Deregister(args *structs.DeregisterRequest, reply *struct{}) e
 		return err
 	}
 	defer metrics.MeasureSince([]string{"catalog", "deregister"}, time.Now())
+
+	if err := c.enforceWriteLimit(); err != nil {
+		return err
+	}
 
 	// Verify the args
 	if args.Node == "" {

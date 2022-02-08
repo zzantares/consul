@@ -719,6 +719,8 @@ type Limits struct {
 	RPCRate               *float64 `mapstructure:"rpc_rate"`
 	KVMaxValueSize        *uint64  `mapstructure:"kv_max_value_size"`
 	TxnMaxReqLen          *uint64  `mapstructure:"txn_max_req_len"`
+	CatalogWriteRate      *float64 `mapstructure:"catalog_write_rate"`
+	CatalogWriteMaxBurst  *int     `mapstructure:"catalog_write_max_burst"`
 }
 
 type Segment struct {

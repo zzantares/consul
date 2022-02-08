@@ -97,6 +97,8 @@ func DefaultSource() Source {
 			rpc_max_conns_per_client = 100
 			kv_max_value_size = ` + strconv.FormatInt(raft.SuggestedMaxDataSize, 10) + `
 			txn_max_req_len = ` + strconv.FormatInt(raft.SuggestedMaxDataSize, 10) + `
+			catalog_write_rate = -1
+			catalog_write_max_burst = 2500
 		}
 		performance = {
 			leave_drain_time = "5s"

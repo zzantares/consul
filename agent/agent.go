@@ -26,6 +26,7 @@ import (
 	"github.com/hashicorp/raft"
 	"github.com/hashicorp/serf/serf"
 	"golang.org/x/net/http2"
+	"golang.org/x/time/rate"
 	"google.golang.org/grpc"
 
 	"github.com/hashicorp/consul/acl"
@@ -1199,6 +1200,17 @@ func newConsulConfig(runtimeCfg *config.RuntimeConfig, logger hclog.Logger) (*co
 	cfg.RPCHoldTimeout = runtimeCfg.RPCHoldTimeout
 
 	cfg.RPCConfig = runtimeCfg.RPCConfig
+
+	// Catalog rate limiting.
+	if runtimeCfg.CatalogWriteRateLimit > 0 {
+		cfg.CatalogWriteRateLimit = rate.Limit(runtimeCfg.CatalogWriteRateLimit)
+	} else {
+		cfg.CatalogWriteRateLimit = rate.Inf
+	}
+
+	if runtimeCfg.CatalogWriteMaxBurst > 0 {
+		cfg.CatalogWriteMaxBurst = runtimeCfg.CatalogWriteMaxBurst
+	}
 
 	if runtimeCfg.LeaveDrainTime > 0 {
 		cfg.LeaveDrainTime = runtimeCfg.LeaveDrainTime
@@ -3777,7 +3789,14 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 		RaftSnapshotThreshold: newCfg.RaftSnapshotThreshold,
 		RaftSnapshotInterval:  newCfg.RaftSnapshotInterval,
 		RaftTrailingLogs:      newCfg.RaftTrailingLogs,
+		CatalogWriteMaxBurst:  newCfg.CatalogWriteMaxBurst,
 	}
+	if newCfg.CatalogWriteRateLimit > 0 {
+		cc.CatalogWriteRateLimit = rate.Limit(newCfg.CatalogWriteRateLimit)
+	} else {
+		cc.CatalogWriteRateLimit = rate.Inf
+	}
+
 	if err := a.delegate.ReloadConfig(cc); err != nil {
 		return err
 	}
