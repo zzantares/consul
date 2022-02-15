@@ -1351,7 +1351,7 @@ func (s *state) handleUpdateTerminatingGateway(u cache.UpdateEvent, snap *Config
 			// These are used to create clusters and endpoints for the service subsets
 			if _, ok := snap.TerminatingGateway.WatchedResolvers[svc.Service]; !ok {
 				ctx, cancel := context.WithCancel(s.ctx)
-				err := s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+				err := s.cache.Notify(ctx, cachetype.ConfigEntryName, &structs.ConfigEntryQuery{
 					Datacenter:     s.source.Datacenter,
 					QueryOptions:   structs.QueryOptions{Token: s.token},
 					Kind:           structs.ServiceResolver,
@@ -1471,16 +1471,13 @@ func (s *state) handleUpdateTerminatingGateway(u cache.UpdateEvent, snap *Config
 		snap.TerminatingGateway.ServiceConfigs[sn] = serviceConfig
 
 	case strings.HasPrefix(u.CorrelationID, serviceResolverIDPrefix):
-		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
+		e, ok := u.Result.(*structs.ConfigEntryResponse)
 		if !ok {
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		sn := structs.ServiceNameFromString(strings.TrimPrefix(u.CorrelationID, serviceResolverIDPrefix))
-		// There should only ever be one entry for a service resolver within a namespace
-		if len(configEntries.Entries) == 1 {
-			if resolver, ok := configEntries.Entries[0].(*structs.ServiceResolverConfigEntry); ok {
-				snap.TerminatingGateway.ServiceResolvers[sn] = resolver
-			}
+		if resolver, ok := e.Entry.(*structs.ServiceResolverConfigEntry); ok {
+			snap.TerminatingGateway.ServiceResolvers[sn] = resolver
 		}
 		snap.TerminatingGateway.ServiceResolversSet[sn] = true
 
