@@ -751,8 +751,11 @@ func (s *HTTPHandlers) ACLBindingRuleCreate(resp http.ResponseWriter, req *http.
 }
 
 func (s *HTTPHandlers) ACLBindingRuleWrite(resp http.ResponseWriter, req *http.Request, bindingRuleID string) (interface{}, error) {
-	args := structs.ACLBindingRuleSetRequest{
-		Datacenter: s.agent.config.Datacenter,
+	args := structs.ACLBindingRuleSetRequest{}
+
+	s.parseDC(req, &args.Datacenter)
+	if args.Datacenter == "" {
+		args.Datacenter = s.agent.config.Datacenter
 	}
 	s.parseToken(req, &args.Token)
 	if err := s.parseEntMeta(req, &args.BindingRule.EnterpriseMeta); err != nil {
@@ -898,9 +901,13 @@ func (s *HTTPHandlers) ACLAuthMethodCreate(resp http.ResponseWriter, req *http.R
 }
 
 func (s *HTTPHandlers) ACLAuthMethodWrite(resp http.ResponseWriter, req *http.Request, methodName string) (interface{}, error) {
-	args := structs.ACLAuthMethodSetRequest{
-		Datacenter: s.agent.config.Datacenter,
+	args := structs.ACLAuthMethodSetRequest{}
+
+	s.parseDC(req, &args.Datacenter)
+	if args.Datacenter == "" {
+		args.Datacenter = s.agent.config.Datacenter
 	}
+	fmt.Println("request datacenter", args.Datacenter)
 	s.parseToken(req, &args.Token)
 	if err := s.parseEntMeta(req, &args.AuthMethod.EnterpriseMeta); err != nil {
 		return nil, err
