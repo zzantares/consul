@@ -503,7 +503,7 @@ func (s *state) initWatchesMeshGateway() error {
 	// know what they are yet.
 
 	// Watch service-resolvers so we can setup service subset clusters
-	err = s.cache.Notify(s.ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
+	err = s.cache.Notify(s.ctx, cachetype.ConfigEntryListName, &structs.ConfigEntryQuery{
 		Datacenter:     s.source.Datacenter,
 		QueryOptions:   structs.QueryOptions{Token: s.token},
 		Kind:           structs.ServiceResolver,
