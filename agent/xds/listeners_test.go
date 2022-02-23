@@ -440,6 +440,16 @@ func TestListenersFromSnapshot(t *testing.T) {
 			setup:  nil,
 		},
 		{
+			name:   "ingress-multiple-listeners-upstream-without-discovery-chain",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutDiscoveryChain,
+			setup:  nil,
+		},
+		{
+			name:   "ingress-multiple-listeners-upstream-without-backing-endpoint",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutBackingEndpoint,
+			setup:  nil,
+		},
+		{
 			name:   "terminating-gateway",
 			create: proxycfg.TestConfigSnapshotTerminatingGateway,
 			setup:  nil,
@@ -523,6 +533,16 @@ func TestListenersFromSnapshot(t *testing.T) {
 				snap.IngressGateway.Listeners = map[proxycfg.IngressListenerKey]structs.IngressListener{
 					{Protocol: "http", Port: 8080}: {},
 					{Protocol: "http", Port: 443}:  {},
+				}
+
+				for _, name := range []string{"foo", "bar", "baz", "qux"} {
+					chain := discoverychain.TestCompileConfigEntries(t, name, "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+					uid := proxycfg.UpstreamIDFromString(name)
+
+					snap.IngressGateway.DiscoveryChain[uid] = chain
+					snap.IngressGateway.WatchedUpstreamEndpoints[uid] = map[string]structs.CheckServiceNodes{
+						name + ".default.default.dc1": proxycfg.TestUpstreamNodes(t, name),
+					}
 				}
 			},
 		},
@@ -613,6 +633,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						TLS: nil,
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2")
 			},
 		},
 		{
@@ -714,6 +735,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						},
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2", "s3", "s4")
 			},
 		},
 		{
@@ -758,6 +780,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						},
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2")
 			},
 		},
 		{
@@ -822,6 +845,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						},
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2", "s3")
 			},
 		},
 		{
@@ -885,6 +909,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						},
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "foo")
 			},
 		},
 		{
@@ -932,6 +957,8 @@ func TestListenersFromSnapshot(t *testing.T) {
 					nil,
 				)
 				snap.IngressGateway.DiscoveryChain[UID("insecure")] = insecureChain
+
+				setupIngressGatewayEndpoints(t, snap, "secure", "insecure")
 
 				snap.IngressGateway.Listeners = map[proxycfg.IngressListenerKey]structs.IngressListener{
 					{Protocol: "tcp", Port: 8080}: {
@@ -998,6 +1025,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						TLS: nil, // no listener-level SDS config
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2")
 			},
 		},
 		{
@@ -1047,6 +1075,8 @@ func TestListenersFromSnapshot(t *testing.T) {
 						},
 					},
 				}
+
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2")
 			},
 		},
 		{
@@ -1091,6 +1121,7 @@ func TestListenersFromSnapshot(t *testing.T) {
 						TLS: nil, // No listener level TLS setup either
 					},
 				}
+				setupIngressGatewayDefaultChainAndEndpoints(t, snap, "s1", "s2")
 			},
 		},
 		{
@@ -1698,5 +1729,26 @@ func TestResolveListenerSDSConfig(t *testing.T) {
 			run(tc)
 		})
 	}
+}
 
+func setupIngressGatewayDefaultChainAndEndpoints(t *testing.T, snap *proxycfg.ConfigSnapshot, names ...string) {
+	for _, name := range names {
+		chain := discoverychain.TestCompileConfigEntries(t, name, "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+		uid := proxycfg.UpstreamIDFromString(name)
+
+		snap.IngressGateway.DiscoveryChain[uid] = chain
+		snap.IngressGateway.WatchedUpstreamEndpoints[uid] = map[string]structs.CheckServiceNodes{
+			name + ".default.default.dc1": proxycfg.TestUpstreamNodes(t, name),
+		}
+	}
+}
+
+func setupIngressGatewayEndpoints(t *testing.T, snap *proxycfg.ConfigSnapshot, names ...string) {
+	for _, name := range names {
+		uid := proxycfg.UpstreamIDFromString(name)
+
+		snap.IngressGateway.WatchedUpstreamEndpoints[uid] = map[string]structs.CheckServiceNodes{
+			name + ".default.default.dc1": proxycfg.TestUpstreamNodes(t, name),
+		}
+	}
 }

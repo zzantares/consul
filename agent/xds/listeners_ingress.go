@@ -19,7 +19,7 @@ import (
 func (s *ResourceGenerator) makeIngressGatewayListeners(address string, cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	var resources []proto.Message
 
-	for listenerKey, upstreams := range cfgSnap.IngressGateway.Upstreams {
+	for listenerKey, upstreams := range cfgSnap.IngressGateway.ValidUpstreams() {
 		listenerCfg, ok := cfgSnap.IngressGateway.Listeners[listenerKey]
 		if !ok {
 			return nil, fmt.Errorf("no listener config found for listener on port %d", listenerKey.Port)
@@ -38,11 +38,8 @@ func (s *ResourceGenerator) makeIngressGatewayListeners(address string, cfgSnap 
 
 			uid := proxycfg.NewUpstreamID(&u)
 
+			// ValidUpstreams() ensures that chain will not be nil.
 			chain := cfgSnap.IngressGateway.DiscoveryChain[uid]
-			if chain == nil {
-				// Wait until a chain is present in the snapshot.
-				continue
-			}
 
 			cfg := s.getAndModifyUpstreamConfigForListener(uid, &u, chain)
 

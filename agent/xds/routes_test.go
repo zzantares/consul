@@ -124,6 +124,16 @@ func TestRoutesFromSnapshot(t *testing.T) {
 			setup:  nil,
 		},
 		{
+			name:   "ingress-multiple-listeners-upstream-without-discovery-chain",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutDiscoveryChain,
+			setup:  nil,
+		},
+		{
+			name:   "ingress-multiple-listeners-upstream-without-backing-endpoint",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutBackingEndpoint,
+			setup:  nil,
+		},
+		{
 			name:   "ingress-http-multiple-services",
 			create: proxycfg.TestConfigSnapshotIngress_HTTPMultipleServices,
 			setup: func(snap *proxycfg.ConfigSnapshot) {
@@ -210,6 +220,8 @@ func TestRoutesFromSnapshot(t *testing.T) {
 					UID("baz"): bazChain,
 					UID("qux"): quxChain,
 				}
+
+				setupIngressGatewayEndpoints(t, snap, "foo", "bar", "baz", "qux")
 			},
 		},
 		{
@@ -780,5 +792,12 @@ func setupIngressWithTwoHTTPServices(t *testing.T, o ingressSDSOpts) func(snap *
 
 		snap.IngressGateway.DiscoveryChain[webUID] = webChain
 		snap.IngressGateway.DiscoveryChain[fooUID] = fooChain
+
+		snap.IngressGateway.WatchedUpstreamEndpoints[webUID] = map[string]structs.CheckServiceNodes{
+			"web.default.default.dc1": proxycfg.TestUpstreamNodes(t, "web"),
+		}
+		snap.IngressGateway.WatchedUpstreamEndpoints[fooUID] = map[string]structs.CheckServiceNodes{
+			"foo.default.default.dc1": proxycfg.TestUpstreamNodes(t, "foo"),
+		}
 	}
 }

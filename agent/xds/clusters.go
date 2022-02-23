@@ -403,36 +403,32 @@ func (s *ResourceGenerator) injectGatewayServiceAddons(cfgSnap *proxycfg.ConfigS
 func (s *ResourceGenerator) clustersFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	var clusters []proto.Message
 	createdClusters := make(map[proxycfg.UpstreamID]bool)
-	for _, upstream := range cfgSnap.IngressGateway.ValidUpstreams() {
-		uid := proxycfg.NewUpstreamID(&upstream)
+	for _, upstreams := range cfgSnap.IngressGateway.ValidUpstreams() {
+		for _, u := range upstreams {
+			uid := proxycfg.NewUpstreamID(&u)
 
-		// If we've already created a cluster for this upstream, skip it. Multiple listeners may
-		// reference the same upstream, so we don't need to create duplicate clusters in that case.
-		if createdClusters[uid] {
-			continue
-		}
+			// If we've already created a cluster for this upstream, skip it. Multiple listeners may
+			// reference the same upstream, so we don't need to create duplicate clusters in that case.
+			if createdClusters[uid] {
+				continue
+			}
 
-		chain, ok := cfgSnap.IngressGateway.DiscoveryChain[uid]
-		if !ok {
-			// this should not happen
-			return nil, fmt.Errorf("no discovery chain for upstream %q", uid)
-		}
+			// ValidUpstreams() ensures that chain and chainEndpoints will not be nil.
+			var (
+				chain          = cfgSnap.IngressGateway.DiscoveryChain[uid]
+				chainEndpoints = cfgSnap.IngressGateway.WatchedUpstreamEndpoints[uid]
+			)
 
-		chainEndpoints, ok := cfgSnap.IngressGateway.WatchedUpstreamEndpoints[uid]
-		if !ok {
-			// this should not happen
-			return nil, fmt.Errorf("no endpoint map for upstream %q", uid)
-		}
+			upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(uid, &u, chain, chainEndpoints, cfgSnap)
+			if err != nil {
+				return nil, err
+			}
 
-		upstreamClusters, err := s.makeUpstreamClustersForDiscoveryChain(uid, &upstream, chain, chainEndpoints, cfgSnap)
-		if err != nil {
-			return nil, err
+			for _, c := range upstreamClusters {
+				clusters = append(clusters, c)
+			}
+			createdClusters[uid] = true
 		}
-
-		for _, c := range upstreamClusters {
-			clusters = append(clusters, c)
-		}
-		createdClusters[uid] = true
 	}
 	return clusters, nil
 }

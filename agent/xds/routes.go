@@ -30,11 +30,7 @@ func (s *ResourceGenerator) routesFromSnapshot(cfgSnap *proxycfg.ConfigSnapshot)
 	case structs.ServiceKindConnectProxy:
 		return s.routesForConnectProxy(cfgSnap)
 	case structs.ServiceKindIngressGateway:
-		return s.routesForIngressGateway(
-			cfgSnap.IngressGateway.Listeners,
-			cfgSnap.IngressGateway.Upstreams,
-			cfgSnap.IngressGateway.DiscoveryChain,
-		)
+		return s.routesForIngressGateway(cfgSnap)
 	case structs.ServiceKindTerminatingGateway:
 		return s.routesFromSnapshotTerminatingGateway(cfgSnap)
 	case structs.ServiceKindMeshGateway:
@@ -170,14 +166,9 @@ func makeNamedDefaultRouteWithLB(clusterName string, lb *structs.LoadBalancer, a
 
 // routesForIngressGateway returns the xDS API representation of the
 // "routes" in the snapshot.
-func (s *ResourceGenerator) routesForIngressGateway(
-	listeners map[proxycfg.IngressListenerKey]structs.IngressListener,
-	upstreams map[proxycfg.IngressListenerKey]structs.Upstreams,
-	chains map[proxycfg.UpstreamID]*structs.CompiledDiscoveryChain,
-) ([]proto.Message, error) {
-
+func (s *ResourceGenerator) routesForIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	var result []proto.Message
-	for listenerKey, upstreams := range upstreams {
+	for listenerKey, upstreams := range cfgSnap.IngressGateway.ValidUpstreams() {
 		// Do not create any route configuration for TCP listeners
 		if listenerKey.Protocol == "tcp" {
 			continue
@@ -196,10 +187,9 @@ func (s *ResourceGenerator) routesForIngressGateway(
 
 		for _, u := range upstreams {
 			uid := proxycfg.NewUpstreamID(&u)
-			chain := chains[uid]
-			if chain == nil {
-				continue
-			}
+
+			// ValidUpstreams() ensures that chain will not be nil.
+			chain := cfgSnap.IngressGateway.DiscoveryChain[uid]
 
 			domains := generateUpstreamIngressDomains(listenerKey, u)
 			virtualHost, err := makeUpstreamRouteForDiscoveryChain(uid.EnvoyID(), chain, domains)
@@ -209,7 +199,7 @@ func (s *ResourceGenerator) routesForIngressGateway(
 
 			// Lookup listener and service config details from ingress gateway
 			// definition.
-			lCfg, ok := listeners[listenerKey]
+			lCfg, ok := cfgSnap.IngressGateway.Listeners[listenerKey]
 			if !ok {
 				return nil, fmt.Errorf("missing ingress listener config (listener on port %d)", listenerKey.Port)
 			}

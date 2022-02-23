@@ -2175,12 +2175,37 @@ func TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutDiscoveryChain(t 
 		},
 	}
 
-	fooChain := discoverychain.TestCompileConfigEntries(t, "foo", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
-
-	snap.IngressGateway.DiscoveryChain = map[UpstreamID]*structs.CompiledDiscoveryChain{
-		UpstreamIDFromString("foo"): fooChain,
-		// excluding bar should invalidate the upstream
+	snap.IngressGateway.Listeners = map[IngressListenerKey]structs.IngressListener{
+		{Protocol: "http", Port: 8080}: {
+			Port: 8080,
+			Services: []structs.IngressService{
+				{
+					Name: "foo",
+				},
+			},
+		},
+		{Protocol: "http", Port: 443}: {
+			Port: 443,
+			Services: []structs.IngressService{
+				{
+					Name: "bar",
+				},
+			},
+		},
 	}
+
+	for _, name := range []string{"foo", "bar"} {
+		chain := discoverychain.TestCompileConfigEntries(t, name, "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+		uid := UpstreamIDFromString(name)
+
+		snap.IngressGateway.DiscoveryChain[uid] = chain
+		snap.IngressGateway.WatchedUpstreamEndpoints[uid] = map[string]structs.CheckServiceNodes{
+			name + ".default.default.dc1": TestUpstreamNodes(t, name),
+		}
+	}
+
+	// excluding bar should invalidate the upstream
+	delete(snap.IngressGateway.DiscoveryChain, UpstreamIDFromString("bar"))
 
 	return snap
 }
@@ -2203,12 +2228,33 @@ func TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutBackingEndpoint(t
 		},
 	}
 
-	fooChain := discoverychain.TestCompileConfigEntries(t, "foo", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
-	barChain := discoverychain.TestCompileConfigEntries(t, "bar", "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+	snap.IngressGateway.Listeners = map[IngressListenerKey]structs.IngressListener{
+		{Protocol: "http", Port: 8080}: {
+			Port: 8080,
+			Services: []structs.IngressService{
+				{
+					Name: "foo",
+				},
+			},
+		},
+		{Protocol: "http", Port: 443}: {
+			Port: 443,
+			Services: []structs.IngressService{
+				{
+					Name: "bar",
+				},
+			},
+		},
+	}
 
-	snap.IngressGateway.DiscoveryChain = map[UpstreamID]*structs.CompiledDiscoveryChain{
-		UpstreamIDFromString("foo"): fooChain,
-		UpstreamIDFromString("bar"): barChain,
+	for _, name := range []string{"foo", "bar"} {
+		chain := discoverychain.TestCompileConfigEntries(t, name, "default", "default", "dc1", connect.TestClusterID+".consul", nil)
+		uid := UpstreamIDFromString(name)
+
+		snap.IngressGateway.DiscoveryChain[uid] = chain
+		snap.IngressGateway.WatchedUpstreamEndpoints[uid] = map[string]structs.CheckServiceNodes{
+			name + ".default.default.dc1": TestUpstreamNodes(t, name),
+		}
 	}
 
 	// invalidates the upstream

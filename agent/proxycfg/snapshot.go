@@ -394,9 +394,10 @@ func (c *configSnapshotIngressGateway) IsEmpty() bool {
 }
 
 // ValidUpstreams returns the list of upstreams that have enough data to be used.
-func (c *configSnapshotIngressGateway) ValidUpstreams() structs.Upstreams {
-	out := make(structs.Upstreams, 0, len(c.Upstreams))
-	for _, upstreams := range c.Upstreams {
+func (c *configSnapshotIngressGateway) ValidUpstreams() map[IngressListenerKey]structs.Upstreams {
+	mapOut := make(map[IngressListenerKey]structs.Upstreams, len(c.Upstreams))
+	for listenerKey, upstreams := range c.Upstreams {
+		out := make(structs.Upstreams, 0, len(upstreams))
 		for _, u := range upstreams {
 			uid := NewUpstreamID(&u)
 
@@ -412,8 +413,11 @@ func (c *configSnapshotIngressGateway) ValidUpstreams() structs.Upstreams {
 
 			out = append(out, u)
 		}
+		if len(out) > 0 {
+			mapOut[listenerKey] = out
+		}
 	}
-	return out
+	return mapOut
 }
 
 type IngressListenerKey struct {

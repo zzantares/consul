@@ -319,7 +319,7 @@ func (s *ResourceGenerator) endpointsFromServicesAndResolvers(
 func (s *ResourceGenerator) endpointsFromSnapshotIngressGateway(cfgSnap *proxycfg.ConfigSnapshot) ([]proto.Message, error) {
 	var resources []proto.Message
 	createdClusters := make(map[proxycfg.UpstreamID]bool)
-	for _, upstreams := range cfgSnap.IngressGateway.Upstreams {
+	for _, upstreams := range cfgSnap.IngressGateway.ValidUpstreams() {
 		for _, u := range upstreams {
 			uid := proxycfg.NewUpstreamID(&u)
 

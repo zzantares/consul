@@ -573,6 +573,16 @@ func TestEndpointsFromSnapshot(t *testing.T) {
 			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersDuplicateService,
 			setup:  nil,
 		},
+		{
+			name:   "ingress-multiple-listeners-upstream-without-discovery-chain",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutDiscoveryChain,
+			setup:  nil,
+		},
+		{
+			name:   "ingress-multiple-listeners-upstream-without-backing-endpoint",
+			create: proxycfg.TestConfigSnapshotIngress_MultipleListenersUpstreamWithoutBackingEndpoint,
+			setup:  nil,
+		},
 	}
 
 	latestEnvoyVersion := proxysupport.EnvoyVersions[0]
