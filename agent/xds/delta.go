@@ -213,7 +213,9 @@ func (s *Server) processDelta(stream ADSDeltaStream, reqCh <-chan *envoy_discove
 				s.ResourceMapMutateFn(newResourceMap)
 			}
 
-			newResourceMap, err = serverless_plugin.MutateIndexedResources(newResourceMap, shared.MakeMutateConfiguration(cfgSnap))
+			if s.ServerlessPluginEnabled {
+				newResourceMap, err = serverless_plugin.MutateIndexedResources(newResourceMap, shared.MakeMutateConfiguration(cfgSnap))
+			}
 
 			if err != nil {
 				generator.Logger.Warn("Error hacking indexed resources")

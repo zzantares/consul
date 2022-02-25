@@ -29,7 +29,6 @@ func (s *handlerConnectProxy) initialize(ctx context.Context) (ConfigSnapshot, e
 	snap.ConnectProxy.UpstreamConfig = make(map[UpstreamID]*structs.Upstream)
 	snap.ConnectProxy.PassthroughUpstreams = make(map[UpstreamID]map[string]map[string]struct{})
 	snap.ConnectProxy.PassthroughIndices = make(map[string]indexedTarget)
-	snap.ConnectProxy.ServiceConfigs = make(map[structs.ServiceName]*structs.ServiceConfigEntry)
 
 	// Watch for root changes
 	err := s.cache.Notify(ctx, cachetype.ConnectCARootName, &structs.DCSpecificRequest{
@@ -77,17 +76,6 @@ func (s *handlerConnectProxy) initialize(ctx context.Context) (ConfigSnapshot, e
 		EnterpriseMeta: s.proxyID.EnterpriseMeta,
 	}, svcChecksWatchIDPrefix+structs.ServiceIDString(s.proxyCfg.DestinationServiceID, &s.proxyID.EnterpriseMeta), s.ch)
 	if err != nil {
-		return snap, err
-	}
-
-	err = s.cache.Notify(ctx, cachetype.ConfigEntriesName, &structs.ConfigEntryQuery{
-		Kind:           structs.ServiceDefaults,
-		Datacenter:     s.source.Datacenter,
-		QueryOptions:   structs.QueryOptions{Token: s.token},
-		EnterpriseMeta: s.proxyID.EnterpriseMeta,
-	}, serviceDefaultsConfigEntryID, s.ch)
-	if err != nil {
-		s.logger.Error("failed to register watch for service defaults", "error", err)
 		return snap, err
 	}
 
@@ -216,27 +204,6 @@ func (s *handlerConnectProxy) handleUpdate(ctx context.Context, u cache.UpdateEv
 			return fmt.Errorf("invalid type for response: %T", u.Result)
 		}
 		snap.Roots = roots
-	case u.CorrelationID == serviceDefaultsConfigEntryID:
-		configEntries, ok := u.Result.(*structs.IndexedConfigEntries)
-		if !ok {
-			return fmt.Errorf("invalid type for response: %T", u.Result)
-		}
-
-		serviceConfigs := make(map[structs.ServiceName]*structs.ServiceConfigEntry)
-		for _, e := range configEntries.Entries {
-			serviceConfig, ok := e.(*structs.ServiceConfigEntry)
-
-			if !ok {
-				return fmt.Errorf("invalid type for response stuff: %T", u.Result)
-			}
-			serviceConfigs[structs.NewServiceName(serviceConfig.Name, nil)] = serviceConfig
-		}
-
-		if !ok {
-			return fmt.Errorf("invalid type for response asf: %T", u.Result)
-		}
-
-		snap.ConnectProxy.ServiceConfigs = serviceConfigs
 	case u.CorrelationID == intentionsWatchID:
 		resp, ok := u.Result.(*structs.IndexedIntentionMatches)
 		if !ok {

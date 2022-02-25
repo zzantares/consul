@@ -232,13 +232,12 @@ func TestClustersFromSnapshot(t *testing.T) {
 					},
 				)
 				serviceName := structs.NewServiceName("db", nil)
-				snapshot.ConnectProxy.ServiceConfigs[serviceName] = &structs.ServiceConfigEntry{
-					Meta: map[string]string{
-						serverless_plugin.LambdaEnabledTag:            "true",
-						serverless_plugin.LambdaArnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
-						serverless_plugin.LambdaPayloadPassthroughTag: "true",
-						serverless_plugin.LambdaRegionTag:             "us-east-2",
-					},
+				uid := proxycfg.NewUpstreamIDFromServiceName(serviceName)
+				snapshot.ConnectProxy.DiscoveryChain[uid].ServiceMeta = map[string]string{
+					serverless_plugin.LambdaEnabledTag:            "true",
+					serverless_plugin.LambdaArnTag:                "arn:aws:lambda:us-east-2:977604411308:function:consul-ecs-lambda-test",
+					serverless_plugin.LambdaPayloadPassthroughTag: "true",
+					serverless_plugin.LambdaRegionTag:             "us-east-2",
 				}
 				return snapshot
 			},

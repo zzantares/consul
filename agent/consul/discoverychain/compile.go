@@ -161,6 +161,12 @@ type compiler struct {
 	// This is an OUTPUT field.
 	protocol string
 
+	// serviceMeta is the Meta field from the service-defaults entry that
+	// shares a name with this discovery chain.
+	//
+	// This is an OUTPUT field.
+	serviceMeta map[string]string
+
 	// startNode is computed inside of assembleChain()
 	//
 	// This is an OUTPUT field.
@@ -329,6 +335,7 @@ func (c *compiler) compile() (*structs.CompiledDiscoveryChain, error) {
 		Datacenter:        c.evaluateInDatacenter,
 		CustomizationHash: customizationHash,
 		Protocol:          c.protocol,
+		ServiceMeta:       c.serviceMeta,
 		StartNode:         c.startNode,
 		Nodes:             c.nodes,
 		Targets:           c.loadedTargets,
@@ -514,6 +521,11 @@ func (c *compiler) assembleChain() error {
 	}
 
 	sid := structs.NewServiceID(c.serviceName, c.GetEnterpriseMeta())
+
+	// Extract the service meta for the service named by this discovery chain.
+	if serviceDefault := c.entries.GetService(sid); serviceDefault != nil {
+		c.serviceMeta = serviceDefault.GetMeta()
+	}
 
 	// Check for short circuit path.
 	if len(c.resolvers) == 0 && c.entries.IsChainEmpty() {

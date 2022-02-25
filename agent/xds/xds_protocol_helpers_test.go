@@ -151,6 +151,7 @@ func newTestServerDeltaScenario(
 
 	s := NewServer(
 		testutil.Logger(t),
+		true,
 		mgr,
 		resolveToken,
 		nil, /*checkFetcher HTTPCheckFetcher*/

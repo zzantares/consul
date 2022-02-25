@@ -117,11 +117,12 @@ type ConfigManager interface {
 // A full description of the XDS protocol can be found at
 // https://www.envoyproxy.io/docs/envoy/latest/api-docs/xds_protocol
 type Server struct {
-	Logger       hclog.Logger
-	CfgMgr       ConfigManager
-	ResolveToken ACLResolverFunc
-	CheckFetcher HTTPCheckFetcher
-	CfgFetcher   ConfigFetcher
+	Logger                  hclog.Logger
+	CfgMgr                  ConfigManager
+	ResolveToken            ACLResolverFunc
+	CheckFetcher            HTTPCheckFetcher
+	CfgFetcher              ConfigFetcher
+	ServerlessPluginEnabled bool
 
 	// AuthCheckFrequency is how often we should re-check the credentials used
 	// during a long-lived gRPC Stream after it has been initially established.
@@ -167,19 +168,21 @@ func (c *activeStreamCounters) Increment(xdsVersion string) func() {
 
 func NewServer(
 	logger hclog.Logger,
+	serverlessPluginEnabled bool,
 	cfgMgr ConfigManager,
 	resolveToken ACLResolverFunc,
 	checkFetcher HTTPCheckFetcher,
 	cfgFetcher ConfigFetcher,
 ) *Server {
 	return &Server{
-		Logger:             logger,
-		CfgMgr:             cfgMgr,
-		ResolveToken:       resolveToken,
-		CheckFetcher:       checkFetcher,
-		CfgFetcher:         cfgFetcher,
-		AuthCheckFrequency: DefaultAuthCheckFrequency,
-		activeStreams:      &activeStreamCounters{},
+		Logger:                  logger,
+		CfgMgr:                  cfgMgr,
+		ResolveToken:            resolveToken,
+		CheckFetcher:            checkFetcher,
+		CfgFetcher:              cfgFetcher,
+		AuthCheckFrequency:      DefaultAuthCheckFrequency,
+		activeStreams:           &activeStreamCounters{},
+		ServerlessPluginEnabled: serverlessPluginEnabled,
 	}
 }
 

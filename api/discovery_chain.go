@@ -112,6 +112,10 @@ type CompiledDiscoveryChain struct {
 	// Protocol is the overall protocol shared by everything in the chain.
 	Protocol string
 
+	// ServiceMeta is the metadata from the underlying service-defaults config
+	// entry for the service named ServiceName.
+	ServiceMeta map[string]string
+
 	// StartNode is the first key into the Nodes map that should be followed
 	// when walking the discovery chain.
 	StartNode string

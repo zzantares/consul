@@ -25,6 +25,10 @@ type lambdaPatcher struct {
 	kind               structs.ServiceKind
 }
 
+func (p lambdaPatcher) canPatch(kind structs.ServiceKind) bool {
+	return kind == p.kind
+}
+
 func (p lambdaPatcher) patchRoute(msg proto.Message) error {
 	if p.kind != structs.ServiceKindTerminatingGateway {
 		return nil

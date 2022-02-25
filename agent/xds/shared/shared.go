@@ -101,19 +101,21 @@ func MakeMutateConfiguration(cfgSnap *proxycfg.ConfigSnapshot) MutateConfigurati
 			}
 		}
 
-		for svc, c := range cfgSnap.ConnectProxy.ServiceConfigs {
-			kind := kinds[svc.Name]
+		for uid, dc := range cfgSnap.ConnectProxy.DiscoveryChain {
+			kind := kinds[uid.Name]
 			if kind == structs.ServiceKindTypical {
 				kind = structs.ServiceKindConnectProxy
 			}
 
-			serviceConfigs[svc.Name] = ServiceConfig{
-				Meta: c.Meta,
+			serviceConfigs[uid.Name] = ServiceConfig{
+				Meta: dc.ServiceMeta,
 				Kind: kind,
 			}
 
-			sni := connect.ServiceSNI(svc.Name, "", svc.NamespaceOrDefault(), svc.PartitionOrDefault(), cfgSnap.Datacenter, trustDomain)
-			sniMappings[sni] = svc.Name
+			meta := uid.EnterpriseMeta
+			// TODO datacenter should probably be from uid?
+			sni := connect.ServiceSNI(uid.Name, "", meta.NamespaceOrDefault(), meta.PartitionOrDefault(), cfgSnap.Datacenter, trustDomain)
+			sniMappings[sni] = uid.Name
 		}
 	}
 

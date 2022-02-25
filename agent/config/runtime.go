@@ -486,6 +486,8 @@ type RuntimeConfig struct {
 	// and servers in a cluster for correct connect operation.
 	ConnectEnabled bool
 
+	ConnectServerlessPluginEnabled bool
+
 	// ConnectSidecarMinPort is the inclusive start of the range of ports
 	// allocated to the agent for asigning to sidecar services where no port is
 	// specified.
