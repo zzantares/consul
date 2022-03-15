@@ -666,6 +666,7 @@ func newGRPCHandlerFromConfig(deps Deps, config *Config, s *Server) connHandler 
 				&subscribeBackend{srv: s, connPool: deps.GRPCConnPool},
 				deps.Logger.Named("grpc-api.subscription")))
 		}
+
 		s.registerEnterpriseGRPCServices(deps, srv)
 	}
 

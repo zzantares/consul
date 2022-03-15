@@ -37,6 +37,7 @@ import (
 	"github.com/hashicorp/consul/agent/consul"
 	"github.com/hashicorp/consul/agent/dns"
 	publicgrpc "github.com/hashicorp/consul/agent/grpc/public"
+	"github.com/hashicorp/consul/agent/grpc/public/services/dataplane"
 	"github.com/hashicorp/consul/agent/local"
 	"github.com/hashicorp/consul/agent/proxycfg"
 	"github.com/hashicorp/consul/agent/rpcclient/health"
@@ -52,6 +53,7 @@ import (
 	"github.com/hashicorp/consul/lib/mutex"
 	"github.com/hashicorp/consul/lib/routine"
 	"github.com/hashicorp/consul/logging"
+	"github.com/hashicorp/consul/proto-public/pbdataplane"
 	"github.com/hashicorp/consul/tlsutil"
 	"github.com/hashicorp/consul/types"
 )
@@ -733,6 +735,14 @@ func (a *Agent) listenAndServeGRPC() error {
 		a,
 	)
 	a.xdsServer.Register(a.publicGRPCServer)
+
+	if a.config.ServerMode {
+		consulServer := a.delegate.(*consul.Server)
+		pbdataplane.RegisterDataplaneServiceServer(a.publicGRPCServer, dataplane.NewServer(
+			&consul.DataplaneBackend{Srv: consulServer},
+			a.baseDeps.Deps.Logger.Named("grpc-api.dataplane")))
+
+	}
 
 	ln, err := a.startListeners(a.config.GRPCAddrs)
 	if err != nil {
