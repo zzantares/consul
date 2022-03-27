@@ -550,7 +550,7 @@ func (c *Catalog) ListServices(args *structs.DCSpecificRequest, reply *structs.I
 		&reply.QueryMeta,
 		func(ws memdb.WatchSet, state *state.Store) error {
 			var err error
-			var serviceNodes []*structs.ServiceNode
+			var serviceNodes structs.ServiceNodes
 			if len(args.NodeMetaFilters) > 0 {
 				reply.Index, serviceNodes, err = state.ServicesByNodeMeta(ws, args.NodeMetaFilters, &args.EnterpriseMeta, args.PeerName)
 			} else {
@@ -565,14 +565,14 @@ func (c *Catalog) ListServices(args *structs.DCSpecificRequest, reply *structs.I
 				return nil
 			}
 
-			c.srv.filterACLWithAuthorizer(authz, reply)
-
 			raw, err := filter.Execute(serviceNodes)
 			if err != nil {
 				return err
 			}
 
-			reply.Services = servicesTagsByName(raw.([]*structs.ServiceNode))
+			reply.Services = servicesTagsByName(raw.(structs.ServiceNodes))
+
+			c.srv.filterACLWithAuthorizer(authz, reply)
 
 			return nil
 		})

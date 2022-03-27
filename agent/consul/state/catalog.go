@@ -1204,7 +1204,7 @@ func (s *Store) ServicesByNodeMeta(ws memdb.WatchSet, filters map[string]string,
 	}
 	allServicesCh := allServices.WatchCh()
 
-	var result []*structs.ServiceNode
+	var result structs.ServiceNodes
 	for node := nodes.Next(); node != nil; node = nodes.Next() {
 		n := node.(*structs.Node)
 		if len(filters) > 1 && !structs.SatisfiesMetaFilters(n.Meta, filters) {
