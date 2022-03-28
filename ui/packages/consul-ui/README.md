@@ -20,38 +20,33 @@
 
 ## Prerequisites
 
-You will need the following things properly installed on your computer.
+You will need the following software installed:
 
 * [Git](https://git-scm.com/)
-* [Node.js](https://nodejs.org/) (with npm)
-
-* [yarn](https://yarnpkg.com)
+* [Node.js](https://nodejs.org/) v14, with npm
+    * Optionally, install and manage via [Node Version Manager (nvm)](https://github.com/nvm-sh/nvm)
+* [yarn](https://yarnpkg.com/getting-started/install)
 * [Ember CLI](https://ember-cli.com/)
 * [Google Chrome](https://google.com/chrome/)
 
-## Installation
+## Setup & First Time Run
 
 * `git clone https://github.com/hashicorp/consul.git` this repository
 * `cd ui/packages/consul-ui`
+* `make start` (first time runs)
+    * This ensures dependencies are installed fresh and then calls `ember serve` with the necessary flags to run locally
+    * `yarn start` for future runs
+* Visit [http://localhost:4200/ui/](http://localhost:4200/ui/) in your browser
 
-then:
+### Running The Test Suite
 
-**To run the UI**
-
-From within `ui/packages/consul-ui` directory run:
-
-* `make start`
-
-**To run tests**
-
-From within `ui/packages/consul-ui` directory run:
-
+* `cd ui/packages/consul-ui`
 * `make test-oss-view` which will run the tests in Chrome
 
-(see below and/or the [testing section of the engineering docs](./docs/testing.mdx) for
+(see "Running Tests" under "Development" below and/or the [testing section of the engineering docs](./docs/testing.mdx) for
 further detail)
 
-## Yarn Commands
+## Available Yarn Commands
 
 Most used tooling scripts below primarily use `make` which will `yarn install`
 and in turn call node package scripts.
@@ -80,26 +75,28 @@ List of available project commands.  `yarn run <command-name>`
 | test:node | Runs tests that can't be run in ember using node. |
 | doc:toc | Automatically generates a table of contents for this README file. |
 
-## Running / Development
+## Development
 
-The source code comes with a small development mode that runs enough of the consul API
-as a set of mocks/fixtures to be able to run the UI without having to run
-consul.
+### Running Locally w/ Mock API
+
+The source code includes a small development mode that provides a minimal set of Consul API
+mocks that allow you to run the UI without having to run Consul. The mock API is run automatically.
 
 * `make start` or `yarn start` to start the ember app
-* Visit your app at [http://localhost:4200](http://localhost:4200).
+* Visit your app at [http://localhost:4200/ui](http://localhost:4200/ui).
 
-You can also run the UI against a normal Consul installation.
+### Running Against The Consul Backend
 
 * `consul server -dev` to start consul listening on http://localhost:8500
-* `make start-consul` to start the ember app proxying to `consul` (this will
+* `cd ui/packages/consul-ui && make start-consul` to start the ember app proxying to `consul` (this will
 respect the `CONSUL_HTTP_ADDR` environment variable to locate the Consul
 installation.
-* Visit your app at [http://localhost:4200](http://localhost:4200).
+* Visit your app at [http://localhost:4200/ui](http://localhost:4200/ui).
 
 Example:
 
 ```bash
+consul server -dev
 CONSUL_HTTP_ADDR=http://10.0.0.1:8500 make start-consul
 ```
 
