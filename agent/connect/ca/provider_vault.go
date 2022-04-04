@@ -64,6 +64,7 @@ type VaultProvider struct {
 	spiffeID                     *connect.SpiffeIDSigning
 	setupIntermediatePKIPathDone bool
 	logger                       hclog.Logger
+	namespace                    string
 }
 
 func NewVaultProvider(logger hclog.Logger) *VaultProvider {
@@ -108,6 +109,7 @@ func (v *VaultProvider) Configure(cfg ProviderConfig) error {
 	// client also makes sure the inputs are not empty strings so let's do the
 	// same.
 	if config.Namespace != "" {
+		v.namespace = config.Namespace
 		client.SetNamespace(config.Namespace)
 	}
 
@@ -285,7 +287,8 @@ func (v *VaultProvider) GenerateRoot() (RootResult, error) {
 	rootPEM, err := v.getCA(v.config.RootPKIPath)
 	switch err {
 	case ErrBackendNotMounted:
-		err := v.client.Sys().Mount(v.config.RootPKIPath, &vaultapi.MountInput{
+
+		err := v.mountNamespaced(v.config.RootPKIPath, &vaultapi.MountInput{
 			Type:        "pki",
 			Description: "root CA backend for Consul Connect",
 			Config: vaultapi.MountConfigInput{
@@ -361,14 +364,14 @@ func (v *VaultProvider) setupIntermediatePKIPath() error {
 	_, err := v.getCA(v.config.IntermediatePKIPath)
 	if err != nil {
 		if err == ErrBackendNotMounted {
-			err := v.client.Sys().Mount(v.config.IntermediatePKIPath, &vaultapi.MountInput{
-				Type:        "pki",
-				Description: "intermediate CA backend for Consul Connect",
-				Config: vaultapi.MountConfigInput{
-					MaxLeaseTTL: v.config.IntermediateCertTTL.String(),
-				},
-			})
-
+			err := v.mountNamespaced(v.config.IntermediatePKIPath,
+				&vaultapi.MountInput{
+					Type:        "pki",
+					Description: "intermediate CA backend for Consul Connect",
+					Config: vaultapi.MountConfigInput{
+						MaxLeaseTTL: v.config.IntermediateCertTTL.String(),
+					},
+				})
 			if err != nil {
 				return err
 			}
@@ -380,6 +383,7 @@ func (v *VaultProvider) setupIntermediatePKIPath() error {
 	// Create the role for issuing leaf certs if it doesn't exist yet
 	rolePath := v.config.IntermediatePKIPath + "roles/" + VaultCALeafCertRole
 	role, err := v.client.Logical().Read(rolePath)
+
 	if err != nil {
 		return err
 	}
@@ -392,6 +396,7 @@ func (v *VaultProvider) setupIntermediatePKIPath() error {
 			"no_store":         true,
 			"require_cn":       false,
 		})
+
 		if err != nil {
 			return err
 		}
@@ -691,7 +696,7 @@ func (v *VaultProvider) Cleanup(providerTypeChange bool, otherConfig map[string]
 		}
 	}
 
-	err := v.client.Sys().Unmount(v.config.IntermediatePKIPath)
+	err := v.unmountNamespaced(v.config.IntermediatePKIPath)
 
 	switch err {
 	case ErrBackendNotMounted, ErrBackendNotInitialized:
@@ -708,6 +713,108 @@ func (v *VaultProvider) Stop() {
 }
 
 func (v *VaultProvider) PrimaryUsesIntermediate() {}
+
+//
+// We have to do something a little special because while '/' is a namespace separator, it also is allowed in ordinary
+// names. We have practitioners using this behavior with names like dc1/intermediate_key in the wild.
+// This makes it a lexical split ambiguous; is /foo/bar/dc1/intermediate_key in ns /foo, /foo/bar, or /foo/bar/dc1?
+// The strategy here is to successively try each possible split, starting with the longest namespace possible.
+//
+// An alternate strategy would be to use the /sys/namespaces endpoint to find valid namespaces, and recursively explore
+// to figure out the correct split. However that potentially requires new permissions on vault, starting with the root
+// namespace on up.
+//
+func (v *VaultProvider) mountNamespaced(path string, mountInfo *vaultapi.MountInput) error {
+	paths := potentialMountPaths(path)
+
+	var err error
+	for _, mountPath := range paths {
+		err = v.mountNamespacedHelper(mountPath, mountInfo)
+		// Success
+		if err == nil {
+			return nil
+		}
+
+		// namespace doesn't exist, try a different variant
+		// We match on the error string; this is more fragile in that it depends on vault behavior, but it preserves
+		// other errors. We could simply just retry on each error, which would be more robust but wouldn't necessarily
+		// return the most useful error message to the user.
+		if strings.Contains(err.Error(), "no handler for route") {
+			v.logger.Info(fmt.Sprintf("Attempted mount path %s for path %s, error %s", mountPath, path, err))
+			continue
+		}
+		return err
+	}
+	return err
+}
+
+func (v *VaultProvider) mountNamespacedHelper(path string, mountInfo *vaultapi.MountInput) error {
+	r := v.client.NewRequest("POST", path)
+	if err := r.SetJSONBody(mountInfo); err != nil {
+		return err
+	}
+	resp, err := v.client.RawRequest(r)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	return err
+}
+
+// Same strategy as with unmountNamespaced above
+func (v *VaultProvider) unmountNamespaced(path string) error {
+	paths := potentialMountPaths(path)
+
+	var err error
+	for _, mountPath := range paths {
+		err = v.unmountNamespacedHelper(mountPath)
+
+		// Success
+		if err == nil {
+			return nil
+		}
+
+		// namespace doesn't exist, try a different variant
+		// We match on the error string; this is more fragile in that it depends on vault behavior, but it preserves
+		// other errors. We could simply just retry on each error, which would be more robust but wouldn't necessarily
+		// return the most useful error message to the user.
+		if strings.Contains(err.Error(), "no handler for route") {
+			v.logger.Info(fmt.Sprintf("Attempted mount path %s for path %s, error %s", mountPath, path, err))
+			continue
+		}
+		return err
+	}
+	return err
+}
+
+func (v *VaultProvider) unmountNamespacedHelper(path string) error {
+	r := v.client.NewRequest("DELETE", path)
+	resp, err := v.client.RawRequest(r)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	return err
+}
+
+func namespacedSysMountPath(namespace, base string) string {
+	if namespace == "" {
+		return fmt.Sprintf("/v1/sys/mounts/%s", base)
+	}
+	return fmt.Sprintf("/v1/%s/sys/mounts/%s", namespace, base)
+}
+
+func potentialMountPaths(path string) []string {
+	parts := strings.Split(strings.TrimSuffix(path, "/"), "/")
+
+	var out = make([]string, 0)
+	for i := len(parts) - 1; i > 0; i-- {
+		namespace := strings.Join(parts[0:i], "/")
+		base := strings.Join(parts[i:], "/")
+		out = append(out, namespacedSysMountPath(namespace, base))
+	}
+	out = append(out, namespacedSysMountPath("", strings.Join(parts, "/")))
+
+	return out
+}
 
 func ParseVaultCAConfig(raw map[string]interface{}) (*structs.VaultCAProviderConfig, error) {
 	config := structs.VaultCAProviderConfig{
