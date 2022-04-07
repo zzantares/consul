@@ -1520,7 +1520,7 @@ type HealthCheck struct {
 	ServiceID   string        // optional associated service
 	ServiceName string        // optional service name
 	ServiceTags []string      // optional service tags
-	Type        string        // Check type: http/ttl/tcp/etc
+	Type        string        // Check type: http/ttl/tcp/udp/etc
 
 	Interval string // from definition
 	Timeout  string // from definition
@@ -1577,6 +1577,7 @@ type HealthCheckDefinition struct {
 	Body                           string              `json:",omitempty"`
 	DisableRedirects               bool                `json:",omitempty"`
 	TCP                            string              `json:",omitempty"`
+	UDP                            string              `json:",omitempty"`
 	H2PING                         string              `json:",omitempty"`
 	H2PingUseTLS                   bool                `json:",omitempty"`
 	Interval                       time.Duration       `json:",omitempty"`
@@ -1726,6 +1727,7 @@ func (c *HealthCheck) CheckType() *CheckType {
 		Body:                           c.Definition.Body,
 		DisableRedirects:               c.Definition.DisableRedirects,
 		TCP:                            c.Definition.TCP,
+		UDP:                            c.Definition.UDP,
 		H2PING:                         c.Definition.H2PING,
 		H2PingUseTLS:                   c.Definition.H2PingUseTLS,
 		Interval:                       c.Definition.Interval,
