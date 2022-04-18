@@ -63,6 +63,7 @@ linters-settings:
     forbid:
       - '\brequire\.New\b(# Use package-level functions with explicit TestingT)?'
       - '\bassert\.New\b(# Use package-level functions with explicit TestingT)?'
+      - '[^\/]\net\/rpc\b(# Use consul-net-rpc/net/rpc for net/rpc needs)?'
     # Exclude godoc examples from forbidigo checks.
     # Default: true
     exclude_godoc_examples: false
