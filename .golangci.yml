@@ -64,6 +64,8 @@ linters-settings:
       - '\brequire\.New\b(# Use package-level functions with explicit TestingT)?'
       - '\bassert\.New\b(# Use package-level functions with explicit TestingT)?'
       - '[^\/]\net\/rpc\b(# Use consul-net-rpc/net/rpc for net/rpc needs)?'
+      - '\bgithub\.com\/hashicorp\/net-rpc-msgpackrpc\b(# Use consul-net-rpc/net-rpc-msgpackrpc)?'
+      - '\bgithub\.com\/hashicorp\/go-msgpack\b(# Use consul-net-rpc/go-msgpackrpc)?'
     # Exclude godoc examples from forbidigo checks.
     # Default: true
     exclude_godoc_examples: false
