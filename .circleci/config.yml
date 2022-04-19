@@ -1016,6 +1016,7 @@ workflows:
                 - /^ui\/.*/
       - check-generated-protobuf: *filter-ignore-non-go-branches
       - lint-consul-retry: *filter-ignore-non-go-branches
+      - faillint: *filter-ignore-non-go-branches
       - lint: *filter-ignore-non-go-branches
       - lint:
           name: "lint-32bit"
