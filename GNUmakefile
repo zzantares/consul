@@ -290,7 +290,7 @@ FAILLINT_COMMAND := faillint \
 .PHONY: faillint
 faillint:
 	@echo "--> Running go faillint"
-	GOFLAGS='-tags=$(GOTAGS)' $(FAILLINT_COMMAND) && \
+	@GOFLAGS='-tags=$(GOTAGS)' $(FAILLINT_COMMAND) && \
 		(cd api && $(FAILLINT_COMMAND)) && \
 		(cd sdk && $(FAILLINT_COMMAND))
 
