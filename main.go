@@ -8,6 +8,13 @@ import (
 
 	mcli "github.com/mitchellh/cli"
 
+	netrpc "net/rpc"
+
+	codec "github.com/hashicorp/go-msgpack/codec"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/hashicorp/consul/command"
 	"github.com/hashicorp/consul/command/cli"
 	"github.com/hashicorp/consul/command/version"
@@ -34,6 +41,12 @@ func realMain() int {
 	for c := range cmds {
 		names = append(names, c)
 	}
+
+	_ = msgpackrpc.CallWithCodec
+	_ = netrpc.Accept
+	_ = require.New
+	_ = assert.New
+	_ = codec.NewEncoder
 
 	cli := &mcli.CLI{
 		Args:         os.Args[1:],
