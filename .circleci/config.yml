@@ -173,6 +173,7 @@ jobs:
     description: "Run faillint"
     docker:
       - image: *GOLANG_IMAGE
+    resource_class: large
     steps:
       - checkout
       - run: go install github.com/fatih/faillint@latest
