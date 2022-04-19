@@ -169,6 +169,16 @@ jobs:
       - run: go install github.com/hashicorp/lint-consul-retry@master && lint-consul-retry
       - run: *notify-slack-failure
 
+  faillint:
+    description: "Run faillint"
+    docker:
+      - image: *GOLANG_IMAGE
+    steps:
+      - checkout
+      - run: go install github.com/fatih/faillint@latest
+      - run: make faillint
+      - run: *notify-slack-failure
+
   lint:
     description: "Run golangci-lint"
     parameters:

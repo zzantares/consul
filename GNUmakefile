@@ -7,7 +7,8 @@ GOTOOLS = \
 	github.com/hashicorp/go-bindata/go-bindata@master \
 	github.com/vektra/mockery/cmd/mockery@master \
 	github.com/golangci/golangci-lint/cmd/golangci-lint@v1.45.2 \
-	github.com/hashicorp/lint-consul-retry@master
+	github.com/hashicorp/lint-consul-retry@master \
+	github.com/fatih/faillint@latest
 
 PROTOC_VERSION=3.15.8
 
@@ -272,11 +273,26 @@ other-consul:
 		exit 1 ; \
 	fi
 
-lint:
+.PHONY: lint
+lint: golangci-lint faillint
+
+.PHONY: lint
+golangci-lint:
 	@echo "--> Running go golangci-lint"
 	@golangci-lint run --build-tags '$(GOTAGS)' && \
 		(cd api && golangci-lint run --build-tags '$(GOTAGS)') && \
 		(cd sdk && golangci-lint run --build-tags '$(GOTAGS)')
+
+FAILLINT_COMMAND := faillint \
+	-paths "github.com/stretchr/testify/require.{New},github.com/stretchr/testify/assert.{New},github.com/hashicorp/net-rpc-msgpackrpc/...=github.com/hashicorp/consul-net-rpc/net-rpc-msgpackrpc,github.com/hashicorp/go-msgpack/...=github.com/hashicorp/consul-net-rpc/go-msgpackrpc,net/rpc/...=github.com/hashicorp/consul-net-rpc/net/rpc" \
+	./...
+
+.PHONY: faillint
+faillint:
+	@echo "--> Running go faillint"
+	GOFLAGS='-tags=$(GOTAGS)' $(FAILLINT_COMMAND) && \
+		(cd api && $(FAILLINT_COMMAND)) && \
+		(cd sdk && $(FAILLINT_COMMAND))
 
 # If you've run "make ui" manually then this will get called for you. This is
 # also run as part of the release build script when it verifies that there are no
