@@ -10,7 +10,6 @@ import (
 	autopilot "github.com/hashicorp/raft-autopilot"
 	"github.com/hashicorp/serf/serf"
 
-	"github.com/hashicorp/consul/agent/consul/autopilotevents"
 	"github.com/hashicorp/consul/agent/metadata"
 	"github.com/hashicorp/consul/agent/structs"
 	"github.com/hashicorp/consul/logging"
@@ -30,8 +29,7 @@ var AutopilotGauges = []prometheus.GaugeDefinition{
 
 // AutopilotDelegate is a Consul delegate for autopilot operations.
 type AutopilotDelegate struct {
-	server                *Server
-	readyServersPublisher *autopilotevents.ReadyServersEventPublisher
+	server *Server
 }
 
 func (d *AutopilotDelegate) AutopilotConfig() *autopilot.Config {
@@ -53,8 +51,6 @@ func (d *AutopilotDelegate) NotifyState(state *autopilot.State) {
 	} else {
 		metrics.SetGauge([]string{"autopilot", "healthy"}, 0)
 	}
-
-	d.readyServersPublisher.PublishReadyServersEvents(state)
 }
 
 func (d *AutopilotDelegate) RemoveFailedServer(srv *autopilot.Server) {
@@ -67,13 +63,7 @@ func (d *AutopilotDelegate) RemoveFailedServer(srv *autopilot.Server) {
 }
 
 func (s *Server) initAutopilot(config *Config) {
-	apDelegate := &AutopilotDelegate{
-		server: s,
-		readyServersPublisher: autopilotevents.NewReadyServersEventPublisher(autopilotevents.Config{
-			Publisher: s.publisher,
-			GetStore:  func() autopilotevents.StateStore { return s.fsm.State() },
-		}),
-	}
+	apDelegate := &AutopilotDelegate{s}
 
 	s.autopilot = autopilot.New(
 		s.raft,
@@ -84,9 +74,6 @@ func (s *Server) initAutopilot(config *Config) {
 		autopilot.WithPromoter(s.autopilotPromoter()),
 		autopilot.WithReconciliationDisabled(),
 	)
-
-	// registers a snapshot handler for the event publisher to send as the first event for a new stream
-	s.publisher.RegisterHandler(autopilotevents.EventTopicReadyServers, apDelegate.readyServersPublisher.HandleSnapshot)
 }
 
 func (s *Server) autopilotServers() map[raft.ServerID]*autopilot.Server {

@@ -982,10 +982,6 @@
               {
                 "title": "OIDC",
                 "path": "security/acl/auth-methods/oidc"
-              },
-              {
-                "title": "AWS IAM",
-                "path": "security/acl/auth-methods/aws-iam"
               }
             ]
           }

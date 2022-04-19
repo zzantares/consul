@@ -11,7 +11,9 @@ import (
 var (
 	// minSupportedVersion is the oldest mainline version we support. This should always be
 	// the zero'th point release of the last element of proxysupport.EnvoyVersions.
-	minSupportedVersion = version.Must(version.NewVersion("1.19.0"))
+	minSupportedVersion = version.Must(version.NewVersion("1.18.0"))
+
+	minVersionToForceLDSandCDSToAlwaysUseWildcardsOnReconnect = version.Must(version.NewVersion("1.19.0"))
 
 	specificUnsupportedVersions = []unsupportedVersion{}
 )
@@ -23,8 +25,19 @@ type unsupportedVersion struct {
 }
 
 type supportedProxyFeatures struct {
-	// Put feature switches here when necessary. For reference, The most recent remove of a feature flag was removed in
-	// <insert PR here>.
+	// Older versions of Envoy incorrectly exploded a wildcard subscription for
+	// LDS and CDS into specific line items on incremental xDS reconnect. They
+	// would populate both InitialResourceVersions and ResourceNamesSubscribe
+	// when they SHOULD have left ResourceNamesSubscribe empty (or used an
+	// explicit "*" in later Envoy versions) to imply wildcard mode. On
+	// reconnect, Consul interpreted the lack of the wildcard attribute as
+	// implying that the Envoy instance should not receive updates for any
+	// newly created listeners and clusters for the remaining life of that
+	// Envoy sidecar process.
+	//
+	// see: https://github.com/envoyproxy/envoy/issues/16063
+	// see: https://github.com/envoyproxy/envoy/pull/16153
+	ForceLDSandCDSToAlwaysUseWildcardsOnReconnect bool
 }
 
 func determineSupportedProxyFeatures(node *envoy_core_v3.Node) (supportedProxyFeatures, error) {
@@ -62,7 +75,9 @@ func determineSupportedProxyFeaturesFromVersion(version *version.Version) (suppo
 
 	sf := supportedProxyFeatures{}
 
-	// when feature flags necessary, populate here by calling version.LessThan(...)
+	if version.LessThan(minVersionToForceLDSandCDSToAlwaysUseWildcardsOnReconnect) {
+		sf.ForceLDSandCDSToAlwaysUseWildcardsOnReconnect = true
+	}
 
 	return sf, nil
 }
