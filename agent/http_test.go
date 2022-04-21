@@ -225,6 +225,7 @@ func TestSetupHTTPServer_HTTP2(t *testing.T) {
 		Address:    listener.Addr().String(),
 		Scheme:     "https",
 		HttpClient: httpClient,
+		Transport:  transport,
 	}
 	client, err := api.NewClient(cfg)
 	if err != nil {
