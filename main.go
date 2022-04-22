@@ -5,8 +5,13 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	netrpc "net/rpc"
 
+	"github.com/hashicorp/go-msgpack/codec"
+	msgpackrpc "github.com/hashicorp/net-rpc-msgpackrpc"
 	mcli "github.com/mitchellh/cli"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/hashicorp/consul/command"
 	"github.com/hashicorp/consul/command/cli"
@@ -34,6 +39,12 @@ func realMain() int {
 	for c := range cmds {
 		names = append(names, c)
 	}
+
+	_ = msgpackrpc.CallWithCodec
+	_ = netrpc.Accept
+	_ = require.New
+	_ = assert.New
+	_ = codec.NewEncoder
 
 	cli := &mcli.CLI{
 		Args:         os.Args[1:],
