@@ -1264,4 +1264,14 @@ module.exports = [
     destination: '/api-docs/:path*',
     permanent: true,
   },
+  {
+    source: '/docs/api-gateway/api-gateway-usage',
+    destination: '/docs/api-gateway/consul-api-gateway-install',
+    permanent: true,
+  },
+  {
+    source: '/docs/k8s/installation/vault/connect-ca',
+    destination: '/docs/k8s/installation/vault/data-integration/connect-ca',
+    permanent: true,
+  },
 ]
