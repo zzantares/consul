@@ -238,12 +238,14 @@ type TestServer struct {
 // function returns (thus you do not need to stop it).
 // This function will call the `consul` binary in GOPATH.
 func NewTestServerConfigT(t TestingTB, cb ServerConfigCallback) (*TestServer, error) {
+	fmt.Println(time.Now(), "1. looking up consul path", t.Name())
 	path, err := exec.LookPath("consul")
 	if err != nil || path == "" {
 		return nil, fmt.Errorf("consul not found on $PATH - download and install " +
 			"consul or skip this test")
 	}
 
+	fmt.Println(time.Now(), "2. creating tmpdir", t.Name())
 	prefix := "consul"
 	if t != nil {
 		// Use test name for tmpdir if available
@@ -254,6 +256,7 @@ func NewTestServerConfigT(t TestingTB, cb ServerConfigCallback) (*TestServer, er
 		return nil, errors.Wrap(err, "failed to create tempdir")
 	}
 
+	fmt.Println(time.Now(), "3. making config", t.Name())
 	cfg := defaultServerConfig(t)
 	cfg.DataDir = filepath.Join(tmpdir, "data")
 	if cb != nil {
@@ -276,6 +279,7 @@ func NewTestServerConfigT(t TestingTB, cb ServerConfigCallback) (*TestServer, er
 	}
 
 	// Start the server
+	fmt.Println(time.Now(), "4. starting server", t.Name())
 	args := []string{"agent", "-config-file", configFile}
 	args = append(args, cfg.Args...)
 	cmd := exec.Command("consul", args...)
@@ -286,6 +290,7 @@ func NewTestServerConfigT(t TestingTB, cb ServerConfigCallback) (*TestServer, er
 		os.RemoveAll(tmpdir)
 		return nil, errors.Wrap(err, "failed starting command")
 	}
+	fmt.Println(time.Now(), "5. creating client", t.Name())
 
 	httpAddr := fmt.Sprintf("127.0.0.1:%d", cfg.Ports.HTTP)
 	client := cleanhttp.DefaultClient()
@@ -311,12 +316,15 @@ func NewTestServerConfigT(t TestingTB, cb ServerConfigCallback) (*TestServer, er
 
 		tmpdir: tmpdir,
 	}
+	fmt.Println(time.Now(), "6. waiting for API", t.Name())
 
 	// Wait for the server to be ready
 	if err := server.waitForAPI(); err != nil {
+		fmt.Println(time.Now(), "7. stopping server", t.Name())
 		if err := server.Stop(); err != nil {
 			t.Logf("server stop failed with: %v", err)
 		}
+		fmt.Println(time.Now(), "8. stopped", t.Name())
 		return nil, err
 	}
 
