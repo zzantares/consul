@@ -47,3 +47,8 @@ Usage: consul cli-plugin <subcommand> [options] [args]
 `
 
 var AllowedCLIPlugins = []string{"k8s"}
+
+const (
+	DefaultPluginDir = "~/.consul/plugins"
+	PluginDirEnvVar  = "CONSUL_CLI_PLUGIN_DIR"
+)

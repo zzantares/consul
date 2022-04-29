@@ -5,12 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/hashicorp/consul/command/cliplugin"
+	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/hc-install/product"
 	"github.com/hashicorp/hc-install/releases"
-	"github.com/mitchellh/go-homedir"
-	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/hashicorp/consul/command/flags"
@@ -32,15 +30,17 @@ type cmd struct {
 	help  string
 
 	// flags
-	flagSource      bool
-	flagDestination bool
-
-	// testStdin is the input for testing.
-	testStdin io.Reader
+	flagVersion string
+	flagDir     string
 }
 
 func (c *cmd) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
+	c.flags.StringVar(&c.flagVersion, "version", "",
+		"Version to install. Defaults to the latest version.")
+	c.flags.StringVar(&c.flagDir, "dir", "",
+		fmt.Sprintf("Directory to install into. Defaults to %s. Overrides %s.",
+			cliplugin.DefaultPluginDir, cliplugin.PluginDirEnvVar))
 	c.help = flags.Usage(help, c.flags)
 }
 
@@ -68,48 +68,73 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	successMsg, err := DoInstall(pluginName, "")
+	// The directory is set by the flag, the environment var, and the default, in that order of precedence.
+	pluginDir := c.flagDir
+	if pluginDir == "" {
+		pluginDir = os.Getenv(cliplugin.PluginDirEnvVar)
+		if pluginDir == "" {
+			pluginDir = cliplugin.DefaultPluginDir
+		}
+	}
+
+	var pluginVersion *version.Version
+	if c.flagVersion != "" {
+		var err error
+		pluginVersion, err = version.NewVersion(c.flagVersion)
+		if err != nil {
+			c.UI.Error(fmt.Sprintf("Error: unable to parse version %q: %s", c.flagVersion, err))
+			return 1
+		}
+	}
+
+	err := DoInstall(pluginName, pluginDir, pluginVersion)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error: %s", err))
 		return 1
 	}
-	c.UI.Output(successMsg)
+
+	versionStr := "latest"
+	if pluginVersion != nil {
+		versionStr = pluginVersion.String()
+	}
+	c.UI.Output(fmt.Sprintf("Installed %s plugin (version %s) successfully into %s. To use, run \"consul %s\"",
+		pluginName, versionStr, pluginDir, pluginName))
 	return 0
 }
 
-func DoInstall(plugin string, version string) (string, error) {
+func DoInstall(plugin string, dir string, pluginVersion *version.Version) error {
 	ctx := context.Background()
-	home, err := homedir.Dir()
-	if err != nil {
-		return "", fmt.Errorf("unable to determine home directory: %s", err)
-	}
-	pluginDir := filepath.Join(home, ".consul", "plugins")
-	if err := os.MkdirAll(pluginDir, 0700); err != nil {
-		return "", fmt.Errorf("unable to create plugin dir: %s", err)
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		return fmt.Errorf("unable to create plugin dir: %s", err)
 	}
 
 	installer := install.NewInstaller()
-	execPath, err := installer.Install(ctx, []src.Installable{
-		&releases.LatestVersion{
-			Product: product.Product{
-				Name:              fmt.Sprintf("consul-%s", plugin),
-				BinaryName:        func() string { return fmt.Sprintf("consul-%s", plugin) },
-				GetVersion:        nil,
-				BuildInstructions: nil,
-			},
-			// todo
-			//Constraints:              nil,
-			InstallDir:               pluginDir,
-			Timeout:                  0,
-			IncludePrereleases:       false,
-			SkipChecksumVerification: false,
-			ArmoredPublicKey:         "",
-		},
-	})
-	if err != nil {
-		return "", fmt.Errorf("unable to install: %s", err)
+	pluginProduct := product.Product{
+		Name:              fmt.Sprintf("consul-%s", plugin),
+		BinaryName:        func() string { return fmt.Sprintf("consul-%s", plugin) },
+		GetVersion:        nil,
+		BuildInstructions: nil,
 	}
-	return fmt.Sprintf("Installed %s plugin successfully into %s. To use, run \"consul %s\"", plugin, execPath), nil
+	var installable src.Installable
+	if pluginVersion == nil {
+		installable = &releases.LatestVersion{
+			Product:            pluginProduct,
+			InstallDir:         dir,
+			IncludePrereleases: false,
+		}
+	} else {
+		installable = &releases.ExactVersion{
+			Product:    pluginProduct,
+			Version:    pluginVersion,
+			InstallDir: dir,
+		}
+	}
+
+	_, err := installer.Install(ctx, []src.Installable{installable})
+	if err != nil {
+		return fmt.Errorf("unable to install: %s", err)
+	}
+	return nil
 }
 
 func (c *cmd) Synopsis() string {
@@ -122,15 +147,16 @@ func (c *cmd) Help() string {
 
 const (
 	synopsis = "Install a plugin."
-	help     = `
+)
+
+var help = fmt.Sprintf(`
 Usage: consul cli-plugin install NAME [options]
 
-  Install a specific CLI plugin. The plugin will be installed into the
-  directory set by the CONSUL_PLUGIN_DIR environment variable
-  (defaults to ~/.consul/plugins).
+  Install a CLI plugin. If installing into a non-default directory,
+  the %s environment variable must be set to that directory when executing
+  the plugins.
 
-      $ consul cli-plugin install k8s
-      $ consul cli-plugin install k8s -version 9.9.9
+      $ consul cli-plugin install <plugin name>
+      $ consul cli-plugin install <plugin name> -version 1.0.0
 
-`
-)
+`, cliplugin.PluginDirEnvVar)
