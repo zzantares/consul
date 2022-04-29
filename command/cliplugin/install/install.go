@@ -8,6 +8,7 @@ import (
 	"github.com/hashicorp/go-version"
 	"github.com/hashicorp/hc-install/product"
 	"github.com/hashicorp/hc-install/releases"
+	"github.com/mitchellh/go-homedir"
 	"os"
 	"strings"
 
@@ -94,6 +95,10 @@ func DoInstall(plugin string, pluginVersion *version.Version) error {
 	if pluginDir == "" {
 		pluginDir = cliplugin.DefaultPluginDir
 	}
+	pluginDir, err := homedir.Expand(pluginDir)
+	if err != nil {
+		return err
+	}
 
 	ctx := context.Background()
 	if err := os.MkdirAll(pluginDir, 0700); err != nil {
@@ -122,7 +127,7 @@ func DoInstall(plugin string, pluginVersion *version.Version) error {
 		}
 	}
 
-	_, err := installer.Install(ctx, []src.Installable{installable})
+	_, err = installer.Install(ctx, []src.Installable{installable})
 	if err != nil {
 		return fmt.Errorf("unable to install: %s", err)
 	}

@@ -3,10 +3,12 @@ package list
 import (
 	"flag"
 	"fmt"
+	"github.com/hashicorp/consul/command/cliplugin"
 	"github.com/hashicorp/consul/command/flags"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
 	"io/fs"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -54,14 +56,16 @@ func (c *cmd) Run(args []string) int {
 }
 
 func listPlugins() ([]string, error) {
-	home, err := homedir.Dir()
+	pluginDir := os.Getenv(cliplugin.PluginDirEnvVar)
+	if pluginDir == "" {
+		pluginDir = cliplugin.DefaultPluginDir
+	}
+	pluginDir, err := homedir.Expand(pluginDir)
 	if err != nil {
 		return nil, err
 	}
 
 	var pluginNames []string
-
-	pluginDir := filepath.Join(home, ".consul", "plugins")
 	err = filepath.WalkDir(pluginDir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

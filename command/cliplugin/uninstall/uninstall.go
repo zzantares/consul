@@ -6,6 +6,7 @@ import (
 	"github.com/hashicorp/consul/command/cliplugin"
 	"github.com/hashicorp/consul/command/flags"
 	"github.com/mitchellh/cli"
+	"github.com/mitchellh/go-homedir"
 	"os"
 	"path/filepath"
 )
@@ -44,9 +45,14 @@ func (c *cmd) Run(args []string) int {
 	if pluginDir == "" {
 		pluginDir = cliplugin.DefaultPluginDir
 	}
+	pluginDir, err := homedir.Expand(pluginDir)
+	if err != nil {
+		c.UI.Error(fmt.Sprintf("Error: %s"))
+		return 1
+	}
 
 	pluginPath := filepath.Join(pluginDir, pluginName)
-	_, err := os.Stat(pluginPath)
+	_, err = os.Stat(pluginPath)
 	if err != nil {
 		if os.IsNotExist(err) {
 			c.UI.Info(fmt.Sprintf("Plugin %q is not installed (could not find at %s)", pluginName, pluginPath))

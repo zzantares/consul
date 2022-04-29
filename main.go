@@ -66,13 +66,17 @@ func realMain() int {
 			}
 
 			// Look to see if this plugin is installed.
-			home, err := homedir.Dir()
+			pluginDir := os.Getenv(cliplugin.PluginDirEnvVar)
+			if pluginDir == "" {
+				pluginDir = cliplugin.DefaultPluginDir
+			}
+			pluginDir, err := homedir.Expand(pluginDir)
 			if err != nil {
 				return false, err
 			}
 
 			pluginBinary := fmt.Sprintf("consul-%s", args[0])
-			pluginPath := filepath.Join(home, ".consul", "plugins", pluginBinary)
+			pluginPath := filepath.Join(pluginDir, pluginBinary)
 			_, err = os.Stat(pluginPath)
 			if err != nil {
 				if !os.IsNotExist(err) {
@@ -91,8 +95,7 @@ func realMain() int {
 				if err != nil {
 					return true, err
 				}
-				fmt.Printf("Installed %s plugin (version latest) successfully. To use, run \"consul %s\"\n",
-					command, command)
+				fmt.Printf("Installed %s plugin (version latest) successfully.\n", command)
 
 				// Prompt to continue to run command.
 				fmt.Printf("Continue to run \"%s %s\"? (Y/n)\n", filepath.Base(os.Args[0]), strings.Join(args, " "))
