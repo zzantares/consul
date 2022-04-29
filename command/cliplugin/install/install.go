@@ -31,16 +31,12 @@ type cmd struct {
 
 	// flags
 	flagVersion string
-	flagDir     string
 }
 
 func (c *cmd) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 	c.flags.StringVar(&c.flagVersion, "version", "",
 		"Version to install. Defaults to the latest version.")
-	c.flags.StringVar(&c.flagDir, "dir", "",
-		fmt.Sprintf("Directory to install into. Defaults to %s. Overrides %s.",
-			cliplugin.DefaultPluginDir, cliplugin.PluginDirEnvVar))
 	c.help = flags.Usage(help, c.flags)
 }
 
@@ -68,15 +64,6 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	// The directory is set by the flag, the environment var, and the default, in that order of precedence.
-	pluginDir := c.flagDir
-	if pluginDir == "" {
-		pluginDir = os.Getenv(cliplugin.PluginDirEnvVar)
-		if pluginDir == "" {
-			pluginDir = cliplugin.DefaultPluginDir
-		}
-	}
-
 	var pluginVersion *version.Version
 	if c.flagVersion != "" {
 		var err error
@@ -87,7 +74,7 @@ func (c *cmd) Run(args []string) int {
 		}
 	}
 
-	err := DoInstall(pluginName, pluginDir, pluginVersion)
+	err := DoInstall(pluginName, pluginVersion)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Error: %s", err))
 		return 1
@@ -97,14 +84,19 @@ func (c *cmd) Run(args []string) int {
 	if pluginVersion != nil {
 		versionStr = pluginVersion.String()
 	}
-	c.UI.Output(fmt.Sprintf("Installed %s plugin (version %s) successfully into %s. To use, run \"consul %s\"",
-		pluginName, versionStr, pluginDir, pluginName))
+	c.UI.Info(fmt.Sprintf("Installed %s plugin (version %s) successfully. To use, run \"consul %s\"",
+		pluginName, versionStr, pluginName))
 	return 0
 }
 
-func DoInstall(plugin string, dir string, pluginVersion *version.Version) error {
+func DoInstall(plugin string, pluginVersion *version.Version) error {
+	pluginDir := os.Getenv(cliplugin.PluginDirEnvVar)
+	if pluginDir == "" {
+		pluginDir = cliplugin.DefaultPluginDir
+	}
+
 	ctx := context.Background()
-	if err := os.MkdirAll(dir, 0700); err != nil {
+	if err := os.MkdirAll(pluginDir, 0700); err != nil {
 		return fmt.Errorf("unable to create plugin dir: %s", err)
 	}
 
@@ -119,14 +111,14 @@ func DoInstall(plugin string, dir string, pluginVersion *version.Version) error 
 	if pluginVersion == nil {
 		installable = &releases.LatestVersion{
 			Product:            pluginProduct,
-			InstallDir:         dir,
+			InstallDir:         pluginDir,
 			IncludePrereleases: false,
 		}
 	} else {
 		installable = &releases.ExactVersion{
 			Product:    pluginProduct,
 			Version:    pluginVersion,
-			InstallDir: dir,
+			InstallDir: pluginDir,
 		}
 	}
 
@@ -152,11 +144,12 @@ const (
 var help = fmt.Sprintf(`
 Usage: consul cli-plugin install NAME [options]
 
-  Install a CLI plugin. If installing into a non-default directory,
-  the %s environment variable must be set to that directory when executing
+  Install a CLI plugin. Installs into the directory set by the %s environment
+  variable (defaults to %s). If installing into a non-default directory, the
+  the %s environment variable must also be set when executing
   the plugins.
 
       $ consul cli-plugin install <plugin name>
       $ consul cli-plugin install <plugin name> -version 1.0.0
 
-`, cliplugin.PluginDirEnvVar)
+`, cliplugin.PluginDirEnvVar, cliplugin.DefaultPluginDir, cliplugin.PluginDirEnvVar)

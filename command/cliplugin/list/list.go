@@ -6,7 +6,6 @@ import (
 	"github.com/hashicorp/consul/command/flags"
 	"github.com/mitchellh/cli"
 	"github.com/mitchellh/go-homedir"
-	"io"
 	"io/fs"
 	"path/filepath"
 	"strings"
@@ -23,13 +22,6 @@ type cmd struct {
 	flags *flag.FlagSet
 	http  *flags.HTTPFlags
 	help  string
-
-	// flags
-	flagSource      bool
-	flagDestination bool
-
-	// testStdin is the input for testing.
-	testStdin io.Reader
 }
 
 func (c *cmd) init() {
@@ -54,10 +46,10 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 	if len(plugins) == 0 {
-		c.UI.Output("No plugins installed")
+		c.UI.Info("No plugins installed")
 		return 0
 	}
-	c.UI.Output(strings.Join(plugins, "\n"))
+	c.UI.Info(strings.Join(plugins, "\n"))
 	return 0
 }
 

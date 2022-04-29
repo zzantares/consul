@@ -87,11 +87,12 @@ func realMain() int {
 				if input != "" && input != "y" && input != "Y" && input != "yes" {
 					return true, nil
 				}
-				success, err := cliinstall.DoInstall(command, "")
+				err := cliinstall.DoInstall(command, nil)
 				if err != nil {
 					return true, err
 				}
-				fmt.Println(success)
+				fmt.Printf("Installed %s plugin (version latest) successfully. To use, run \"consul %s\"\n",
+					command, command)
 
 				// Prompt to continue to run command.
 				fmt.Printf("Continue to run \"%s %s\"? (Y/n)\n", filepath.Base(os.Args[0]), strings.Join(args, " "))

@@ -45,6 +45,7 @@ import (
 	"github.com/hashicorp/consul/command/cliplugin"
 	cliinstall "github.com/hashicorp/consul/command/cliplugin/install"
 	clilist "github.com/hashicorp/consul/command/cliplugin/list"
+	cliuninstall "github.com/hashicorp/consul/command/cliplugin/uninstall"
 	"github.com/hashicorp/consul/command/config"
 	configdelete "github.com/hashicorp/consul/command/config/delete"
 	configlist "github.com/hashicorp/consul/command/config/list"
@@ -158,6 +159,7 @@ func init() {
 	Register("cli-plugin", func(ui cli.Ui) (cli.Command, error) { return cliplugin.New(), nil })
 	Register("cli-plugin install", func(ui cli.Ui) (cli.Command, error) { return cliinstall.New(ui), nil })
 	Register("cli-plugin list", func(ui cli.Ui) (cli.Command, error) { return clilist.New(ui), nil })
+	Register("cli-plugin uninstall", func(ui cli.Ui) (cli.Command, error) { return cliuninstall.New(ui), nil })
 	Register("config", func(ui cli.Ui) (cli.Command, error) { return config.New(), nil })
 	Register("config delete", func(ui cli.Ui) (cli.Command, error) { return configdelete.New(ui), nil })
 	Register("config list", func(ui cli.Ui) (cli.Command, error) { return configlist.New(ui), nil })
