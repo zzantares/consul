@@ -51,7 +51,7 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	pluginPath := filepath.Join(pluginDir, pluginName)
+	pluginPath := filepath.Join(pluginDir, fmt.Sprintf("consul-%s", pluginName))
 	_, err = os.Stat(pluginPath)
 	if err != nil {
 		if os.IsNotExist(err) {
