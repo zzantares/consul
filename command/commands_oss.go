@@ -42,6 +42,9 @@ import (
 	catlistnodes "github.com/hashicorp/consul/command/catalog/list/nodes"
 	catlistsvc "github.com/hashicorp/consul/command/catalog/list/services"
 	"github.com/hashicorp/consul/command/cli"
+	"github.com/hashicorp/consul/command/cliplugin"
+	cliinstall "github.com/hashicorp/consul/command/cliplugin/install"
+	clilist "github.com/hashicorp/consul/command/cliplugin/list"
 	"github.com/hashicorp/consul/command/config"
 	configdelete "github.com/hashicorp/consul/command/config/delete"
 	configlist "github.com/hashicorp/consul/command/config/list"
@@ -152,6 +155,9 @@ func init() {
 	Register("catalog datacenters", func(ui cli.Ui) (cli.Command, error) { return catlistdc.New(ui), nil })
 	Register("catalog nodes", func(ui cli.Ui) (cli.Command, error) { return catlistnodes.New(ui), nil })
 	Register("catalog services", func(ui cli.Ui) (cli.Command, error) { return catlistsvc.New(ui), nil })
+	Register("cli-plugin", func(ui cli.Ui) (cli.Command, error) { return cliplugin.New(), nil })
+	Register("cli-plugin install", func(ui cli.Ui) (cli.Command, error) { return cliinstall.New(ui), nil })
+	Register("cli-plugin list", func(ui cli.Ui) (cli.Command, error) { return clilist.New(ui), nil })
 	Register("config", func(ui cli.Ui) (cli.Command, error) { return config.New(), nil })
 	Register("config delete", func(ui cli.Ui) (cli.Command, error) { return configdelete.New(ui), nil })
 	Register("config list", func(ui cli.Ui) (cli.Command, error) { return configlist.New(ui), nil })
