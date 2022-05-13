@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 	"github.com/hashicorp/go-memdb"
 	uuid "github.com/hashicorp/go-uuid"
@@ -2048,7 +2049,7 @@ func TestStateStore_Services(t *testing.T) {
 	if err := s.EnsureService(2, "node1", ns1); err != nil {
 		t.Fatalf("err: %s", err)
 	}
-	testRegisterService(t, s, 3, "node1", "dogs")
+	ns1Dogs := testRegisterService(t, s, 3, "node1", "dogs")
 	testRegisterNode(t, s, 4, "node2")
 	ns2 := &structs.NodeService{
 		ID:      "service3",
@@ -2075,8 +2076,12 @@ func TestStateStore_Services(t *testing.T) {
 	}
 
 	// Verify the result.
-	// FIXME: This test is rather weak. We are looking for three services, not sure how to easily check the cloning of service1 -> dogs.
-	require.Len(t, services, 3)
+	expected := []*structs.ServiceNode{
+		ns1Dogs.ToServiceNode("node1"),
+		ns1.ToServiceNode("node1"),
+		ns2.ToServiceNode("node2"),
+	}
+	assertDeepEqual(t, services, expected, cmpopts.IgnoreFields(structs.ServiceNode{}, "RaftIndex"))
 
 	// Deleting a node with a service should fire the watch.
 	if err := s.DeleteNode(6, "node1", nil, ""); err != nil {
@@ -8202,4 +8207,11 @@ func setVirtualIPFlags(t *testing.T, s *Store) {
 		Key:   structs.SystemMetadataTermGatewayVirtualIPsEnabled,
 		Value: "true",
 	}))
+}
+
+func assertDeepEqual(t *testing.T, x, y interface{}, opts ...cmp.Option) {
+	t.Helper()
+	if diff := cmp.Diff(x, y, opts...); diff != "" {
+		t.Fatalf("assertion failed: values are not equal\n--- expected\n+++ actual\n%v", diff)
+	}
 }

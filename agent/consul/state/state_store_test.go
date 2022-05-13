@@ -110,7 +110,7 @@ func testRegisterNodeOpts(t *testing.T, s *Store, idx uint64, nodeID string, opt
 // testRegisterServiceWithChange registers a service and allow ensuring the consul index is updated
 // even if service already exists if using `modifyAccordingIndex`.
 // This is done by setting the transaction ID in "version" meta so service will be updated if it already exists
-func testRegisterServiceWithChange(t *testing.T, s *Store, idx uint64, nodeID, serviceID string, modifyAccordingIndex bool) {
+func testRegisterServiceWithChange(t *testing.T, s *Store, idx uint64, nodeID, serviceID string, modifyAccordingIndex bool) *structs.NodeService {
 	meta := make(map[string]string)
 	if modifyAccordingIndex {
 		meta["version"] = fmt.Sprint(idx)
@@ -137,14 +137,15 @@ func testRegisterServiceWithChange(t *testing.T, s *Store, idx uint64, nodeID, s
 		result.ServiceID != serviceID {
 		t.Fatalf("bad service: %#v", result)
 	}
+	return svc
 }
 
 // testRegisterService register a service with given transaction idx
 // If the service already exists, transaction number might not be increased
 // Use `testRegisterServiceWithChange()` if you want perform a registration that
 // ensures the transaction is updated by setting idx in Meta of Service
-func testRegisterService(t *testing.T, s *Store, idx uint64, nodeID, serviceID string) {
-	testRegisterServiceWithChange(t, s, idx, nodeID, serviceID, false)
+func testRegisterService(t *testing.T, s *Store, idx uint64, nodeID, serviceID string) *structs.NodeService {
+	return testRegisterServiceWithChange(t, s, idx, nodeID, serviceID, false)
 }
 
 func testRegisterIngressService(t *testing.T, s *Store, idx uint64, nodeID, serviceID string) {
