@@ -20,6 +20,7 @@ import (
 
 	"github.com/armon/go-metrics"
 	"github.com/armon/go-metrics/prometheus"
+	"github.com/hashicorp/consul/proto/pbpeering"
 	"github.com/hashicorp/go-connlimit"
 	"github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/go-memdb"
@@ -357,6 +358,8 @@ type Agent struct {
 	// into Agent, which will allow us to remove this field.
 	rpcClientHealth *health.Client
 
+	rpcClientPeering pbpeering.PeeringServiceClient
+
 	// routineManager is responsible for managing longer running go routines
 	// run by the Agent
 	routineManager *routine.Manager
@@ -433,6 +436,8 @@ func New(bd BaseDeps) (*Agent, error) {
 		UseStreamingBackend: a.config.UseStreamingBackend,
 		QueryOptionDefaults: config.ApplyDefaultQueryOptions(a.config),
 	}
+
+	a.rpcClientPeering = pbpeering.NewPeeringServiceClient(conn)
 
 	a.serviceManager = NewServiceManager(&a)
 
@@ -715,7 +720,7 @@ func (a *Agent) Start(ctx context.Context) error {
 
 	// consul version metric with labels
 	metrics.SetGaugeWithLabels([]string{"version"}, 1, []metrics.Label{
-		{Name: "version", Value: a.config.Version},
+		{Name: "version", Value: a.config.VersionWithMetadata()},
 		{Name: "pre_release", Value: a.config.VersionPrerelease},
 	})
 
@@ -1267,7 +1272,7 @@ func newConsulConfig(runtimeCfg *config.RuntimeConfig, logger hclog.Logger) (*co
 	if len(revision) > 8 {
 		revision = revision[:8]
 	}
-	cfg.Build = fmt.Sprintf("%s%s:%s", runtimeCfg.Version, runtimeCfg.VersionPrerelease, revision)
+	cfg.Build = fmt.Sprintf("%s%s:%s", runtimeCfg.VersionWithMetadata(), runtimeCfg.VersionPrerelease, revision)
 
 	cfg.TLSConfig = runtimeCfg.TLS
 
@@ -3207,9 +3212,10 @@ func (a *Agent) Stats() map[string]map[string]string {
 		revision = revision[:8]
 	}
 	stats["build"] = map[string]string{
-		"revision":   revision,
-		"version":    a.config.Version,
-		"prerelease": a.config.VersionPrerelease,
+		"revision":         revision,
+		"version":          a.config.Version,
+		"version_metadata": a.config.VersionMetadata,
+		"prerelease":       a.config.VersionPrerelease,
 	}
 
 	for outerKey, outerValue := range a.enterpriseStats() {
@@ -3901,6 +3907,8 @@ func (a *Agent) reloadConfigInternal(newCfg *config.RuntimeConfig) error {
 		ConfigEntryBootstrap:  newCfg.ConfigEntryBootstrap,
 		RaftSnapshotThreshold: newCfg.RaftSnapshotThreshold,
 		RaftSnapshotInterval:  newCfg.RaftSnapshotInterval,
+		HeartbeatTimeout:      newCfg.ConsulRaftHeartbeatTimeout,
+		ElectionTimeout:       newCfg.ConsulRaftElectionTimeout,
 		RaftTrailingLogs:      newCfg.RaftTrailingLogs,
 	}
 	if err := a.delegate.ReloadConfig(cc); err != nil {
@@ -4037,7 +4045,7 @@ func (a *Agent) registerCache() {
 
 	a.cache.RegisterType(cachetype.GatewayServicesName, &cachetype.GatewayServices{RPC: a})
 
-	a.cache.RegisterType(cachetype.ConfigEntriesName, &cachetype.ConfigEntries{RPC: a})
+	a.cache.RegisterType(cachetype.ConfigEntryListName, &cachetype.ConfigEntryList{RPC: a})
 
 	a.cache.RegisterType(cachetype.ConfigEntryName, &cachetype.ConfigEntry{RPC: a})
 
