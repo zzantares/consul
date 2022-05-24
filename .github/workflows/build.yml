@@ -6,6 +6,7 @@ on:
     branches:
       # Push events on the main branch
       - main
+      - CTIA-8-verify-builds-v2
 
 env:
   PKG_NAME: consul
@@ -69,11 +70,11 @@ jobs:
           - {go: "1.18.1", goos: "linux", goarch: "amd64"}
           - {go: "1.18.1", goos: "linux", goarch: "arm"}
           - {go: "1.18.1", goos: "linux", goarch: "arm64"}
-          - {go: "1.18.1", goos: "freebsd", goarch: "386"}
-          - {go: "1.18.1", goos: "freebsd", goarch: "amd64"}
-          - {go: "1.18.1", goos: "windows", goarch: "386"}
-          - {go: "1.18.1", goos: "windows", goarch: "amd64"}
-          - {go: "1.18.1", goos: "solaris", goarch: "amd64"}
+          # - {go: "1.18.1", goos: "freebsd", goarch: "386"}
+          # - {go: "1.18.1", goos: "freebsd", goarch: "amd64"}
+          # - {go: "1.18.1", goos: "windows", goarch: "386"}
+          # - {go: "1.18.1", goos: "windows", goarch: "amd64"}
+          # - {go: "1.18.1", goos: "solaris", goarch: "amd64"}
       fail-fast: true
 
     name: Go ${{ matrix.go }} ${{ matrix.goos }} ${{ matrix.goarch }} build
@@ -232,6 +233,25 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{env.version}}_linux_${{ matrix.arch }}.zip
+      - name: Run consul binary on amd64
+        run: |
+          ls -lt
+          unzip ${{ env.PKG_NAME }}_${{env.version}}_linux_${{ matrix.arch }}.zip
+          ls -lt
+          ./consul version
+        if: ${{ matrix.arch == 'amd64' }}
+      # - name: Run consul binary on arm64
+      #   run: |
+      #     ls -lt
+      #     unzip ${{ env.PKG_NAME }}_${{env.version}}_linux_${{ matrix.arch }}.zip
+      #     ls -lt
+      #     ls -lt ./dist
+      #     ./consul/consul version
+      #   if: ${{ matrix.arch == 'arm64' }}
       - name: Docker Build (Action)
         uses: hashicorp/actions-docker-build@v1
         with:
@@ -244,3 +264,14 @@ jobs:
           dev_tags: |
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.version }}-dev
             docker.io/hashicorppreview/${{ env.repo }}:${{ env.version }}-${{ github.sha }}
+      - name: Download binary
+        uses: actions/download-artifact@v2
+        with:
+          name: ${{ env.PKG_NAME }}_${{env.version}}_linux_${{ matrix.arch }}.zip
+          path: consul
+      - name: Run consul binary on amd64
+        run: consul version
+        if: ${{ matrix.arch == 'amd64' }}
+      - name: Run consul binary on arm64
+        run: consul version
+        if: ${{ matrix.arch == 'arm64' }}
