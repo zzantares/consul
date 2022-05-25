@@ -63,6 +63,10 @@ ${
   <script src="${rootURL}assets/consul-partitions/services.js"></script>
   <script src="${rootURL}assets/consul-partitions/routes.js"></script>
 {{end}}
+{{if .PeersEnabled}}
+  <script src="${rootURL}assets/consul-peers/services.js"></script>
+  <script src="${rootURL}assets/consul-peers/routes.js"></script>
+{{end}}
 {{if .NamespacesEnabled}}
   <script src="${rootURL}assets/consul-nspaces/routes.js"></script>
 {{end}}
@@ -85,6 +89,7 @@ ${
   {
     'CONSUL_ACLS_ENABLE': 'consul-acls',
     'CONSUL_PARTITIONS_ENABLE': 'consul-partitions',
+    'CONSUL_PEERS_ENABLE': 'consul-peers',
     'CONSUL_NSPACES_ENABLE': 'consul-nspaces'
   }
 );

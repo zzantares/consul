@@ -1,0 +1,138 @@
+<Route
+  @name={{routeName}}
+as |route|>
+  <DataLoader
+    @src={{
+      uri '/${partition}/${nspace}/${dc}/partitions'
+      (hash
+        partition=route.params.partition
+        nspace=route.params.nspace
+        dc=route.params.dc
+      )}}
+    as |loader|>
+
+    <BlockSlot @name="error">
+      <AppError
+        @error={{loader.error}}
+        @login={{route.model.app.login.open}}
+      />
+    </BlockSlot>
+
+    <BlockSlot @name="loaded">
+  {{#let
+
+    (hash
+      value=(or sortBy "Name:asc")
+      change=(action (mut sortBy) value="target.selected")
+    )
+
+    (hash
+      searchproperty=(hash
+        value=(if (not-eq searchproperty undefined)
+          (split searchproperty ',')
+          searchProperties
+        )
+        change=(action (mut searchproperty) value="target.selectedItems")
+        default=searchProperties
+      )
+    )
+
+    loader.data
+
+  as |sort filters items|}}
+
+    <AppView>
+      <BlockSlot @name="header">
+        <h1>
+          <route.Title @title="Peers" />
+        </h1>
+      </BlockSlot>
+      <BlockSlot @name="actions">
+{{#if true}}
+        <Action
+          data-test-create
+          class="type-create"
+          {{on "click" (optional this.modal.open)}}
+        >
+          Add peer connection
+        </Action>
+        <ModalDialog
+          @name="peer-connection-toggle"
+          @onclose={{noop}}
+          @onopen={{noop}}
+          @aria={{hash
+            label="Add peer connection"
+          }}
+        as |modal|>
+          <Ref
+            @target={{this}}
+            @name="modal"
+            @value={{modal}}
+          />
+          <BlockSlot @name="header">
+            <h2>
+              Add peer connection
+            </h2>
+          </BlockSlot>
+          <BlockSlot @name="body">
+            <Consul::Peer::Form
+              
+            />
+          </BlockSlot>
+          <BlockSlot @name="actions">
+            <Action
+              {{on "click" modal.close}}
+            >
+              Submit
+            </Action>
+            <Action
+              {{on "click" modal.close}}
+            >
+              Cancel
+            </Action>
+          </BlockSlot>
+        </ModalDialog>
+{{/if}}
+      </BlockSlot>
+      <BlockSlot @name="toolbar">
+      {{#if (gt items.length 0)}}
+        <Consul::Peer::SearchBar
+          @search={{search}}
+          @onsearch={{action (mut search) value="target.value"}}
+
+          @sort={{sort}}
+
+          @filter={{filters}}
+        />
+      {{/if}}
+      </BlockSlot>
+      <BlockSlot @name="content">
+        <DataWriter
+          @sink={{uri '/${partition}/${dc}/${nspace}/partition/'
+            (hash
+              partition=route.params.partition
+              nspace=route.params.nspace
+              dc=route.params.dc
+            )
+          }}
+          @type="partition"
+          @label="Peer"
+          @ondelete={{refresh-route}}
+        as |writer|>
+          <BlockSlot @name="removed" as |after|>
+            <Consul::Peer::Notifications
+              {{notification
+                after=(action after)
+              }}
+              @type="remove"
+            />
+          </BlockSlot>
+          <BlockSlot @name="content">
+          </BlockSlot>
+        </DataWriter>
+      </BlockSlot>
+    </AppView>
+  {{/let}}
+    </BlockSlot>
+  </DataLoader>
+</Route>

@@ -119,6 +119,12 @@ module.exports = {
       urlPrefix: 'docs/consul-partitions',
     },
     {
+      root: `${path.dirname(require.resolve('consul-peers/package.json'))}/app/components`,
+      pattern: '**/README.mdx',
+      urlSchema: 'auto',
+      urlPrefix: 'docs/consul-peers',
+    },
+    {
       root: `${path.dirname(require.resolve('consul-nspaces/package.json'))}/app/components`,
       pattern: '**/README.mdx',
       urlSchema: 'auto',

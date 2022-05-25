@@ -121,6 +121,11 @@
           </Action>
         </li>
 {{/if}}
+      <Consul::Peer::Selector
+        @dc={{@dc}}
+        @partition={{@partition}}
+        @nspace={{@nspace}}
+      />
 {{#if (can "read services")}}
         <li data-test-main-nav-services class={{if (is-href 'dc.services' @dc.Name) 'is-active'}}>
             <a href={{href-to 'dc.services' @dc.Name}}>Services</a>
