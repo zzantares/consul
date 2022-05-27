@@ -1,0 +1,30 @@
+# this workflow is a noop in OSS and would only
+# run when merging OSS into enterprise
+name: Attempt Merge
+
+on:
+  push:
+    branches:
+      # Push events on the main branch
+      - 'oss/*'
+jobs:
+  oss-ent-merge:
+    runs-on: ubuntu-latest
+    # this only run in enterprise for oss -> ent merge
+    if: ${{ github.event.pull_request.merged && github.repository == 'hashicorp/consul-enterprise' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          token: ${{ secrets.ELEVATED_GITHUB_TOKEN_WORKFLOW }}
+        run: |
+          git checkout ${{ github.base_ref }}
+          git pull
+          if ! errors=$(git merge -m "Merge Consul OSS branch '${{ github.base_ref }}' at commit ${{ github.sha }}" "${{ github.ref }}");  then
+            exit 1
+          fi
+          if (git diff ${BRANCH} --exit-code > /dev/null); then
+            echo "there are no changes to merge"
+          else
+            git push --force :${{ github.ref }}
+          fi
