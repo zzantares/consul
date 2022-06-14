@@ -901,10 +901,10 @@ jobs:
     environment:
       ENVOY_VERSION: "1.21.1"
 
-  envoy-integration-test-1_22_0:
+  envoy-integration-test-1_22_2:
     <<: *ENVOY_TESTS
     environment:
-      ENVOY_VERSION: "1.22.0"
+      ENVOY_VERSION: "1.22.2"
 
   # run integration tests for the connect ca providers
   test-connect-ca-providers:
@@ -1145,7 +1145,7 @@ workflows:
       - envoy-integration-test-1_21_1:
           requires:
             - dev-build
-      - envoy-integration-test-1_22_0:
+      - envoy-integration-test-1_22_2:
           requires:
             - dev-build
       - noop
