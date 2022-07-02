@@ -65,15 +65,15 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 
 	cases := []struct {
 		name           string
-		command        func() cmd
+		command        func() Cmd
 		consulServices []api.AgentServiceRegistration
 		expCfg         iptables.Config
 		expError       string
 	}{
 		{
 			name: "proxyID with service port provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -99,8 +99,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID with bind_port(int) provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -129,8 +129,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID with Consul DNS IP provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -158,8 +158,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID with bind_port(string) provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -188,8 +188,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID with bind_port(invalid type) provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -214,8 +214,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID with proxy outbound port",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -244,8 +244,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID provided, but Consul is not reachable",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -255,8 +255,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxyID of a non-proxy service",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -274,8 +274,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "only proxy inbound port is provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -289,8 +289,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy inbound and outbound ports are provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -305,8 +305,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "exclude inbound ports are provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -322,8 +322,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "exclude outbound ports are provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -339,8 +339,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "exclude outbound CIDRs are provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -356,8 +356,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "exclude UIDs are provided",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyInboundPort = 15000
@@ -373,8 +373,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has envoy_prometheus_bind_addr set",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -404,8 +404,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has an invalid envoy_prometheus_bind_addr set",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -430,8 +430,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has envoy_stats_bind_addr set",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -461,8 +461,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has an invalid envoy_stats_bind_addr set",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -487,8 +487,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has expose paths with listener port set",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -524,8 +524,8 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 		},
 		{
 			name: "proxy config has expose paths with checks set to true",
-			command: func() cmd {
-				var c cmd
+			command: func() Cmd {
+				var c Cmd
 				c.init()
 				c.proxyUID = "1234"
 				c.proxyID = "test-proxy-id"
@@ -597,7 +597,7 @@ func TestGenerateConfigFromFlags(t *testing.T) {
 				cmd.client = client
 			}
 
-			cfg, err := cmd.generateConfigFromFlags()
+			cfg, err := GenerateConfigFromFlags(&cmd)
 
 			if c.expError == "" {
 				require.NoError(t, err)

@@ -13,7 +13,7 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
-func New(ui cli.Ui) *cmd {
+func New(ui cli.Ui) *Cmd {
 	ui = &cli.PrefixedUi{
 		OutputPrefix: "==> ",
 		InfoPrefix:   "    ",
@@ -21,14 +21,14 @@ func New(ui cli.Ui) *cmd {
 		Ui:           ui,
 	}
 
-	c := &cmd{
+	c := &Cmd{
 		UI: ui,
 	}
 	c.init()
 	return c
 }
 
-type cmd struct {
+type Cmd struct {
 	UI     cli.Ui
 	flags  *flag.FlagSet
 	http   *flags.HTTPFlags
@@ -48,7 +48,7 @@ type cmd struct {
 	netNS                string
 }
 
-func (c *cmd) init() {
+func (c *Cmd) init() {
 	c.flags = flag.NewFlagSet("", flag.ContinueOnError)
 
 	c.flags.StringVar(&c.consulDNSIP, "consul-dns-ip", "", "IP used to reach Consul DNS. If provided, DNS queries will be redirected to Consul.")
@@ -74,7 +74,7 @@ func (c *cmd) init() {
 	c.help = flags.Usage(help, c.flags)
 }
 
-func (c *cmd) Run(args []string) int {
+func (c *Cmd) Run(args []string) int {
 	if err := c.flags.Parse(args); err != nil {
 		c.UI.Error(fmt.Sprintf("Failed to parse args: %v", err))
 		return 1
@@ -96,7 +96,7 @@ func (c *cmd) Run(args []string) int {
 		return 1
 	}
 
-	cfg, err := c.generateConfigFromFlags()
+	cfg, err := GenerateConfigFromFlags(c)
 	if err != nil {
 		c.UI.Error(fmt.Sprintf("Failed to create configuration to apply traffic redirection rules: %s", err))
 		return 1
@@ -112,11 +112,11 @@ func (c *cmd) Run(args []string) int {
 	return 0
 }
 
-func (c *cmd) Synopsis() string {
+func (c *Cmd) Synopsis() string {
 	return synopsis
 }
 
-func (c *cmd) Help() string {
+func (c *Cmd) Help() string {
 	return c.help
 }
 
@@ -130,7 +130,7 @@ type trafficRedirectProxyConfig struct {
 }
 
 // generateConfigFromFlags generates iptables.Config based on command flags.
-func (c *cmd) generateConfigFromFlags() (iptables.Config, error) {
+func GenerateConfigFromFlags(c *Cmd) (iptables.Config, error) {
 	cfg := iptables.Config{
 		ConsulDNSIP:       c.consulDNSIP,
 		ProxyUserID:       c.proxyUID,
