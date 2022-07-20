@@ -85,6 +85,9 @@ export default class BaseRoute extends Route {
       typeof this.queryParams.searchproperty !== 'undefined'
     ) {
       model.searchProperties = this.queryParams.searchproperty.empty[0];
+      if(!this.permissions.can('use peers')) {
+        model.searchProperties = model.searchProperties.filter(item => item !== 'PeerName')
+      }
     }
     return model;
   }
