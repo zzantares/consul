@@ -1,5 +1,27 @@
 (routes => routes({
   dc: {
+    services: {
+      index: {
+        _options: {
+          queryParams: {
+            searchproperty: {
+              empty: ["PeerName"],
+            },
+          },
+        },
+      },
+    },
+    nodes: {
+      index: {
+        _options: {
+          queryParams: {
+            searchproperty: {
+              empty: ["PeerName"],
+            },
+          },
+        },
+      },
+    },
     peers: {
       _options: { 
         path: '/peers'

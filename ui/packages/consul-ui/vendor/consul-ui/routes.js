@@ -46,7 +46,7 @@
               kind: 'kind',
               searchproperty: {
                 as: 'searchproperty',
-                empty: ['Partition', 'Name', 'Tags', 'PeerName'],
+                empty: ['Partition', 'Name', 'Tags'],
               },
               search: {
                 as: 'filter',
