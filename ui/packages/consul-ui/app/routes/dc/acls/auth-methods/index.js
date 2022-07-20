@@ -7,7 +7,7 @@ export default class IndexRoute extends Route {
     kind: 'kind',
     searchproperty: {
       as: 'searchproperty',
-      empty: [['Name', 'DisplayName']],
+      empty: ['Name', 'DisplayName'],
     },
     search: {
       as: 'filter',

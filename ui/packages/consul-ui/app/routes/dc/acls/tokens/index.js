@@ -10,7 +10,7 @@ export default class IndexRoute extends Route.extend(WithBlockingActions) {
     kind: 'kind',
     searchproperty: {
       as: 'searchproperty',
-      empty: [['AccessorID', 'Description', 'Role', 'Policy']],
+      empty: ['AccessorID', 'Description', 'Role', 'Policy'],
     },
     search: {
       as: 'filter',

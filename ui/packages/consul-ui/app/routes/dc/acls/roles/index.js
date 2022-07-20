@@ -9,7 +9,7 @@ export default class IndexRoute extends Route.extend(WithBlockingActions) {
     sortBy: 'sort',
     searchproperty: {
       as: 'searchproperty',
-      empty: [['Name', 'Description', 'Policy']],
+      empty: ['Name', 'Description', 'Policy'],
     },
     search: {
       as: 'filter',

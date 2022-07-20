@@ -46,7 +46,7 @@
               kind: 'kind',
               searchproperty: {
                 as: 'searchproperty',
-                empty: [['Partition', 'Name', 'Tags', 'PeerName']],
+                empty: ['Partition', 'Name', 'Tags', 'PeerName'],
               },
               search: {
                 as: 'filter',
@@ -68,9 +68,7 @@
                 source: 'source',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [
-                    ['Name', 'Node', 'Tags', 'ID', 'Address', 'Port', 'Service.Meta', 'Node.Meta'],
-                  ],
+                  empty: ['Name', 'Node', 'Tags', 'ID', 'Address', 'Port', 'Service.Meta', 'Node.Meta'],
                 },
                 search: {
                   as: 'filter',
@@ -89,7 +87,7 @@
                   access: 'access',
                   searchproperty: {
                     as: 'searchproperty',
-                    empty: [['SourceName', 'DestinationName']],
+                    empty: ['SourceName', 'DestinationName'],
                   },
                   search: {
                     as: 'filter',
@@ -119,7 +117,7 @@
                 instance: 'instance',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['Name', 'Tags']],
+                  empty: ['Name', 'Tags'],
                 },
                 search: {
                   as: 'filter',
@@ -136,7 +134,7 @@
                 instance: 'instance',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['Name', 'Tags']],
+                  empty: ['Name', 'Tags'],
                 },
                 search: {
                   as: 'filter',
@@ -166,7 +164,7 @@
                 check: 'check',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['Name', 'Node', 'CheckID', 'Notes', 'Output', 'ServiceTags']],
+                  empty: ['Name', 'Node', 'CheckID', 'Notes', 'Output', 'ServiceTags'],
                 },
                 search: {
                   as: 'filter',
@@ -186,7 +184,7 @@
                 },
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['DestinationName', 'LocalBindAddress', 'LocalBindPort']],
+                  empty: ['DestinationName', 'LocalBindAddress', 'LocalBindPort'],
                 },
               },
             },
@@ -215,7 +213,7 @@
               status: 'status',
               searchproperty: {
                 as: 'searchproperty',
-                empty: [['Node', 'Address', 'Meta']],
+                empty: ['Node', 'Address', 'Meta'],
               },
               search: {
                 as: 'filter',
@@ -236,7 +234,7 @@
                 check: 'check',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['Name', 'Service', 'CheckID', 'Notes', 'Output', 'ServiceTags']],
+                  empty: ['Name', 'Service', 'CheckID', 'Notes', 'Output', 'ServiceTags'],
                 },
                 search: {
                   as: 'filter',
@@ -254,7 +252,7 @@
                 source: 'source',
                 searchproperty: {
                   as: 'searchproperty',
-                  empty: [['Name', 'Tags', 'ID', 'Address', 'Port', 'Service.Meta']],
+                  empty: ['Name', 'Tags', 'ID', 'Address', 'Port', 'Service.Meta'],
                 },
                 search: {
                   as: 'filter',
@@ -281,7 +279,7 @@
               access: 'access',
               searchproperty: {
                 as: 'searchproperty',
-                empty: [['SourceName', 'DestinationName']],
+                empty: ['SourceName', 'DestinationName'],
               },
               search: {
                 as: 'filter',

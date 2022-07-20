@@ -12,7 +12,7 @@
             sortBy: 'sort',
             searchproperty: {
               as: 'searchproperty',
-              empty: [['Name', 'Description', 'Role', 'Policy']],
+              empty: ['Name', 'Description', 'Role', 'Policy'],
             },
             search: {
               as: 'filter',
