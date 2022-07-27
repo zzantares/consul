@@ -463,6 +463,10 @@ $ curl \
 This endpoint is used with a TTL type check to set the status of the check and
 to reset the TTL clock.
 
+To manually mark a service unhealthy,
+it is far more convenient to use [maintenance mode](/api-docs/agent#enable-maintenance-mode)
+rather than defining a TTL health check and using this endpoint.
+
 | Method | Path                            | Produces           |
 | ------ | ------------------------------- | ------------------ |
 | `PUT`  | `/agent/check/update/:check_id` | `application/json` |

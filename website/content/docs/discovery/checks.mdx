@@ -82,7 +82,6 @@ check = {
   interval = "10s"
   timeout = "1s"
 }
-
 ```
 
 ```json
@@ -208,7 +207,6 @@ check = {
   interval = "10s"
   timeout = "1s"
 }
-
 ```
 
 ```json
@@ -245,7 +243,6 @@ check = {
   interval = "10s"
   timeout = "1s"
 }
-
 ```
 
 ```json
@@ -262,7 +259,7 @@ check = {
 
 </CodeTabs>
 
-### `Time to Live (TTL)` ((#ttl))
+### Time to Live (TTL) ((#ttl))
 
 These checks retain their last known state
 for a given TTL. The state of the check must be updated periodically over the HTTP
@@ -515,7 +512,7 @@ For a complete listing of all check options, refer to the
    in a service definition file (e.g., `deregister_critical_service_after`)
    or an HTTP API JSON request body (e.g., `DeregisterCriticalServiceAfter`).
 
-### General Options
+#### General Options
 
 - `name` `(string: <required>)` - Specifies the name of the check.
 
@@ -547,7 +544,7 @@ For a complete listing of all check options, refer to the
   For more information, refer to the
   [service-bound checks](#service-bound-checks) section.
 
-- `status` `(string: "") - Specifies the initial status of the health check as
+- `status` `(string: "")` - Specifies the initial status of the health check as
    "critical" (default), "warning", or "passing". For more details, refer to
    the [initial health check status](#initial-health-check-status) section.
   
@@ -576,7 +573,7 @@ For a complete listing of all check options, refer to the
 
   For Alias checks, this token is used if a remote blocking query is necessary to watch the state of the aliased node or service.
 
-### Success/Failures before passing/warning/critical
+#### Success/Failures before passing/warning/critical
 
 To prevent flapping health checks, and limit the load they cause on the cluster,
 a health check may be configured to become passing/warning/critical only after a
